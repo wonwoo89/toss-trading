@@ -62,6 +62,7 @@ export function useSymbolTrading(
     setBuyingPower?: (value?: number) => void;
     currentPrice?: number;
     effectiveAccountPollingEnabled?: boolean;
+    effectiveMarketPollingEnabled?: boolean;
   } = {}
 ) {
   const {
@@ -70,6 +71,7 @@ export function useSymbolTrading(
     setBuyingPower,
     currentPrice,
     effectiveAccountPollingEnabled = true,
+    effectiveMarketPollingEnabled = true,
   } = options;
 
   const [sellableQuantity, setSellableQuantity] = useState<number>();
@@ -97,6 +99,14 @@ export function useSymbolTrading(
     intervalMs: CLOSED_ORDERS_POLL_MS,
     enabled: effectiveAccountPollingEnabled && !!symbol,
     resetKey: `closed-orders:${accountSeq ?? ''}:${symbol ?? ''}`,
+  });
+
+  const marketPolling = usePolling({
+    fetcher: marketFetcher,
+    intervalMs: MARKET_POLL_MS,
+    enabled: effectiveMarketPollingEnabled,
+    resetKey: symbol ?? '',
+    options: { initialDelayMs: MARKET_INITIAL_DELAY_MS },
   });
 
   // UI preference 상태 (candle interval, take profit rate) 도 훅 소유
@@ -534,5 +544,7 @@ export function useSymbolTrading(
     handleTakeProfitRateChange,
     commissions: commissionsPolling.data,
     closedOrdersState: closedOrdersPolling.data,
+    marketData: marketPolling.data,
+    refreshMarketNow: marketPolling.refreshNow,
   };
 }

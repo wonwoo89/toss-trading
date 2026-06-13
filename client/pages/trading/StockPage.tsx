@@ -92,7 +92,6 @@ export function StockPage() {
     refreshPortfolioHoldings,
     refreshPortfolioOpenOrders,
     refreshBuyingPower,
-    marketFetcher,
     holdingSummary,
     portfolioTotals,
     candleInterval,
@@ -101,6 +100,8 @@ export function StockPage() {
     handleTakeProfitRateChange,
     commissions,
     closedOrdersState,
+    marketData,
+    refreshMarketNow,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -161,13 +162,7 @@ export function StockPage() {
     options: { initialDelayMs: PORTFOLIO_INITIAL_DELAY_MS },
   });
 
-  const { data: marketData, refreshNow: refreshMarketNow } = usePolling({
-    fetcher: marketFetcher,
-    intervalMs: MARKET_POLL_MS,
-    enabled: effectiveMarketPollingEnabled,
-    resetKey: symbol ?? '',
-    options: { initialDelayMs: MARKET_INITIAL_DELAY_MS },
-  });
+
 
 
 
