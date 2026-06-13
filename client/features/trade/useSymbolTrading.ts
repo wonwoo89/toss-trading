@@ -77,7 +77,7 @@ export function getCachedOpenOrders(accountSeq?: string) {
   return getPortfolioCache(accountSeq)?.openOrders ?? [];
 }
 
-// 향후 Symbol별 trade 상태(holding, openOrders, sellable 등)를 관리할 커스텀 훅의 시작점
+// Symbol trading hook (per-symbol + portfolio state, all pollings/refresh/snapshot encapsulated)
 export interface SymbolTradingOptions {
   symbol?: string;
   accountSeq?: string;
@@ -197,7 +197,7 @@ export function useSymbolTrading(
     setStoredTakeProfitRate(rate);
   }, []);
 
-  // symbol meta (이름, 경고) 도 훅이 소유 (이전 StockPage의 loadStockMeta 이동)
+  // symbol meta load (이름, 경고) — encapsulated here
   const [stockName, setStockName] = useState<string>();
   const [warnings, setWarnings] = useState<string[]>([]);
 
@@ -360,7 +360,7 @@ export function useSymbolTrading(
     return { totalMarketValue, totalProfitLoss, totalProfitLossRate };
   }, [portfolioHoldings]);
 
-  // portfolio total 동기화 (이전 StockPage useEffect 이동)
+  // portfolio total 동기화 to context (for header etc)
   useEffect(() => {
     if (setTotalMarketValue) {
       setTotalMarketValue(portfolioTotals.totalMarketValue);
