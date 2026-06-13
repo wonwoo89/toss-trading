@@ -578,10 +578,7 @@ export function useSymbolTrading(
 
       // cancel 후 포트폴리오/트레이드 동기화 (이전 StockPage handleCancel 로직 이동)
       await refreshPortfolioOpenOrders(accountSeq);
-      await Promise.all([
-        refreshBuyingPower(accountSeq),
-        refreshPortfolioHoldings(),
-      ]);
+      await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
 
       if (symbol) {
         await refreshTrade();
