@@ -98,6 +98,33 @@ export function MarketPanel({
   const [orderbookExpanded, setOrderbookExpanded] = useState(false);
 
   const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids]);
+
+  // 가격 변동 flash (UI/UX) — best bid/ask 실시간 변화 하이라이트
+  const [prevBestBid, setPrevBestBid] = useState<number | undefined>();
+  const [prevBestAsk, setPrevBestAsk] = useState<number | undefined>();
+  const [bidFlash, setBidFlash] = useState<'up' | 'down' | null>(null);
+  const [askFlash, setAskFlash] = useState<'up' | 'down' | null>(null);
+
+  const bestBid = spread.bestBid;
+  const bestAsk = spread.bestAsk;
+
+  useEffect(() => {
+    if (bestBid != null && prevBestBid != null && bestBid !== prevBestBid) {
+      setBidFlash(bestBid > prevBestBid ? 'up' : 'down');
+      const t = setTimeout(() => setBidFlash(null), 700);
+      return () => clearTimeout(t);
+    }
+    if (bestBid != null) setPrevBestBid(bestBid);
+  }, [bestBid]);
+
+  useEffect(() => {
+    if (bestAsk != null && prevBestAsk != null && bestAsk !== prevBestAsk) {
+      setAskFlash(bestAsk > prevBestAsk ? 'up' : 'down');
+      const t = setTimeout(() => setAskFlash(null), 700);
+      return () => clearTimeout(t);
+    }
+    if (bestAsk != null) setPrevBestAsk(bestAsk);
+  }, [bestAsk]);
   const tradeFlow = useMemo(() => buildTradeFlowSnapshot(trades, bids, asks), [asks, bids, trades]);
 
   return (
@@ -176,11 +203,19 @@ export function MarketPanel({
           <div className="orderbook-summary__metrics" aria-live="polite">
             <span className="orderbook-summary__metric orderbook-summary__metric--bearish">
               <span className="orderbook-summary__metric-label">매도 1호가</span>
-              <span className="orderbook-summary__metric-value">{formatUsd(spread.bestAsk)}</span>
+              <span
+                className={`orderbook-summary__metric-value ${askFlash ? `price-flash-${askFlash}` : ''}`}
+              >
+                {formatUsd(spread.bestAsk)}
+              </span>
             </span>
             <span className="orderbook-summary__metric orderbook-summary__metric--bullish">
               <span className="orderbook-summary__metric-label">매수 1호가</span>
-              <span className="orderbook-summary__metric-value">{formatUsd(spread.bestBid)}</span>
+              <span
+                className={`orderbook-summary__metric-value ${bidFlash ? `price-flash-${bidFlash}` : ''}`}
+              >
+                {formatUsd(spread.bestBid)}
+              </span>
             </span>
             <span className={`orderbook-summary__metric ${getMetricBiasClass(spread.bias)}`}>
               <span className="orderbook-summary__metric-label">{spread.label}</span>
