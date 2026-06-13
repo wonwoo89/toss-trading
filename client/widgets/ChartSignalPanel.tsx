@@ -4,7 +4,7 @@ import {
   type ChartSignalBias,
   type ChartSignalLevel,
 } from "../shared/lib/chartSignals';
-import type { ChartCandle } from '../types';
+import type { ChartCandle } from '../shared/types';
 
 interface OrderbookEntry {
   quantity: number;

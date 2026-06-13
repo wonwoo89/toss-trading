@@ -7,9 +7,9 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api } from '../shared/api/client';
-import { toNumber, unwrapResult } from "../shared/lib/parse';
-import type { Account } from '../types';
+import { api } from '../../shared/api/client';
+import { toNumber, unwrapResult } from '../../shared/lib/parse';
+import type { Account } from '../../shared/types';
 
 interface AppContextValue {
   accounts: Account[];

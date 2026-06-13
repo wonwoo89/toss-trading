@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../shared/api/client';
 import { MarketPanel } from "../widgets/MarketPanel';
@@ -6,60 +6,19 @@ import { OrderForm } from "../widgets/OrderForm';
 import { PortfolioSidebar } from "../widgets/PortfolioSidebar';
 
 import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
-import { usePolling } from '../../shared/hooks/usePolling';
 import {
-  MARKET_POLL_MS,
-  MARKET_CALENDAR_POLL_MS,
-  COMMISSIONS_POLL_MS,
-  CLOSED_ORDERS_POLL_MS,
-  CANDLE_POLL_MS,
-  TRADE_POLL_MS,
   HOLDINGS_POLL_MS,
-  MARKET_INITIAL_DELAY_MS,
-  CANDLE_INITIAL_DELAY_MS,
-  TRADE_INITIAL_DELAY_MS,
-  PORTFOLIO_INITIAL_DELAY_MS,
-  getCachedHoldings,
-  getCachedOpenOrders,
   useSymbolTrading,
 } from '../../shared/hooks/useSymbolTrading';
-import { shouldEnableRecurringMarketPolling } from '../../shared/lib/usMarketCalendar';
-import { getStoredCandleInterval, setStoredCandleInterval } from '../../shared/lib/candleIntervalPreference';
-import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../../shared/lib/takeProfitRatePreference';
 
 import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
-import { mapHoldings, mapOrders, resolveLiveProfitLoss } from '../../shared/lib/mapPortfolio';
-import {
-  setPortfolioHoldings as savePortfolioHoldings,
-  setPortfolioOpenOrders as savePortfolioOpenOrders,
-  upsertPortfolioHolding,
-} from '../../shared/lib/portfolioCache';
-import {
-  getOpenOrdersSignature,
-  refreshOpenOrdersAfterCancel,
-  refreshOpenOrdersAfterCreate,
-} from '../../shared/lib/refreshOpenOrders';
-import {
-  fetchTradeSnapshotState,
-  fetchTradeSnapshotWithRetry,
-  type TradeSnapshotState,
-} from '../../shared/lib/tradeSnapshot';
 import { resolveUsCommissionRatePercent } from '../../shared/lib/commissionBreakEven';
-import {
-  calculateTakeProfitSellPrice,
-  getTakeProfitCostContext,
-  resolveTakeProfitSellQuantity,
-  waitForTakeProfitSnapshot,
-} from '../../shared/lib/takeProfitSell';
-import { toNumber, unwrapResult } from '../../shared/lib/parse';
+import { unwrapResult } from '../../shared/lib/parse';
 import type {
-  CandleInterval,
   CreateOrderPayload,
-  HoldingItem,
-  Order,
   OrderSubmitOptions,
   OrderSubmitResult,
-} from '../types';
+} from '../../shared/types';
 
 export function StockPage() {
   // 1. 상태(state) or hook
@@ -108,58 +67,14 @@ export function StockPage() {
     hasMoreHistory,
     loadOlderCandles,
     refreshCandlesNow,
+    usMarketCalendar,
+    usMarketCalendarError,
+    usMarketCalendarLoading,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
     setBuyingPower,
   });
-
-  const {
-    data: usMarketCalendar,
-    error: usMarketCalendarError,
-    loading: usMarketCalendarLoading,
-  } = usePolling({
-    fetcher: calendarFetcher,
-    intervalMs: MARKET_CALENDAR_POLL_MS,
-    enabled: isReady,
-    resetKey: 'us-market-calendar',
-  });
-
-  const [initialLoadPhase, setInitialLoadPhase] = useState(true);
-
-  const effectiveMarketPollingEnabled = useMemo(() => {
-    if (!isReady || !hasSymbol) return false;
-    if (initialLoadPhase) return true;
-    return shouldEnableRecurringMarketPolling(usMarketCalendar?.today);
-  }, [isReady, hasSymbol, usMarketCalendar?.today, initialLoadPhase]);
-
-  const effectiveAccountPollingEnabled = useMemo(() => {
-    if (!isReady || !selectedAccountSeq) return false;
-    if (initialLoadPhase) return true;
-    return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today);
-  }, [isReady, selectedAccountSeq, usMarketCalendar?.today, initialLoadPhase]);
-
-
-
-  const { refreshNow: refreshTradeNow } = usePolling({
-    fetcher: refreshTrade,
-    intervalMs: TRADE_POLL_MS,
-    enabled: effectiveMarketPollingEnabled && Boolean(selectedAccountSeq),
-    resetKey: `${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
-    options: { initialDelayMs: TRADE_INITIAL_DELAY_MS },
-  });
-
-  const { refreshing: portfolioHoldingsRefreshing } = usePolling({
-    fetcher: refreshPortfolioHoldings,
-    intervalMs: HOLDINGS_POLL_MS,
-    enabled: effectiveAccountPollingEnabled,
-    resetKey: `holdings:${selectedAccountSeq ?? ''}`,
-    options: { initialDelayMs: PORTFOLIO_INITIAL_DELAY_MS },
-  });
-
-
-
-
 
   // 2. 일반 const
   const averagePrice = holding && holding.quantity > 0 ? holding.averagePrice : undefined;
@@ -230,9 +145,6 @@ export function StockPage() {
   );
 
   // 3. 함수 (메소드 & 핸들러) - get/set/on/handle 접두사로 목적 명확히
-  const calendarFetcher = useCallback(async () => {
-    return unwrapResult(await api.getUsMarketCalendar());
-  }, []);
 
 
 
@@ -245,7 +157,6 @@ export function StockPage() {
     options?: OrderSubmitOptions
   ): Promise<OrderSubmitResult> => {
     const accountSeq = requireAccountSeq();
-    const openOrdersBaselineSignature = getOpenOrdersSignature(portfolioOpenOrders);
 
     const result = await submitOrder(payload, options, {
       refreshMarketNow,
@@ -265,14 +176,12 @@ export function StockPage() {
     const accountSeq = requireAccountSeq();
 
     await cancelOrder(orderId);
-    await refreshOpenOrdersAfterCancelForAccount({ accountSeq, cancelledOrderId: orderId });
+    await refreshPortfolioOpenOrders(accountSeq);
     await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
 
     if (!symbol) return;
 
-    // 훅의 refreshTrade가 fetch + apply를 담당
     await refreshTrade();
-    refreshTradeNow();
   };
 
   // 4. useEffect (side effect 로직은 return 직전)
@@ -340,11 +249,6 @@ export function StockPage() {
     layoutRef.current?.focus({ preventScroll: true });
   }, [symbol]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setInitialLoadPhase(false), 8000);
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
     <>
       <main
@@ -399,7 +303,7 @@ export function StockPage() {
           openOrders={portfolioOpenOrders}
           activeSymbol={symbol}
           holdingsPollIntervalMs={HOLDINGS_POLL_MS}
-          holdingsRefreshing={portfolioHoldingsRefreshing}
+          holdingsRefreshing={false}
           onCancelOrder={handleCancelOrder}
         />
       </main>

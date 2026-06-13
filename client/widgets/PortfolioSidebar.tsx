@@ -3,7 +3,7 @@ import { OpenOrdersPanel } from './OpenOrdersPanel';
 import { PortfolioStats } from './PortfolioStats';
 import { StockLabel } from './StockLabel';
 import { formatProfitLoss, formatUsd, getKrProfitLossClass } from "../shared/lib/formatHoldings';
-import type { HoldingItem, Order } from '../types';
+import type { HoldingItem, Order } from '../shared/types';
 
 interface PortfolioSidebarProps {
   buyingPower?: number;

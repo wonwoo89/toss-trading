@@ -16,7 +16,7 @@ import {
   type HoldingItem,
   type Order,
   type UsMarketDayRaw,
-} from '../types';
+} from '../shared/types';
 
 interface OrderbookEntry {
   price: number;
