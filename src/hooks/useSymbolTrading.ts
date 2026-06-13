@@ -1,12 +1,13 @@
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import {
   getPortfolioCache,
+  upsertPortfolioHolding,
 } from '../lib/portfolioCache'
 import {
   sortHoldingsByMarketValue,
 } from '../lib/mapPortfolio'
 import { fetchTradeSnapshotState } from '../lib/tradeSnapshot'
-import type { TradeSnapshotState } from '../lib/tradeSnapshot'
+import type { HoldingItem, Order, TradeSnapshotState } from '../types'
 
 // Symbol trading 관련 폴링 주기 상수
 export const MARKET_POLL_MS = 250
@@ -38,38 +39,59 @@ export interface SymbolTradingOptions {
   accountSeq?: string
 }
 
-export function useSymbolTrading(options: SymbolTradingOptions & {
-  onTradeSnapshot?: (state: TradeSnapshotState) => void
-} = {}) {
-  const { symbol, accountSeq, onTradeSnapshot } = options
+export function useSymbolTrading(options: SymbolTradingOptions = {}) {
+  const { symbol, accountSeq } = options
+
+  const [sellableQuantity, setSellableQuantity] = useState<number>()
+  const [holding, setHolding] = useState<HoldingItem>()
+  const [openOrders, setOpenOrders] = useState<Order[]>([])
 
   const tradeRefreshSeqRef = useRef(0)
 
   const applyTradeSnapshot = useCallback((state: TradeSnapshotState) => {
-    // polling 경로는 refreshTrade 내부에서 seq 보호
-    // 수동 호출(주문 후)에서는 그대로 적용
-    onTradeSnapshot?.(state)
-  }, [onTradeSnapshot])
+    setSellableQuantity(state.sellableQuantity)
+    setHolding(state.holding)
+    setOpenOrders(state.openOrders)
+
+    if (accountSeq) {
+      if (state.holding && state.holding.quantity > 0) {
+        upsertPortfolioHolding(accountSeq, state.holding)
+      } else {
+        upsertPortfolioHolding(accountSeq, {
+          symbol: symbol ?? '',
+          quantity: 0,
+        })
+      }
+    }
+  }, [accountSeq, symbol])
 
   const refreshTrade = useCallback(async () => {
     if (!accountSeq || !symbol) return
 
     const seq = ++tradeRefreshSeqRef.current
     const state = await fetchTradeSnapshotState(symbol, accountSeq)
-    // 내부 seq 보호 후 적용
     if (seq === tradeRefreshSeqRef.current) {
-      onTradeSnapshot?.(state)
+      applyTradeSnapshot(state)
     }
     return state
-  }, [accountSeq, symbol, onTradeSnapshot])
+  }, [accountSeq, symbol, applyTradeSnapshot])
 
-  // 현재는 기존 헬퍼들을 노출. 이후 커밋에서 상태(useState), useEffect, refresh 로직을 점진적으로 이동할 예정
+  const resetTradeState = useCallback(() => {
+    setSellableQuantity(undefined)
+    setHolding(undefined)
+    setOpenOrders([])
+  }, [])
+
   return {
     symbol,
     accountSeq,
+    sellableQuantity,
+    holding,
+    openOrders,
     getCachedHoldings: () => getCachedHoldings(accountSeq),
     getCachedOpenOrders: () => getCachedOpenOrders(accountSeq),
     refreshTrade,
     applyTradeSnapshot,
+    resetTradeState,
   }
 }
