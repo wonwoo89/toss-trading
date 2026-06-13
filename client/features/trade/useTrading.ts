@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useSymbolTrading } from './useSymbolTrading';
 import { useRequireAccountSeq } from '../../app/providers/AppContext';
 import {
@@ -26,19 +27,22 @@ export function useTrading(options: UseTradingOptions = {}) {
 
   const requireAccountSeq = useRequireAccountSeq();
 
-  // Feature 전용 thin actions (require + 로직 캡슐화)
-  const createOrder = (
-    payload: CreateOrderPayload,
-    opts?: OrderSubmitOptions
-  ): Promise<OrderSubmitResult> => {
-    requireAccountSeq();
-    return data.submitOrder(payload, opts);
-  };
+  // Feature 전용 thin actions (require + 로직 캡슐화) — useCallback for stability (convention)
+  const createOrder = useCallback(
+    (payload: CreateOrderPayload, opts?: OrderSubmitOptions): Promise<OrderSubmitResult> => {
+      requireAccountSeq();
+      return data.submitOrder(payload, opts);
+    },
+    [requireAccountSeq, data.submitOrder]
+  );
 
-  const cancelOrder = async (orderId: string) => {
-    requireAccountSeq();
-    await data.cancelOrder(orderId);
-  };
+  const cancelOrder = useCallback(
+    async (orderId: string) => {
+      requireAccountSeq();
+      await data.cancelOrder(orderId);
+    },
+    [requireAccountSeq, data.cancelOrder]
+  );
 
   // Feature가 제공하는 public API (page는 이걸 통해서만 trading 관련 데이터를 받는다)
   return {
