@@ -6,7 +6,6 @@ import { OrderForm } from "../widgets/OrderForm';
 import { PortfolioSidebar } from "../widgets/PortfolioSidebar';
 
 import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
-import { useChartCandles } from '../../shared/hooks/useChartCandles';
 import { usePolling } from '../../shared/hooks/usePolling';
 import {
   MARKET_POLL_MS,
@@ -102,6 +101,13 @@ export function StockPage() {
     closedOrdersState,
     marketData,
     refreshMarketNow,
+    candles,
+    candlesError,
+    candlesLoading,
+    candlesLoadingOlder,
+    hasMoreHistory,
+    loadOlderCandles,
+    refreshCandlesNow,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -133,18 +139,7 @@ export function StockPage() {
     return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today);
   }, [isReady, selectedAccountSeq, usMarketCalendar?.today, initialLoadPhase]);
 
-  const {
-    candles,
-    error: candlesError,
-    loading: candlesLoading,
-    loadingOlder: candlesLoadingOlder,
-    hasMoreHistory,
-    loadOlder: loadOlderCandles,
-    refreshNow: refreshCandlesNow,
-  } = useChartCandles(symbol ?? '', candleInterval, effectiveMarketPollingEnabled, {
-    pollIntervalMs: CANDLE_POLL_MS,
-    initialDelayMs: CANDLE_INITIAL_DELAY_MS,
-  });
+
 
   const { refreshNow: refreshTradeNow } = usePolling({
     fetcher: refreshTrade,
