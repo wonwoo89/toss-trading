@@ -5,6 +5,7 @@ import {
   selectHoldingBySymbol,
   selectOpenOrdersBySymbol,
   formatHoldingValue,
+  computePortfolioSummary,
   type Position,
 } from '../../entities/position';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
@@ -70,6 +71,9 @@ export function useTrading(options: UseTradingOptions = {}) {
         data.marketPanelProps?.currentPrice
       ),
     } satisfies Position,
+
+    // Sidebar-friendly summary using entity (raw lists still available for full lists)
+    portfolioSummary: computePortfolioSummary(data.portfolioHoldings),
 
     // (추가 노출 최소화 — page는 bags와 enriched로 충분)
   };
