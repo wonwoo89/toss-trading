@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { OpenOrdersPanel } from './OpenOrdersPanel';
 import { PortfolioStats } from './PortfolioStats';
@@ -31,6 +32,28 @@ export function PortfolioSidebar({
   onCancelOrder,
 }: PortfolioSidebarProps) {
   const navigate = useNavigate();
+
+  // 보유 종목 가치/PL 실시간 flash (UI/UX)
+  const prevValuesRef = useRef<Record<string, number>>({});
+  const [flashes, setFlashes] = useState<Record<string, 'up' | 'down'>>({});
+
+  useEffect(() => {
+    const nextFlashes: Record<string, 'up' | 'down'> = {};
+    holdings.forEach((item) => {
+      const prev = prevValuesRef.current[item.symbol];
+      const curr = item.marketValue ?? 0;
+      if (prev != null && curr !== prev) {
+        nextFlashes[item.symbol] = curr > prev ? 'up' : 'down';
+      }
+      prevValuesRef.current[item.symbol] = curr;
+    });
+
+    if (Object.keys(nextFlashes).length > 0) {
+      setFlashes(nextFlashes);
+      const t = setTimeout(() => setFlashes({}), 700);
+      return () => clearTimeout(t);
+    }
+  }, [holdings]);
 
   const goToStock = (symbol: string) => {
     navigate(`/stock/${symbol}`);
@@ -76,7 +99,9 @@ export function PortfolioSidebar({
                     >
                       <div className="portfolio-holding-item__main">
                         <StockLabel symbol={item.symbol} />
-                        <span className="portfolio-holding-item__value">
+                        <span
+                          className={`portfolio-holding-item__value ${flashes[item.symbol] ? `price-flash-${flashes[item.symbol]}` : ''}`}
+                        >
                           {formatUsd(item.marketValue)}
                         </span>
                       </div>
