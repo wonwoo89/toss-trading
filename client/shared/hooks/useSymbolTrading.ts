@@ -75,12 +75,13 @@ export interface SymbolTradingOptions {
 export function useSymbolTrading(
   options: SymbolTradingOptions & {
     setBuyingPower?: (value?: number) => void;
+    setTotalMarketValue?: (value?: number) => void;
     currentPrice?: number;
     effectiveAccountPollingEnabled?: boolean;
     effectiveMarketPollingEnabled?: boolean;
   } = {}
 ) {
-  const { symbol, accountSeq, setBuyingPower, currentPrice } = options;
+  const { symbol, accountSeq, setBuyingPower, setTotalMarketValue, currentPrice } = options;
 
   const { isReady: contextIsReady, buyingPower: contextBuyingPower } = useAppContext();
 
@@ -341,6 +342,13 @@ export function useSymbolTrading(
 
     return { totalMarketValue, totalProfitLoss, totalProfitLossRate };
   }, [portfolioHoldings]);
+
+  // portfolio total 동기화 (이전 StockPage useEffect 이동)
+  useEffect(() => {
+    if (setTotalMarketValue) {
+      setTotalMarketValue(portfolioTotals.totalMarketValue);
+    }
+  }, [portfolioTotals.totalMarketValue, setTotalMarketValue]);
 
   const tradeRefreshSeqRef = useRef(0);
 
