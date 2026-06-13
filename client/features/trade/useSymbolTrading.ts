@@ -237,17 +237,17 @@ export function useSymbolTrading(
     if (isClosed && closedMarketDone) return undefined;
     try {
       const snap = unwrapResult(await api.getMarketSnapshot(symbol));
-      const p = snap.price?.[0] as any;
+      const p = snap.price?.[0];
       const ob = snap.orderbook;
       return {
-        bids: (ob?.bids ?? []).map((b: any) => ({ price: b.price, quantity: b.quantity })),
-        asks: (ob?.asks ?? []).map((a: any) => ({ price: a.price, quantity: a.quantity })),
-        trades: (snap.trades ?? []).map((t: any) => ({
+        bids: (ob?.bids ?? []).map((b: { price: number; quantity: number }) => ({ price: b.price, quantity: b.quantity })),
+        asks: (ob?.asks ?? []).map((a: { price: number; quantity: number }) => ({ price: a.price, quantity: a.quantity })),
+        trades: (snap.trades ?? []).map((t: { price: number; quantity: number; timestamp: string }) => ({
           price: t.price,
           quantity: t.quantity,
           timestamp: t.timestamp,
         })),
-        price: p?.price ?? p?.lastPrice,
+        price: (p as any)?.price ?? (p as any)?.lastPrice,
       };
     } catch {
       return undefined;
