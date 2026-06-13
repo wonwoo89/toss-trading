@@ -131,7 +131,7 @@ export function StockPage() {
 
     const cached = getPortfolioCache(selectedAccountSeq)
     if (cached) {
-      setPortfolioHoldings(sortHoldingsByMarketValue(cached.holdings))
+      setPortfolioHoldings(getCachedHoldings(selectedAccountSeq))
       setPortfolioOpenOrders(cached.openOrders)
     }
   }, [selectedAccountSeq, setTotalMarketValue])
