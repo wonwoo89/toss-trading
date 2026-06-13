@@ -106,6 +106,7 @@ export function StockPage() {
     openOrders,
     refreshTrade,
     applyTradeSnapshot,
+    placeTakeProfitSell,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -415,67 +416,6 @@ export function StockPage() {
     setStoredCandleInterval(interval)
   }, [])
 
-  const placeTakeProfitSell = useCallback(
-    async (
-      accountSeq: string,
-      profitRatePercent: number,
-      boughtQuantity: number | undefined,
-      baselineQuantity: number,
-      state: TradeSnapshotState,
-    ): Promise<OrderSubmitResult['takeProfitSell']> => {
-      const averagePrice = state.holding?.averagePrice
-      const sellQuantity = resolveTakeProfitSellQuantity(
-        boughtQuantity,
-        baselineQuantity,
-        state.holding?.quantity,
-      )
-
-      if (!averagePrice || averagePrice <= 0) {
-        return {
-          placed: false,
-          message: '평단가를 확인하지 못해 목표 수익률 매도 주문을 넣지 못했습니다.',
-        }
-      }
-
-      if (!sellQuantity || sellQuantity <= 0) {
-        return {
-          placed: false,
-          message: '체결 수량을 확인하지 못해 목표 수익률 매도 주문을 넣지 못했습니다.',
-        }
-      }
-
-      const sellPrice = calculateTakeProfitSellPrice(
-        averagePrice,
-        sellQuantity,
-        profitRatePercent,
-        getTakeProfitCostContext(state.holding),
-      )
-
-      const createdOrder = unwrapResult(
-        await api.createOrder(
-          {
-            symbol: symbol.toUpperCase(),
-            side: 'SELL',
-            orderType: 'LIMIT',
-            quantity: sellQuantity,
-            price: sellPrice,
-            clientOrderId: crypto.randomUUID(),
-          },
-          accountSeq,
-        ),
-      )
-
-      return {
-        placed: true,
-        price: sellPrice,
-        quantity: sellQuantity,
-        orderId: createdOrder.orderId,
-        message: `세금·수수료 반영 ${profitRatePercent}% 실수익률 목표가 ${sellPrice.toFixed(2)} USD에 ${sellQuantity}주 매도 주문을 넣었습니다.`,
-      }
-    },
-    [symbol],
-  )
-
   const handleCreateOrder = async (
     payload: CreateOrderPayload,
     options?: OrderSubmitOptions,
@@ -517,7 +457,6 @@ export function StockPage() {
       applyTradeSnapshot(state)
 
       takeProfitSell = await placeTakeProfitSell(
-        accountSeq,
         options.takeProfitSell.profitRatePercent,
         payload.quantity,
         baselineQuantity,
