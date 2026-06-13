@@ -575,8 +575,26 @@ export function useSymbolTrading(
     async (orderId: string) => {
       if (!accountSeq) return;
       await api.cancelOrder(orderId, accountSeq);
+
+      // cancel 후 포트폴리오/트레이드 동기화 (이전 StockPage handleCancel 로직 이동)
+      await refreshPortfolioOpenOrders(accountSeq);
+      await Promise.all([
+        refreshBuyingPower(accountSeq),
+        refreshPortfolioHoldings(),
+      ]);
+
+      if (symbol) {
+        await refreshTrade();
+      }
     },
-    [accountSeq]
+    [
+      accountSeq,
+      symbol,
+      refreshPortfolioOpenOrders,
+      refreshBuyingPower,
+      refreshPortfolioHoldings,
+      refreshTrade,
+    ]
   );
 
   // 포트폴리오 리프레시 함수들 (이제 훅 내부에서 set* 호출)

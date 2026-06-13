@@ -24,7 +24,6 @@ export function StockPage() {
   const {
     portfolioHoldings,
     portfolioOpenOrders,
-    refreshTrade,
     cancelOrder,
     submitOrder,
     refreshPortfolioHoldings,
@@ -62,15 +61,8 @@ export function StockPage() {
   };
 
   const handleCancelOrder = async (orderId: string) => {
-    const accountSeq = requireAccountSeq();
-
+    requireAccountSeq(); // 계좌 확인 (에러 throw 목적)
     await cancelOrder(orderId);
-    await refreshPortfolioOpenOrders(accountSeq);
-    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
-
-    if (!symbol) return;
-
-    await refreshTrade();
   };
 
   // 4. useEffect (side effect 로직은 return 직전)
