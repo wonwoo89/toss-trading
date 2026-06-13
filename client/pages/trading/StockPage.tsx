@@ -35,24 +35,10 @@ export function StockPage() {
     refreshBuyingPower,
     holdingSummary,
     portfolioTotals,
-    candleInterval,
     takeProfitRatePercent,
-    handleCandleIntervalChange,
     handleTakeProfitRateChange,
-    commissions,
-    closedOrdersState,
-    marketData,
     refreshMarketNow,
-    candles,
-    candlesError,
-    candlesLoading,
-    candlesLoadingOlder,
-    hasMoreHistory,
-    loadOlderCandles,
     refreshCandlesNow,
-    usMarketCalendar,
-    usMarketCalendarError,
-    usMarketCalendarLoading,
     marketPanelProps,
     commissionRatePercent,
   } = useSymbolTrading({
@@ -139,7 +125,7 @@ export function StockPage() {
               <section className="order-column">
                 <OrderForm
                   symbol={symbol}
-                  currentPrice={marketData?.price}
+                  currentPrice={marketPanelProps.currentPrice}
                   buyingPower={buyingPower}
                   sellableQuantity={sellableQuantity}
                   holdingQuantity={holdingSummary?.quantity}
@@ -150,13 +136,14 @@ export function StockPage() {
                   takeProfitRatePercent={takeProfitRatePercent}
                   onTakeProfitRateChange={handleTakeProfitRateChange}
                   commissionRatePercent={commissionRatePercent}
-                  candles={candles}
-                  candleInterval={candleInterval}
-                  bids={marketData?.bids}
-                  asks={marketData?.asks}
-                  trades={marketData?.trades}
-                  holding={holding && holding.quantity > 0 ? holding : undefined}
-                  openOrders={openOrders}
+                  candles={marketPanelProps.candles}
+                  candleInterval={marketPanelProps.candleInterval}
+                  onCandleIntervalChange={marketPanelProps.onCandleIntervalChange}
+                  bids={marketPanelProps.bids}
+                  asks={marketPanelProps.asks}
+                  trades={marketPanelProps.trades}
+                  holding={marketPanelProps.holding}
+                  openOrders={marketPanelProps.openOrders}
                   onSubmit={handleCreateOrder}
                 />
               </section>
