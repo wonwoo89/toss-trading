@@ -1,4 +1,4 @@
-import { sortHoldingsByMarketValue } from './mapPortfolio';
+import { sortHoldingsByMarketValue } from '../../entities/position';
 import type { HoldingItem, Order } from '../types';
 
 interface PortfolioSnapshot {

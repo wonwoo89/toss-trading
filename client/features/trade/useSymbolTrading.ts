@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePolling } from '../../shared/hooks/usePolling';
 import { useChartCandles } from '../../shared/hooks/useChartCandles';
-import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
+import { useAppContext } from '../../app/providers/AppContext';
 import { api } from '../../shared/api/client';
 import { getPortfolioCache, upsertPortfolioHolding } from '../../shared/lib/portfolioCache';
 import {
@@ -9,7 +9,7 @@ import {
   mapOrders,
   resolveLiveProfitLoss,
   sortHoldingsByMarketValue,
-} from '../../shared/lib/mapPortfolio';
+} from '../../entities/position';
 import {
   fetchTradeSnapshotState,
   fetchTradeSnapshotWithRetry,
@@ -32,7 +32,6 @@ import {
 import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
 import {
   getOpenOrdersSignature,
-  refreshOpenOrdersAfterCancel,
   refreshOpenOrdersAfterCreate,
 } from '../../shared/lib/refreshOpenOrders';
 import {
@@ -92,7 +91,6 @@ export function useSymbolTrading(
   const { symbol, accountSeq, setBuyingPower, setTotalMarketValue, currentPrice } = options;
 
   const { isReady: contextIsReady, buyingPower: contextBuyingPower } = useAppContext();
-  const requireAccountSeq = useRequireAccountSeq();
 
   // 주말/휴장 가드와 initial phase 를 훅 내부에서 완전 관리
   const calendarFetcher = useCallback(async () => {
