@@ -50,17 +50,13 @@ function roundUsd(price: number) {
 }
 
 function getBestBid(bids: OrderbookLevel[]) {
-  const prices = bids
-    .map((bid) => bid.price)
-    .filter((p) => Number.isFinite(p) && p > 0);
+  const prices = bids.map((bid) => bid.price).filter((p) => Number.isFinite(p) && p > 0);
   if (prices.length === 0) return undefined;
   return Math.max(...prices);
 }
 
 function getBestAsk(asks: OrderbookLevel[]) {
-  const prices = asks
-    .map((ask) => ask.price)
-    .filter((p) => Number.isFinite(p) && p > 0);
+  const prices = asks.map((ask) => ask.price).filter((p) => Number.isFinite(p) && p > 0);
   if (prices.length === 0) return undefined;
   return Math.min(...prices);
 }
@@ -146,13 +142,7 @@ function calculateAtr(candles: ChartCandle[]) {
     const l = current.low;
     const pc = previous.close;
     if (!Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(pc)) continue;
-    trueRanges.push(
-      Math.max(
-        h - l,
-        Math.abs(h - pc),
-        Math.abs(l - pc)
-      )
-    );
+    trueRanges.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
   }
 
   const recent = trueRanges.filter((v) => Number.isFinite(v)).slice(-ATR_PERIOD);

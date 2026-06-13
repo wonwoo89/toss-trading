@@ -51,9 +51,14 @@ export function useTrading(options: UseTradingOptions = {}) {
     portfolioOpenOrders: data.portfolioOpenOrders,
     portfolioTotals: data.portfolioTotals,
 
-    // Entity selectors 를 사용한 enriched position data (feature + entity 협력)
+    // Entity selectors + formatters 를 사용한 enriched position data (feature + entity 협력)
     currentHolding: selectHoldingBySymbol(data.portfolioHoldings, symbol),
     currentOpenOrders: selectOpenOrdersBySymbol(data.portfolioOpenOrders, symbol),
+    positionSummary: formatPositionSummary(data.portfolioHoldings),
+    currentHoldingValue: formatHoldingValue(
+      selectHoldingBySymbol(data.portfolioHoldings, symbol),
+      data.marketPanelProps?.currentPrice
+    ),
 
     // 필요한 경우 추가 노출 (현재는 최소화)
     refreshPortfolioHoldings: data.refreshPortfolioHoldings,
