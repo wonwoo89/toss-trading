@@ -25,9 +25,6 @@ export function StockPage() {
     portfolioOpenOrders,
     cancelOrder,
     submitOrder,
-    refreshPortfolioHoldings,
-    refreshPortfolioOpenOrders,
-    refreshBuyingPower,
     portfolioTotals,
     marketPanelProps,
     orderFormProps,
@@ -46,11 +43,7 @@ export function StockPage() {
   ): Promise<OrderSubmitResult> => {
     requireAccountSeq(); // 계좌 선택 확인 (훅 내부에서 에러 throw)
 
-    const result = await submitOrder(payload, options, {
-      refreshBuyingPower,
-      refreshPortfolioHoldings,
-      refreshPortfolioOpenOrders,
-    });
+    const result = await submitOrder(payload, options);
 
     return result;
   };
