@@ -71,6 +71,7 @@ export function buildSpreadSnapshot(
   const percentText = spreadPercent !== undefined ? ` (${spreadPercent.toFixed(3)}%)` : '';
 
   return {
+    id: 'spread',
     bestBid,
     bestAsk,
     spread,
@@ -149,6 +150,7 @@ export function buildTradeFlowSnapshot(
   else if (buyRatio <= 0.4) bias = 'bearish';
 
   return {
+    id: 'trade-flow',
     buyVolume,
     sellVolume,
     buyRatio,

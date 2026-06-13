@@ -117,10 +117,7 @@ export function StockPage() {
             <>
               <MarketPanel {...marketPanelProps} />
               <section className="order-column">
-                <OrderForm
-                  {...orderFormProps}
-                  onSubmit={handleCreateOrder}
-                />
+                <OrderForm {...orderFormProps} onSubmit={handleCreateOrder} />
               </section>
             </>
           ) : (
