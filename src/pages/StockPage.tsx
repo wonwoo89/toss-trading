@@ -112,6 +112,22 @@ export function StockPage() {
     accountSeq: selectedAccountSeq,
   })
 
+  // 주말/휴장 폴링 가드를 일찍 선언 (useChartCandles 등에서 사용하기 때문에 선언 순서 중요)
+  const calendarFetcher = useCallback(async () => {
+    return unwrapResult(await api.getUsMarketCalendar())
+  }, [])
+
+  const {
+    data: usMarketCalendar,
+    error: usMarketCalendarError,
+    loading: usMarketCalendarLoading,
+  } = usePolling(calendarFetcher, MARKET_CALENDAR_POLL_MS, isReady, 'us-market-calendar')
+
+  const marketPollingEnabled = useMemo(() => {
+    if (!isReady || !hasSymbol) return false
+    return shouldEnableRecurringMarketPolling(usMarketCalendar?.today)
+  }, [isReady, hasSymbol, usMarketCalendar?.today])
+
   useEffect(() => {
     if (!symbol) return
     setLastSelectedSymbol(symbol)
@@ -327,20 +343,6 @@ export function StockPage() {
   const calendarFetcher = useCallback(async () => {
     return unwrapResult(await api.getUsMarketCalendar())
   }, [])
-
-  const {
-    data: usMarketCalendar,
-    error: usMarketCalendarError,
-    loading: usMarketCalendarLoading,
-  } = usePolling(calendarFetcher, MARKET_CALENDAR_POLL_MS, isReady, 'us-market-calendar')
-
-  // 주말/휴장 시 과도한 폴링 방지
-  // - 캘린더가 로드되기 전에는 초기 데이터 요청을 허용 (랜딩 시)
-  // - 주말 또는 holiday로 확인되면 recurring polling 중단
-  const marketPollingEnabled = useMemo(() => {
-    if (!isReady || !hasSymbol) return false
-    return shouldEnableRecurringMarketPolling(usMarketCalendar?.today)
-  }, [isReady, hasSymbol, usMarketCalendar?.today])
 
   const commissionsFetcher = useCallback(async () => {
     if (!selectedAccountSeq) return []
