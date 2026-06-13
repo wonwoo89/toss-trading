@@ -15,7 +15,10 @@ export function selectOpenOrdersBySymbol(openOrders: Order[], symbol?: string) {
 }
 
 // Basic formatters (moved/added for entity ownership)
-export function formatHoldingValue(holding: HoldingItem | undefined, currentPrice?: number): string {
+export function formatHoldingValue(
+  holding: HoldingItem | undefined,
+  currentPrice?: number
+): string {
   if (!holding || holding.quantity <= 0) return '—';
   const price = currentPrice ?? holding.marketValue ?? holding.averagePrice ?? 0;
   const value = holding.quantity * price;
@@ -29,7 +32,10 @@ export function formatPositionSummary(holdings: HoldingItem[]): {
 } {
   const active = holdings.filter((h) => h.quantity > 0);
   const totalQuantity = active.reduce((sum, h) => sum + h.quantity, 0);
-  const totalValue = active.reduce((sum, h) => sum + (h.marketValue ?? h.quantity * (h.averagePrice ?? 0)), 0);
+  const totalValue = active.reduce(
+    (sum, h) => sum + (h.marketValue ?? h.quantity * (h.averagePrice ?? 0)),
+    0
+  );
   return {
     totalQuantity,
     totalValue,

@@ -60,8 +60,7 @@ export function useTrading(options: UseTradingOptions = {}) {
       data.marketPanelProps?.currentPrice
     ),
 
-    // 필요한 경우 추가 노출 (현재는 최소화)
-    refreshPortfolioHoldings: data.refreshPortfolioHoldings,
+    // (추가 노출 최소화 — page는 bags와 enriched로 충분)
   };
 }
 
