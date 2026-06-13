@@ -39,6 +39,7 @@ export function StockPage() {
     symbol,
     accountSeq: selectedAccountSeq,
     setBuyingPower,
+    setTotalMarketValue,
   });
 
   // 3. 함수 (메소드 & 핸들러) - get/set/on/handle 접두사로 목적 명확히
@@ -56,9 +57,6 @@ export function StockPage() {
       refreshPortfolioHoldings,
       refreshPortfolioOpenOrders,
     });
-
-    // 최종 포트폴리오 오픈오더 refresh (훅 외부 UI 동기화)
-    await refreshPortfolioOpenOrders(accountSeq);
 
     return result;
   };
@@ -89,11 +87,6 @@ export function StockPage() {
     // portfolio 상태는 이제 훅이 소유하므로, 필요시 훅의 refresh 호출
     void refreshPortfolioHoldings();
   }, [selectedAccountSeq, refreshPortfolioHoldings]);
-
-  useEffect(() => {
-    const total = portfolioHoldings.reduce((sum, item) => sum + (item.marketValue ?? 0), 0);
-    setTotalMarketValue(total);
-  }, [portfolioHoldings, setTotalMarketValue]);
 
   // 포트폴리오 오픈오더 초기 로드는 훅 내부 또는 다른 곳에서 (initial phase 가드 적용됨)
 
