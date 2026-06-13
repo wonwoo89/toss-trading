@@ -12,6 +12,7 @@ import {
   calculateTakeProfitSellPrice,
   getTakeProfitCostContext,
   resolveTakeProfitSellQuantity,
+  waitForTakeProfitSnapshot,
 } from '../lib/takeProfitSell'
 import { unwrapResult } from '../lib/parse'
 import type {
@@ -168,6 +169,49 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     [symbol, accountSeq],
   )
 
+  const executePostBuyTakeProfit = useCallback(
+    async (
+      profitRatePercent: number,
+      boughtQuantity: number | undefined,
+      baselineQuantity: number,
+      initialState: TradeSnapshotState,
+    ): Promise<OrderSubmitResult['takeProfitSell']> => {
+      let currentState = initialState
+
+      // waitForTakeProfitSnapshot은 hook 내부에서 처리 (랜딩 시 초기 요청은 허용하되, 주말 가드는 상위에서 이미 적용됨)
+      if (!canPlaceTakeProfitSell(boughtQuantity, baselineQuantity, currentState.holding?.averagePrice, currentState.holding?.quantity)) {
+        currentState = await waitForTakeProfitSnapshot(
+          () => fetchTradeSnapshotState(symbol!, accountSeq!),
+          boughtQuantity,
+          baselineQuantity,
+          initialState,
+        )
+        applyTradeSnapshot(currentState)
+      }
+
+      const result = await placeTakeProfitSell(
+        profitRatePercent,
+        boughtQuantity,
+        baselineQuantity,
+        currentState,
+      )
+
+      return result
+    },
+    [symbol, accountSeq, applyTradeSnapshot, placeTakeProfitSell],
+  )
+
+  // 작은 헬퍼 (takeProfitSell.ts에서 re-export 하지 않고 여기서 간단 사용)
+  function canPlaceTakeProfitSell(
+    boughtQuantity: number | undefined,
+    baselineQuantity: number,
+    averagePrice?: number,
+    nextQuantity?: number,
+  ) {
+    const sellQuantity = resolveTakeProfitSellQuantity(boughtQuantity, baselineQuantity, nextQuantity)
+    return Boolean(averagePrice && averagePrice > 0 && sellQuantity && sellQuantity > 0)
+  }
+
   return {
     symbol,
     accountSeq,
@@ -179,5 +223,6 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     refreshTrade,
     applyTradeSnapshot,
     placeTakeProfitSell,
+    executePostBuyTakeProfit,
   }
 }
