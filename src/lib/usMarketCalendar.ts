@@ -66,6 +66,32 @@ export function formatCountdown(remainingMs: number) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`
 }
 
+export function isUsWeekend(date = new Date()): boolean {
+  // 미국 장 기준 (Eastern Time)으로 주말 여부 판단
+  const etDate = new Date(
+    date.toLocaleString('en-US', { timeZone: 'America/New_York' }),
+  )
+  const day = etDate.getDay()
+  return day === 0 || day === 6 // 0=일요일, 6=토요일
+}
+
+export function isUsMarketHoliday(today: UsMarketDayRaw | undefined): boolean {
+  if (!today) return false
+  const status = resolveUsMarketSession(today)
+  return status.holiday === true || status.kind === 'holiday'
+}
+
+export function shouldEnableRecurringMarketPolling(
+  today: UsMarketDayRaw | undefined,
+): boolean {
+  if (isUsWeekend()) {
+    // 주말이면 calendar 로드 전까지는 초기 요청을 허용하고,
+    // holiday 정보가 오면 폴링 중단
+    return !today || !isUsMarketHoliday(today)
+  }
+  return !isUsMarketHoliday(today)
+}
+
 export function resolveUsMarketSession(
   today: UsMarketDayRaw | undefined,
   now = new Date(),
