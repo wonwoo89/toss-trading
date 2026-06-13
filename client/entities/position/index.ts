@@ -121,4 +121,4 @@ export function sortHoldingsByMarketValue(holdings: HoldingItem[]): HoldingItem[
   });
 }
 
-// 추가 포맷/셀렉터는 formatHoldings 등에서 점진 re-export 또는 entity 내 확장
+// (필요시 formatHoldings 등 범용 포맷은 shared/lib 유지, position 관련은 여기 집중)
