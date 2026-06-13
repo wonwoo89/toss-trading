@@ -22,6 +22,7 @@ import {
   PORTFOLIO_INITIAL_DELAY_MS,
   getCachedHoldings,
   getCachedOpenOrders,
+  useSymbolTrading,
 } from '../hooks/useSymbolTrading'
 import {
   shouldEnableRecurringMarketPolling,
@@ -99,8 +100,32 @@ export function StockPage() {
   const [portfolioOpenOrders, setPortfolioOpenOrders] = useState<Order[]>(() =>
     getCachedOpenOrders(selectedAccountSeq),
   )
-  const tradeRefreshSeqRef = useRef(0)
   const layoutRef = useRef<HTMLElement>(null)
+
+  // trade snapshot 처리를 hook으로 위임 (onTradeSnapshot으로 실제 setState 전달)
+  const {
+    refreshTrade,
+    applyTradeSnapshot,
+  } = useSymbolTrading({
+    symbol,
+    accountSeq: selectedAccountSeq,
+    onTradeSnapshot: (state) => {
+      setSellableQuantity(state.sellableQuantity)
+      setHolding(state.holding)
+      setOpenOrders(state.openOrders)
+
+      if (!selectedAccountSeq) return
+
+      if (state.holding && state.holding.quantity > 0) {
+        upsertPortfolioHolding(selectedAccountSeq, state.holding)
+      } else {
+        upsertPortfolioHolding(selectedAccountSeq, {
+          symbol,
+          quantity: 0,
+        })
+      }
+    },
+  })
 
   useEffect(() => {
     if (!symbol) return
@@ -180,36 +205,7 @@ export function StockPage() {
     initialDelayMs: CANDLE_INITIAL_DELAY_MS,
   })
 
-  const applyTradeSnapshot = useCallback(
-    (state: TradeSnapshotState, seq: number) => {
-      if (seq !== tradeRefreshSeqRef.current) return
 
-      setSellableQuantity(state.sellableQuantity)
-      setHolding(state.holding)
-      setOpenOrders(state.openOrders)
-
-      if (!selectedAccountSeq) return
-
-      if (state.holding && state.holding.quantity > 0) {
-        upsertPortfolioHolding(selectedAccountSeq, state.holding)
-      } else {
-        upsertPortfolioHolding(selectedAccountSeq, {
-          symbol,
-          quantity: 0,
-        })
-      }
-    },
-    [selectedAccountSeq, symbol],
-  )
-
-  const refreshTrade = useCallback(async () => {
-    if (!selectedAccountSeq || !symbol) return
-
-    const seq = ++tradeRefreshSeqRef.current
-    const state = await fetchTradeSnapshotState(symbol, selectedAccountSeq)
-    applyTradeSnapshot(state, seq)
-    return state
-  }, [applyTradeSnapshot, selectedAccountSeq, symbol])
 
   const refreshPortfolioHoldings = useCallback(async () => {
     if (!selectedAccountSeq) return
@@ -524,9 +520,8 @@ export function StockPage() {
     refreshMarketNow()
     refreshCandlesNow()
 
-    let seq = ++tradeRefreshSeqRef.current
     let state = await fetchTradeSnapshotWithRetry(symbol, accountSeq, tradeBaseline)
-    applyTradeSnapshot(state, seq)
+    applyTradeSnapshot(state)
     refreshTradeNow()
     await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()])
 
@@ -539,7 +534,7 @@ export function StockPage() {
         baselineQuantity,
         state,
       )
-      applyTradeSnapshot(state, seq)
+      applyTradeSnapshot(state)
 
       takeProfitSell = await placeTakeProfitSell(
         accountSeq,
@@ -560,9 +555,8 @@ export function StockPage() {
           getPortfolioOpenOrders(accountSeq),
         )
 
-        seq = ++tradeRefreshSeqRef.current
         state = await fetchTradeSnapshotState(symbol, accountSeq)
-        applyTradeSnapshot(state, seq)
+        applyTradeSnapshot(state)
         refreshTradeNow()
         await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()])
         await refreshOpenOrdersAfterCreateForAccount(
@@ -588,9 +582,8 @@ export function StockPage() {
 
     if (!symbol) return
 
-    const seq = ++tradeRefreshSeqRef.current
     const state = await fetchTradeSnapshotState(symbol, accountSeq)
-    applyTradeSnapshot(state, seq)
+    applyTradeSnapshot(state)
     refreshTradeNow()
   }
 
