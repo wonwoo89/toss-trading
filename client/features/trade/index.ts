@@ -9,10 +9,7 @@ export type { UseTradingOptions } from './useTrading';
 export { HOLDINGS_POLL_MS } from '../../shared/hooks/useSymbolTrading';
 
 // Position entity selectors (entities/position 과 협력)
-export {
-  selectHoldingBySymbol,
-  selectOpenOrdersBySymbol,
-} from '../../entities/position';
+export { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
 
 // TODO: useOrderSubmission, useTradeActions 등 feature 전용 훅으로 점진 이동
 // TODO: useSymbolTrading 자체를 이 feature로 이동 고려 중
