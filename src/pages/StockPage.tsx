@@ -143,11 +143,8 @@ export function StockPage() {
       return
     }
 
-    const cached = getPortfolioCache(selectedAccountSeq)
-    if (cached) {
-      setPortfolioHoldings(getCachedHoldings(selectedAccountSeq))
-      setPortfolioOpenOrders(cached.openOrders)
-    }
+    setPortfolioHoldings(getCachedHoldings(selectedAccountSeq))
+    setPortfolioOpenOrders(getCachedOpenOrders(selectedAccountSeq))
   }, [selectedAccountSeq, setTotalMarketValue])
 
   useEffect(() => {
@@ -227,7 +224,7 @@ export function StockPage() {
   }, [selectedAccountSeq])
 
   const getPortfolioOpenOrders = useCallback(
-    (accountSeq: string) => getPortfolioCache(accountSeq)?.openOrders ?? [],
+    (accountSeq: string) => getCachedOpenOrders(accountSeq),
     [],
   )
 
