@@ -65,15 +65,6 @@ export function StockPage() {
   };
 
   // 4. useEffect (side effect 로직은 return 직전)
-  useEffect(() => {
-    if (!selectedAccountSeq) {
-      setTotalMarketValue(undefined);
-      return;
-    }
-    // portfolio 상태는 이제 훅이 소유하므로, 필요시 훅의 refresh 호출
-    void refreshPortfolioHoldings();
-  }, [selectedAccountSeq, refreshPortfolioHoldings]);
-
   // 포트폴리오 오픈오더 초기 로드는 훅 내부 또는 다른 곳에서 (initial phase 가드 적용됨)
 
   useEffect(() => {
