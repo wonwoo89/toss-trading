@@ -184,7 +184,8 @@ export function useSymbolTrading(
 
   // UI preference 상태 (candle interval, take profit rate) 를 먼저 선언 (후속 useChartCandles / pollers 의존)
   const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval);
-  const [takeProfitRatePercent, setTakeProfitRatePercent] = useState<number>(getStoredTakeProfitRate);
+  const [takeProfitRatePercent, setTakeProfitRatePercent] =
+    useState<number>(getStoredTakeProfitRate);
 
   const handleCandleIntervalChange = useCallback((interval: CandleInterval) => {
     setCandleInterval(interval);

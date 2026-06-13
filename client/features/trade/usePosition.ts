@@ -1,11 +1,16 @@
 import { useTrading } from './useTrading';
-import { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
+import {
+  selectHoldingBySymbol,
+  selectOpenOrdersBySymbol,
+  formatHoldingValue,
+  type Position,
+} from '../../entities/position';
 
 interface UsePositionOptions {
   symbol?: string;
 }
 
-export function usePosition(options: UsePositionOptions = {}) {
+export function usePosition(options: UsePositionOptions = {}): Position {
   const { symbol } = options;
 
   const { portfolioHoldings, portfolioOpenOrders } = useTrading({ symbol });
@@ -15,7 +20,8 @@ export function usePosition(options: UsePositionOptions = {}) {
 
   return {
     holding,
-    openOrdersForSymbol: openOrders,
+    openOrders,
     hasPosition: !!holding && holding.quantity > 0,
-  };
+    formattedValue: formatHoldingValue(holding),
+  } satisfies Position;
 }
