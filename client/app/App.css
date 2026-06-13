@@ -976,6 +976,66 @@
   }
 }
 
+/* 가격 실시간 변동 시각적 피드백 (trading UX 핵심) */
+@keyframes price-flash-up {
+  0% {
+    background-color: color-mix(in srgb, var(--color-up) 28%, transparent);
+    color: var(--color-up);
+  }
+  65% {
+    background-color: color-mix(in srgb, var(--color-up) 8%, transparent);
+  }
+  100% {
+    background-color: transparent;
+    color: inherit;
+  }
+}
+
+@keyframes price-flash-down {
+  0% {
+    background-color: color-mix(in srgb, var(--color-down) 28%, transparent);
+    color: var(--color-down);
+  }
+  65% {
+    background-color: color-mix(in srgb, var(--color-down) 8%, transparent);
+  }
+  100% {
+    background-color: transparent;
+    color: inherit;
+  }
+}
+
+.price-flash-up {
+  animation: price-flash-up 650ms ease-out;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+.price-flash-down {
+  animation: price-flash-down 650ms ease-out;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+
+/* 추가 UI/UX 폴리시: 패널/인터랙션 전환 강화 */
+.panel,
+.portfolio-holding-item,
+.order-form button,
+.symbol-search-suggestions button {
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease,
+    color 0.12s ease;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--text-primary) 35%, transparent);
+  outline-offset: 2px;
+}
+
 .price-tag.up,
 .up {
   color: var(--color-up);
