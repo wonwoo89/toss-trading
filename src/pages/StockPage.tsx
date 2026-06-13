@@ -261,7 +261,7 @@ export function StockPage() {
   const { refreshNow: refreshTradeNow } = usePolling(
     refreshTrade,
     TRADE_POLL_MS,
-    accountPollingEnabled && hasSymbol,
+    marketPollingEnabled && Boolean(selectedAccountSeq),
     `${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
     { initialDelayMs: TRADE_INITIAL_DELAY_MS },
   )
@@ -269,7 +269,7 @@ export function StockPage() {
   const { refreshing: portfolioHoldingsRefreshing } = usePolling(
     refreshPortfolioHoldings,
     HOLDINGS_POLL_MS,
-    accountPollingEnabled,
+    accountPollingEnabled && (!usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today)),
     `holdings:${selectedAccountSeq ?? ''}`,
     { initialDelayMs: PORTFOLIO_INITIAL_DELAY_MS },
   )
