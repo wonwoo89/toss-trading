@@ -73,8 +73,6 @@ export function StockPage() {
 
   const [stockName, setStockName] = useState<string>();
   const [warnings, setWarnings] = useState<string[]>([]);
-  const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval);
-  const [takeProfitRatePercent, setTakeProfitRatePercent] = useState(getStoredTakeProfitRate);
   const layoutRef = useRef<HTMLElement>(null);
 
   const {
@@ -99,6 +97,10 @@ export function StockPage() {
     closedOrdersFetcher,
     holdingSummary,
     portfolioTotals,
+    candleInterval,
+    takeProfitRatePercent,
+    handleCandleIntervalChange,
+    handleTakeProfitRateChange,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -258,15 +260,7 @@ export function StockPage() {
 
 
 
-  const handleTakeProfitRateChange = useCallback((rate: number) => {
-    setTakeProfitRatePercent(rate);
-    setStoredTakeProfitRate(rate);
-  }, []);
 
-  const handleCandleIntervalChange = useCallback((interval: CandleInterval) => {
-    setCandleInterval(interval);
-    setStoredCandleInterval(interval);
-  }, []);
 
   const handleCreateOrder = async (
     payload: CreateOrderPayload,

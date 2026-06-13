@@ -10,6 +10,8 @@ import {
   waitForTakeProfitSnapshot,
 } from '../lib/takeProfitSell';
 import { unwrapResult } from '../lib/parse';
+import { getStoredCandleInterval, setStoredCandleInterval } from '../lib/candleIntervalPreference';
+import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../lib/takeProfitRatePreference';
 import {
   getOpenOrdersSignature,
   refreshOpenOrdersAfterCancel,
@@ -73,6 +75,20 @@ export function useSymbolTrading(
   const [portfolioOpenOrders, setPortfolioOpenOrders] = useState<Order[]>(() =>
     getCachedOpenOrders(accountSeq)
   );
+
+  // UI preference 상태 (candle interval, take profit rate) 도 훅 소유
+  const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval);
+  const [takeProfitRatePercent, setTakeProfitRatePercent] = useState(getStoredTakeProfitRate);
+
+  const handleCandleIntervalChange = useCallback((interval: CandleInterval) => {
+    setCandleInterval(interval);
+    setStoredCandleInterval(interval);
+  }, []);
+
+  const handleTakeProfitRateChange = useCallback((rate: number) => {
+    setTakeProfitRatePercent(rate);
+    setStoredTakeProfitRate(rate);
+  }, []);
 
   const holdingSummary = useMemo(() => {
     if (!holding || holding.quantity <= 0) return undefined;
@@ -489,5 +505,9 @@ export function useSymbolTrading(
     refreshBuyingPower,
     holdingSummary,
     portfolioTotals,
+    candleInterval,
+    takeProfitRatePercent,
+    handleCandleIntervalChange,
+    handleTakeProfitRateChange,
   };
 }
