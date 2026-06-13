@@ -36,7 +36,7 @@ export function StockPage() {
   });
 
   // 4. useEffect (side effect 로직은 return 직전)
-  // 포트폴리오 오픈오더 초기 로드는 훅 내부 또는 다른 곳에서 (initial phase 가드 적용됨)
+  // (focus 관련은 UI 관심사로 page에 남겨둠)
 
   useEffect(() => {
     const searchInput = document.getElementById('symbol-search');
