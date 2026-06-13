@@ -223,11 +223,6 @@ export function StockPage() {
     savePortfolioOpenOrders(targetAccountSeq, mapped)
   }, [selectedAccountSeq])
 
-  const getPortfolioOpenOrders = useCallback(
-    (accountSeq: string) => getCachedOpenOrders(accountSeq),
-    [],
-  )
-
   const refreshOpenOrdersAfterCreateForAccount = useCallback(
     async (
       accountSeq: string,
@@ -237,24 +232,24 @@ export function StockPage() {
     ) => {
       await refreshOpenOrdersAfterCreate(
         () => refreshPortfolioOpenOrders(accountSeq),
-        () => getPortfolioOpenOrders(accountSeq),
+        () => getCachedOpenOrders(accountSeq),
         baselineSignature,
         createdOrderId,
         orderType,
       )
     },
-    [getPortfolioOpenOrders, refreshPortfolioOpenOrders],
+    [refreshPortfolioOpenOrders],
   )
 
   const refreshOpenOrdersAfterCancelForAccount = useCallback(
     async (accountSeq: string, cancelledOrderId: string) => {
       await refreshOpenOrdersAfterCancel(
         () => refreshPortfolioOpenOrders(accountSeq),
-        () => getPortfolioOpenOrders(accountSeq),
+        () => getCachedOpenOrders(accountSeq),
         cancelledOrderId,
       )
     },
-    [getPortfolioOpenOrders, refreshPortfolioOpenOrders],
+    [refreshPortfolioOpenOrders],
   )
 
   const { refreshNow: refreshTradeNow } = usePolling(
