@@ -337,10 +337,6 @@ export function StockPage() {
     { initialDelayMs: MARKET_INITIAL_DELAY_MS },
   )
 
-  const calendarFetcher = useCallback(async () => {
-    return unwrapResult(await api.getUsMarketCalendar())
-  }, [])
-
   const commissionsFetcher = useCallback(async () => {
     if (!selectedAccountSeq) return []
     return unwrapResult(await api.getCommissions(selectedAccountSeq))
