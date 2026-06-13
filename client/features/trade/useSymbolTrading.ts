@@ -577,8 +577,8 @@ export function useSymbolTrading(
 
   // 주문 직후 공통으로 수행하는 trade snapshot refresh (호출부에서 withRetry + baseline 를 넘겨 사용)
   const refreshTradeAfterOrder = useCallback(
-    async (baseline: TradeSnapshotState) => {
-      if (!accountSeq || !symbol) return undefined as any;
+    async (baseline: TradeSnapshotState): Promise<TradeSnapshotState | undefined> => {
+      if (!accountSeq || !symbol) return undefined;
       const state = await fetchTradeSnapshotWithRetry(symbol, accountSeq, baseline);
       applyTradeSnapshot(state);
       return state;
