@@ -10,6 +10,11 @@ import {
   waitForTakeProfitSnapshot,
 } from '../lib/takeProfitSell';
 import { unwrapResult } from '../lib/parse';
+import {
+  getOpenOrdersSignature,
+  refreshOpenOrdersAfterCancel,
+  refreshOpenOrdersAfterCreate,
+} from '../lib/refreshOpenOrders';
 import type {
   CreateOrderPayload,
   HoldingItem,
@@ -288,6 +293,37 @@ export function useSymbolTrading(
     [accountSeq]
   );
 
+  const refreshOpenOrdersAfterCreateForAccount = useCallback(
+    async (params: {
+      accountSeq: string;
+      baselineSignature: string;
+      createdOrderId?: string;
+      orderType?: 'LIMIT' | 'MARKET';
+    }) => {
+      const { accountSeq, baselineSignature, createdOrderId, orderType = 'LIMIT' } = params;
+      await refreshOpenOrdersAfterCreate(
+        () => refreshPortfolioOpenOrders(accountSeq),
+        () => getCachedOpenOrders(accountSeq),
+        baselineSignature,
+        createdOrderId,
+        orderType
+      );
+    },
+    [refreshPortfolioOpenOrders]
+  );
+
+  const refreshOpenOrdersAfterCancelForAccount = useCallback(
+    async (params: { accountSeq: string; cancelledOrderId: string }) => {
+      const { accountSeq, cancelledOrderId } = params;
+      await refreshOpenOrdersAfterCancel(
+        () => refreshPortfolioOpenOrders(accountSeq),
+        () => getCachedOpenOrders(accountSeq),
+        cancelledOrderId
+      );
+    },
+    [refreshPortfolioOpenOrders]
+  );
+
   const refreshBuyingPower = useCallback(
     async (accSeq: string) => {
       const buyingPowerRes = await api.getBuyingPower(accSeq).catch(() => null);
@@ -305,7 +341,6 @@ export function useSymbolTrading(
       payload: CreateOrderPayload,
       options?: OrderSubmitOptions,
       sideEffects?: {
-        refreshOpenOrdersAfterCreateForAccount?: (p: any) => Promise<void>;
         refreshMarketNow?: () => void;
         refreshCandlesNow?: () => void;
         refreshBuyingPower?: (acc: string) => Promise<void>;
@@ -320,14 +355,12 @@ export function useSymbolTrading(
 
       const created = unwrapResult(await api.createOrder(payload, acc));
 
-      if (sideEffects?.refreshOpenOrdersAfterCreateForAccount) {
-        await sideEffects.refreshOpenOrdersAfterCreateForAccount({
-          accountSeq: acc,
-          baselineSignature: baselineSig,
-          createdOrderId: created.orderId,
-          orderType: payload.orderType,
-        });
-      }
+      await refreshOpenOrdersAfterCreateForAccount({
+        accountSeq: acc,
+        baselineSignature: baselineSig,
+        createdOrderId: created.orderId,
+        orderType: payload.orderType,
+      });
 
       sideEffects?.refreshMarketNow?.();
       sideEffects?.refreshCandlesNow?.();
@@ -352,12 +385,12 @@ export function useSymbolTrading(
               : '목표 수익률 매도 주문 실패',
         }));
 
-        if (tp?.placed && sideEffects?.refreshOpenOrdersAfterCreateForAccount) {
+        if (tp?.placed) {
           const before = getOpenOrdersSignature(getCachedOpenOrders(acc));
           await refreshTrade();
           if (sideEffects?.refreshBuyingPower) await sideEffects.refreshBuyingPower(acc);
           if (sideEffects?.refreshPortfolioHoldings) await sideEffects.refreshPortfolioHoldings();
-          await sideEffects.refreshOpenOrdersAfterCreateForAccount({
+          await refreshOpenOrdersAfterCreateForAccount({
             accountSeq: acc,
             baselineSignature: before,
             createdOrderId: tp.orderId,
