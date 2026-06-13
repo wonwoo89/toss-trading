@@ -14,7 +14,7 @@ import {
   getSystemTheme,
   setStoredTheme,
   type ThemeMode,
-} from "../shared/lib/themePreference';
+} from '../../shared/lib/themePreference';
 
 interface ThemeContextValue {
   theme: ThemeMode;

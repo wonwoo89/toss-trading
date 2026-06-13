@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePolling } from './usePolling';
 import { useChartCandles } from './useChartCandles';
+import { useAppContext } from '../../app/providers/AppContext';
 import { api } from '../api/client';
 import { getPortfolioCache, upsertPortfolioHolding } from '../lib/portfolioCache';
 import { mapHoldings, resolveLiveProfitLoss, sortHoldingsByMarketValue } from '../lib/mapPortfolio';
@@ -19,6 +20,7 @@ import {
   refreshOpenOrdersAfterCancel,
   refreshOpenOrdersAfterCreate,
 } from '../lib/refreshOpenOrders';
+import { shouldEnableRecurringMarketPolling } from '../lib/usMarketCalendar';
 import type {
   CreateOrderPayload,
   HoldingItem,
@@ -26,6 +28,7 @@ import type {
   OrderSubmitOptions,
   OrderSubmitResult,
   TradeSnapshotState,
+  UsMarketDayRaw,
 } from '../types';
 
 // Symbol trading 관련 폴링 주기 상수
@@ -66,14 +69,43 @@ export function useSymbolTrading(
     effectiveMarketPollingEnabled?: boolean;
   } = {}
 ) {
+  const { symbol, accountSeq, setBuyingPower, currentPrice } = options;
+
+  const { isReady: contextIsReady } = useAppContext();
+
+  // 주말/휴장 가드와 initial phase 를 훅 내부에서 완전 관리
+  const calendarFetcher = useCallback(async () => {
+    return unwrapResult(await api.getUsMarketCalendar());
+  }, []);
+
   const {
-    symbol,
-    accountSeq,
-    setBuyingPower,
-    currentPrice,
-    effectiveAccountPollingEnabled = true,
-    effectiveMarketPollingEnabled = true,
-  } = options;
+    data: usMarketCalendar,
+    error: usMarketCalendarError,
+    loading: usMarketCalendarLoading,
+  } = usePolling({
+    fetcher: calendarFetcher,
+    intervalMs: MARKET_CALENDAR_POLL_MS,
+    enabled: contextIsReady,
+    resetKey: 'us-market-calendar',
+  });
+
+  const [initialLoadPhase, setInitialLoadPhase] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setInitialLoadPhase(false), 8000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const effectiveMarketPollingEnabled = useMemo(() => {
+    if (!contextIsReady || !symbol) return false;
+    if (initialLoadPhase) return true;
+    return shouldEnableRecurringMarketPolling(usMarketCalendar?.today);
+  }, [contextIsReady, symbol, usMarketCalendar?.today, initialLoadPhase]);
+
+  const effectiveAccountPollingEnabled = useMemo(() => {
+    if (!contextIsReady || !accountSeq) return false;
+    if (initialLoadPhase) return true;
+    return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today);
+  }, [contextIsReady, accountSeq, usMarketCalendar?.today, initialLoadPhase]);
 
   const [sellableQuantity, setSellableQuantity] = useState<number>();
   const [holding, setHolding] = useState<HoldingItem>();
@@ -559,5 +591,8 @@ export function useSymbolTrading(
     hasMoreHistory: candlesData.hasMoreHistory,
     loadOlderCandles: candlesData.loadOlder,
     refreshCandlesNow: candlesData.refreshNow,
+    usMarketCalendar,
+    usMarketCalendarError,
+    usMarketCalendarLoading,
   };
 }

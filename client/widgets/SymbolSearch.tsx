@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../shared/api/client';
 import { setLastSelectedSymbol } from "../shared/lib/lastSymbolPreference';
-import type { StockInfo } from '../types';
+import type { StockInfo } from '../shared/types';
 
 function looksLikeTicker(value: string) {
   return /^[A-Za-z0-9.^\-]+$/.test(value);
