@@ -125,16 +125,27 @@ export function StockPage() {
     loading: usMarketCalendarLoading,
   } = usePolling(calendarFetcher, MARKET_CALENDAR_POLL_MS, isReady, 'us-market-calendar')
 
-  const marketPollingEnabled = useMemo(() => {
-    if (!isReady || !hasSymbol) return false
-    return shouldEnableRecurringMarketPolling(usMarketCalendar?.today)
-  }, [isReady, hasSymbol, usMarketCalendar?.today])
+  // 최초 랜딩/새로고침 시점에는 1회 데이터 fetch를 강제 (주말/휴장 가드와 무관)
+  // 일정 시간 후에는 recurring polling 가드만 적용
+  const [initialLoadPhase, setInitialLoadPhase] = useState(true)
+  useEffect(() => {
+    const timer = setTimeout(() => setInitialLoadPhase(false), 8000)
+    return () => clearTimeout(timer)
+  }, [])
 
-  // 계좌/포트폴리오 관련 데이터는 주말에도 기본적으로 로드 (포지션 확인 가치 있음)
-  // 시장 데이터(호가/캔들/체결)는 시장 가드 적용
-  const accountPollingEnabled = useMemo(() => {
-    return isReady && Boolean(selectedAccountSeq)
-  }, [isReady, selectedAccountSeq])
+  // market 폴링 enabled: initial phase 동안은 무조건 1회 허용, 이후 closed 가드
+  const effectiveMarketPollingEnabled = useMemo(() => {
+    if (!isReady || !hasSymbol) return false
+    if (initialLoadPhase) return true
+    return shouldEnableRecurringMarketPolling(usMarketCalendar?.today)
+  }, [isReady, hasSymbol, usMarketCalendar?.today, initialLoadPhase])
+
+  // account/snapshot 폴링 enabled: initial phase 동안 1회 허용, 이후 closed 가드
+  const effectiveAccountPollingEnabled = useMemo(() => {
+    if (!isReady || !selectedAccountSeq) return false
+    if (initialLoadPhase) return true
+    return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today)
+  }, [isReady, selectedAccountSeq, usMarketCalendar?.today, initialLoadPhase])
 
   useEffect(() => {
     if (!symbol) return
@@ -200,7 +211,7 @@ export function StockPage() {
     hasMoreHistory,
     loadOlder: loadOlderCandles,
     refreshNow: refreshCandlesNow,
-  } = useChartCandles(symbol ?? '', candleInterval, marketPollingEnabled, {
+  } = useChartCandles(symbol ?? '', candleInterval, effectiveMarketPollingEnabled, {
     pollIntervalMs: CANDLE_POLL_MS,
     initialDelayMs: CANDLE_INITIAL_DELAY_MS,
   })
@@ -261,7 +272,7 @@ export function StockPage() {
   const { refreshNow: refreshTradeNow } = usePolling(
     refreshTrade,
     TRADE_POLL_MS,
-    marketPollingEnabled && Boolean(selectedAccountSeq),
+    effectiveMarketPollingEnabled && Boolean(selectedAccountSeq),
     `${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
     { initialDelayMs: TRADE_INITIAL_DELAY_MS },
   )
@@ -269,7 +280,7 @@ export function StockPage() {
   const { refreshing: portfolioHoldingsRefreshing } = usePolling(
     refreshPortfolioHoldings,
     HOLDINGS_POLL_MS,
-    accountPollingEnabled && (!usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today)),
+    effectiveAccountPollingEnabled,
     `holdings:${selectedAccountSeq ?? ''}`,
     { initialDelayMs: PORTFOLIO_INITIAL_DELAY_MS },
   )
@@ -331,7 +342,7 @@ export function StockPage() {
   const { data: marketData, refreshNow: refreshMarketNow } = usePolling(
     marketFetcher,
     MARKET_POLL_MS,
-    marketPollingEnabled,
+    effectiveMarketPollingEnabled,
     symbol ?? '',
     { initialDelayMs: MARKET_INITIAL_DELAY_MS },
   )
@@ -344,7 +355,7 @@ export function StockPage() {
   const { data: commissions } = usePolling(
     commissionsFetcher,
     COMMISSIONS_POLL_MS,
-    accountPollingEnabled,
+    effectiveAccountPollingEnabled,
     `commissions:${selectedAccountSeq ?? ''}`,
   )
 
@@ -366,7 +377,7 @@ export function StockPage() {
   const { data: closedOrdersState } = usePolling(
     closedOrdersFetcher,
     CLOSED_ORDERS_POLL_MS,
-    accountPollingEnabled && hasSymbol,
+    effectiveAccountPollingEnabled && hasSymbol,
     `closed-orders:${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
   )
 
