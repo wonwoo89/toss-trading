@@ -1,31 +1,22 @@
-import { useSymbolTrading } from '../../shared/hooks/useSymbolTrading'
-import type {
-  CreateOrderPayload,
-  OrderSubmitOptions,
-  OrderSubmitResult,
-} from '../../shared/types'
+import { useSymbolTrading } from '../../shared/hooks/useSymbolTrading';
+import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
 interface UseTradingOptions {
-  symbol?: string
-  accountSeq?: string
-  setBuyingPower?: (value?: number) => void
-  setTotalMarketValue?: (value?: number) => void
+  symbol?: string;
+  accountSeq?: string;
+  setBuyingPower?: (value?: number) => void;
+  setTotalMarketValue?: (value?: number) => void;
 }
 
 export function useTrading(options: UseTradingOptions = {}) {
-  const {
-    symbol,
-    accountSeq,
-    setBuyingPower,
-    setTotalMarketValue,
-  } = options
+  const { symbol, accountSeq, setBuyingPower, setTotalMarketValue } = options;
 
   const data = useSymbolTrading({
     symbol,
     accountSeq,
     setBuyingPower,
     setTotalMarketValue,
-  })
+  });
 
   // Feature가 제공하는 public API (page는 이걸 통해서만 trading 관련 데이터를 받는다)
   return {
@@ -44,7 +35,7 @@ export function useTrading(options: UseTradingOptions = {}) {
 
     // 필요한 경우 추가 노출 (현재는 최소화)
     refreshPortfolioHoldings: data.refreshPortfolioHoldings,
-  }
+  };
 }
 
-export type { UseTradingOptions }
+export type { UseTradingOptions };
