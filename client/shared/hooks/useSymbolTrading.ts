@@ -230,6 +230,17 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     [holding, sellableQuantity, openOrders]
   );
 
+  // 주문 직후 공통으로 수행하는 trade snapshot refresh (호출부에서 withRetry + baseline 를 넘겨 사용)
+  const refreshTradeAfterOrder = useCallback(
+    async (baseline: TradeSnapshotState) => {
+      if (!accountSeq || !symbol) return;
+      const state = await fetchTradeSnapshotWithRetry(symbol, accountSeq, baseline);
+      applyTradeSnapshot(state);
+      return state;
+    },
+    [accountSeq, symbol, applyTradeSnapshot]
+  );
+
   return {
     symbol,
     accountSeq,
@@ -243,5 +254,6 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     placeTakeProfitSell,
     executePostBuyTakeProfit,
     getCurrentTradeSnapshot,
+    refreshTradeAfterOrder,
   };
 }

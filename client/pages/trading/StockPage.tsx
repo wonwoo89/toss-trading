@@ -92,6 +92,7 @@ export function StockPage() {
     placeTakeProfitSell,
     executePostBuyTakeProfit,
     getCurrentTradeSnapshot,
+    refreshTradeAfterOrder,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -439,8 +440,7 @@ export function StockPage() {
     refreshMarketNow();
     refreshCandlesNow();
 
-    let state = await fetchTradeSnapshotWithRetry(symbol, accountSeq, tradeBaseline);
-    applyTradeSnapshot(state);
+    let state = await refreshTradeAfterOrder(tradeBaseline);
     refreshTradeNow();
     await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
 
