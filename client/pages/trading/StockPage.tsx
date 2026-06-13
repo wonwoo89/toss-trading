@@ -93,14 +93,14 @@ export function StockPage() {
     refreshPortfolioOpenOrders,
     refreshBuyingPower,
     marketFetcher,
-    commissionsFetcher,
-    closedOrdersFetcher,
     holdingSummary,
     portfolioTotals,
     candleInterval,
     takeProfitRatePercent,
     handleCandleIntervalChange,
     handleTakeProfitRateChange,
+    commissions,
+    closedOrdersState,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -169,19 +169,7 @@ export function StockPage() {
     options: { initialDelayMs: MARKET_INITIAL_DELAY_MS },
   });
 
-  const { data: commissions } = usePolling({
-    fetcher: commissionsFetcher,
-    intervalMs: COMMISSIONS_POLL_MS,
-    enabled: effectiveAccountPollingEnabled,
-    resetKey: `commissions:${selectedAccountSeq ?? ''}`,
-  });
 
-  const { data: closedOrdersState } = usePolling({
-    fetcher: closedOrdersFetcher,
-    intervalMs: CLOSED_ORDERS_POLL_MS,
-    enabled: effectiveAccountPollingEnabled && hasSymbol,
-    resetKey: `closed-orders:${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
-  });
 
   // 2. 일반 const
   const averagePrice = holding && holding.quantity > 0 ? holding.averagePrice : undefined;

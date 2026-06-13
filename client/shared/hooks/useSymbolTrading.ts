@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { usePolling } from './usePolling';
 import { api } from '../api/client';
 import { getPortfolioCache, upsertPortfolioHolding } from '../lib/portfolioCache';
 import { mapHoldings, resolveLiveProfitLoss, sortHoldingsByMarketValue } from '../lib/mapPortfolio';
@@ -60,9 +61,16 @@ export function useSymbolTrading(
   options: SymbolTradingOptions & {
     setBuyingPower?: (value?: number) => void;
     currentPrice?: number;
+    effectiveAccountPollingEnabled?: boolean;
   } = {}
 ) {
-  const { symbol, accountSeq, setBuyingPower, currentPrice } = options;
+  const {
+    symbol,
+    accountSeq,
+    setBuyingPower,
+    currentPrice,
+    effectiveAccountPollingEnabled = true,
+  } = options;
 
   const [sellableQuantity, setSellableQuantity] = useState<number>();
   const [holding, setHolding] = useState<HoldingItem>();
@@ -75,6 +83,21 @@ export function useSymbolTrading(
   const [portfolioOpenOrders, setPortfolioOpenOrders] = useState<Order[]>(() =>
     getCachedOpenOrders(accountSeq)
   );
+
+  // account data pollings encapsulated in hook
+  const commissionsPolling = usePolling({
+    fetcher: commissionsFetcher,
+    intervalMs: COMMISSIONS_POLL_MS,
+    enabled: effectiveAccountPollingEnabled,
+    resetKey: `commissions:${accountSeq ?? ''}`,
+  });
+
+  const closedOrdersPolling = usePolling({
+    fetcher: closedOrdersFetcher,
+    intervalMs: CLOSED_ORDERS_POLL_MS,
+    enabled: effectiveAccountPollingEnabled && !!symbol,
+    resetKey: `closed-orders:${accountSeq ?? ''}:${symbol ?? ''}`,
+  });
 
   // UI preference 상태 (candle interval, take profit rate) 도 훅 소유
   const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval);
@@ -509,5 +532,7 @@ export function useSymbolTrading(
     takeProfitRatePercent,
     handleCandleIntervalChange,
     handleTakeProfitRateChange,
+    commissions: commissionsPolling.data,
+    closedOrdersState: closedOrdersPolling.data,
   };
 }
