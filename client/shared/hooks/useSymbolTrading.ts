@@ -679,12 +679,7 @@ export function useSymbolTrading(
   const submitOrder = useCallback(
     async (
       payload: CreateOrderPayload,
-      options?: OrderSubmitOptions,
-      sideEffects?: {
-        refreshBuyingPower?: (acc: string) => Promise<void>;
-        refreshPortfolioHoldings?: () => Promise<void>;
-        refreshPortfolioOpenOrders?: (acc?: string) => Promise<void>;
-      }
+      options?: OrderSubmitOptions
     ): Promise<OrderSubmitResult> => {
       const acc = accountSeq!;
       const baselineSig = getOpenOrdersSignature([]); // baseline은 호출부 관리
@@ -705,8 +700,8 @@ export function useSymbolTrading(
       candlesData.refreshNow?.();
 
       let st = await refreshTradeAfterOrder(tradeBase);
-      if (sideEffects?.refreshBuyingPower) await sideEffects.refreshBuyingPower(acc);
-      if (sideEffects?.refreshPortfolioHoldings) await sideEffects.refreshPortfolioHoldings();
+      await refreshBuyingPower(acc);
+      await refreshPortfolioHoldings();
 
       let tp: OrderSubmitResult['takeProfitSell'];
 
@@ -727,8 +722,8 @@ export function useSymbolTrading(
         if (tp?.placed) {
           const before = getOpenOrdersSignature(getCachedOpenOrders(acc));
           await refreshTrade();
-          if (sideEffects?.refreshBuyingPower) await sideEffects.refreshBuyingPower(acc);
-          if (sideEffects?.refreshPortfolioHoldings) await sideEffects.refreshPortfolioHoldings();
+          await refreshBuyingPower(acc);
+          await refreshPortfolioHoldings();
           await refreshOpenOrdersAfterCreateForAccount({
             accountSeq: acc,
             baselineSignature: before,
@@ -738,8 +733,7 @@ export function useSymbolTrading(
         }
       }
 
-      if (sideEffects?.refreshPortfolioOpenOrders)
-        await sideEffects.refreshPortfolioOpenOrders(acc);
+      await refreshPortfolioOpenOrders(acc);
 
       return { takeProfitSell: tp };
     },
@@ -750,6 +744,9 @@ export function useSymbolTrading(
       executePostBuyTakeProfit,
       getCachedOpenOrders,
       refreshTrade,
+      refreshBuyingPower,
+      refreshPortfolioHoldings,
+      refreshPortfolioOpenOrders,
       marketPolling,
       candlesData,
     ]
