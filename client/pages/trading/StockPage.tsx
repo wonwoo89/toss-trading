@@ -6,8 +6,8 @@ import { OrderForm } from "../widgets/OrderForm';
 import { PortfolioSidebar } from "../widgets/PortfolioSidebar';
 
 import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
-import { useChartCandles } from '../hooks/useChartCandles';
-import { usePolling } from '../hooks/usePolling';
+import { useChartCandles } from '../../shared/hooks/useChartCandles';
+import { usePolling } from '../../shared/hooks/usePolling';
 import {
   MARKET_POLL_MS,
   MARKET_CALENDAR_POLL_MS,
@@ -23,7 +23,7 @@ import {
   getCachedHoldings,
   getCachedOpenOrders,
   useSymbolTrading,
-} from '../hooks/useSymbolTrading';
+} from '../../shared/hooks/useSymbolTrading';
 import { shouldEnableRecurringMarketPolling } from '../../shared/lib/usMarketCalendar';
 import { getStoredCandleInterval, setStoredCandleInterval } from '../../shared/lib/candleIntervalPreference';
 import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../../shared/lib/takeProfitRatePreference';
@@ -346,36 +346,7 @@ export function StockPage() {
     };
   }, [symbol]);
 
-  const refreshOpenOrdersAfterCreateForAccount = useCallback(
-    async (params: {
-      accountSeq: string;
-      baselineSignature: string;
-      createdOrderId?: string;
-      orderType?: 'LIMIT' | 'MARKET';
-    }) => {
-      const { accountSeq, baselineSignature, createdOrderId, orderType = 'LIMIT' } = params;
-      await refreshOpenOrdersAfterCreate(
-        () => refreshPortfolioOpenOrders(accountSeq),
-        () => getCachedOpenOrders(accountSeq),
-        baselineSignature,
-        createdOrderId,
-        orderType
-      );
-    },
-    [refreshPortfolioOpenOrders]
-  );
 
-  const refreshOpenOrdersAfterCancelForAccount = useCallback(
-    async (params: { accountSeq: string; cancelledOrderId: string }) => {
-      const { accountSeq, cancelledOrderId } = params;
-      await refreshOpenOrdersAfterCancel(
-        () => refreshPortfolioOpenOrders(accountSeq),
-        () => getCachedOpenOrders(accountSeq),
-        cancelledOrderId
-      );
-    },
-    [refreshPortfolioOpenOrders]
-  );
 
   const handleTakeProfitRateChange = useCallback((rate: number) => {
     setTakeProfitRatePercent(rate);
@@ -395,7 +366,6 @@ export function StockPage() {
     const openOrdersBaselineSignature = getOpenOrdersSignature(portfolioOpenOrders);
 
     const result = await submitOrder(payload, options, {
-      refreshOpenOrdersAfterCreateForAccount: (p) => refreshOpenOrdersAfterCreateForAccount(p),
       refreshMarketNow,
       refreshCandlesNow,
       refreshBuyingPower,
