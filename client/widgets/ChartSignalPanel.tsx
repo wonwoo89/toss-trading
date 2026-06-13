@@ -3,7 +3,7 @@ import {
   buildChartSignalSnapshot,
   type ChartSignalBias,
   type ChartSignalLevel,
-} from "../shared/lib/chartSignals';
+} from '../shared/lib/chartSignals';
 import type { ChartCandle } from '../shared/types';
 
 interface OrderbookEntry {

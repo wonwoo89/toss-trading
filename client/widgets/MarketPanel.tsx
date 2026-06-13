@@ -7,7 +7,7 @@ import {
   buildSpreadSnapshot,
   buildTradeFlowSnapshot,
   type MicrostructureBias,
-} from "../shared/lib/marketMicrostructure';
+} from '../shared/lib/marketMicrostructure';
 import {
   CANDLE_INTERVALS,
   type CandleInterval,

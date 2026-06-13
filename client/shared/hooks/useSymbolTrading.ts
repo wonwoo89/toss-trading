@@ -4,7 +4,12 @@ import { useChartCandles } from './useChartCandles';
 import { useAppContext } from '../../app/providers/AppContext';
 import { api } from '../api/client';
 import { getPortfolioCache, upsertPortfolioHolding } from '../lib/portfolioCache';
-import { mapHoldings, resolveLiveProfitLoss, sortHoldingsByMarketValue } from '../lib/mapPortfolio';
+import {
+  mapHoldings,
+  mapOrders,
+  resolveLiveProfitLoss,
+  sortHoldingsByMarketValue,
+} from '../lib/mapPortfolio';
 import { fetchTradeSnapshotState, fetchTradeSnapshotWithRetry } from '../lib/tradeSnapshot';
 import {
   calculateTakeProfitSellPrice,
@@ -12,7 +17,7 @@ import {
   resolveTakeProfitSellQuantity,
   waitForTakeProfitSnapshot,
 } from '../lib/takeProfitSell';
-import { unwrapResult } from '../lib/parse';
+import { toNumber, unwrapResult } from '../lib/parse';
 import { getStoredCandleInterval, setStoredCandleInterval } from '../lib/candleIntervalPreference';
 import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../lib/takeProfitRatePreference';
 import {
@@ -22,14 +27,15 @@ import {
 } from '../lib/refreshOpenOrders';
 import { shouldEnableRecurringMarketPolling } from '../lib/usMarketCalendar';
 import type {
+  CandleInterval,
+  CommissionRaw,
   CreateOrderPayload,
   HoldingItem,
   Order,
   OrderSubmitOptions,
   OrderSubmitResult,
-  TradeSnapshotState,
-  UsMarketDayRaw,
 } from '../types';
+import type { TradeSnapshotState } from '../lib/tradeSnapshot';
 
 // Symbol trading 관련 폴링 주기 상수
 export const MARKET_POLL_MS = 250;
@@ -107,6 +113,20 @@ export function useSymbolTrading(
     return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today);
   }, [contextIsReady, accountSeq, usMarketCalendar?.today, initialLoadPhase]);
 
+  // UI preference 상태 (candle interval, take profit rate) 를 먼저 선언 (후속 useChartCandles / pollers 의존)
+  const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval);
+  const [takeProfitRatePercent, setTakeProfitRatePercent] = useState(getStoredTakeProfitRate);
+
+  const handleCandleIntervalChange = useCallback((interval: CandleInterval) => {
+    setCandleInterval(interval);
+    setStoredCandleInterval(interval);
+  }, []);
+
+  const handleTakeProfitRateChange = useCallback((rate: number) => {
+    setTakeProfitRatePercent(rate as any);
+    setStoredTakeProfitRate(rate as any);
+  }, []);
+
   const [sellableQuantity, setSellableQuantity] = useState<number>();
   const [holding, setHolding] = useState<HoldingItem>();
   const [openOrders, setOpenOrders] = useState<Order[]>([]);
@@ -120,6 +140,43 @@ export function useSymbolTrading(
   );
 
   // account data pollings encapsulated in hook
+  const commissionsFetcher = useCallback(async () => {
+    if (!accountSeq) return [] as CommissionRaw[];
+    return unwrapResult(await api.getCommissions(accountSeq));
+  }, [accountSeq]);
+
+  const closedOrdersFetcher = useCallback(async () => {
+    if (!accountSeq || !symbol) return { orders: [] as Order[], unavailable: false };
+    try {
+      const res = await api.getOrders({ status: 'CLOSED', symbol }, accountSeq);
+      const orders = mapOrders(unwrapResult(res));
+      return { orders, unavailable: false };
+    } catch {
+      return { orders: [] as Order[], unavailable: true };
+    }
+  }, [accountSeq, symbol]);
+
+  const marketFetcher = useCallback(async () => {
+    if (!symbol) return undefined;
+    try {
+      const snap = unwrapResult(await api.getMarketSnapshot(symbol));
+      const p = snap.price?.[0] as any;
+      const ob = snap.orderbook;
+      return {
+        bids: (ob?.bids ?? []).map((b: any) => ({ price: b.price, quantity: b.quantity })),
+        asks: (ob?.asks ?? []).map((a: any) => ({ price: a.price, quantity: a.quantity })),
+        trades: (snap.trades ?? []).map((t: any) => ({
+          price: t.price,
+          quantity: t.quantity,
+          timestamp: t.timestamp,
+        })),
+        price: p?.price ?? p?.lastPrice,
+      };
+    } catch {
+      return undefined;
+    }
+  }, [symbol]);
+
   const commissionsPolling = usePolling({
     fetcher: commissionsFetcher,
     intervalMs: COMMISSIONS_POLL_MS,
@@ -146,20 +203,6 @@ export function useSymbolTrading(
     pollIntervalMs: CANDLE_POLL_MS,
     initialDelayMs: CANDLE_INITIAL_DELAY_MS,
   });
-
-  // UI preference 상태 (candle interval, take profit rate) 도 훅 소유
-  const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval);
-  const [takeProfitRatePercent, setTakeProfitRatePercent] = useState(getStoredTakeProfitRate);
-
-  const handleCandleIntervalChange = useCallback((interval: CandleInterval) => {
-    setCandleInterval(interval);
-    setStoredCandleInterval(interval);
-  }, []);
-
-  const handleTakeProfitRateChange = useCallback((rate: number) => {
-    setTakeProfitRatePercent(rate);
-    setStoredTakeProfitRate(rate);
-  }, []);
 
   const holdingSummary = useMemo(() => {
     if (!holding || holding.quantity <= 0) return undefined;
@@ -390,7 +433,7 @@ export function useSymbolTrading(
   // 주문 직후 공통으로 수행하는 trade snapshot refresh (호출부에서 withRetry + baseline 를 넘겨 사용)
   const refreshTradeAfterOrder = useCallback(
     async (baseline: TradeSnapshotState) => {
-      if (!accountSeq || !symbol) return;
+      if (!accountSeq || !symbol) return undefined as any;
       const state = await fetchTradeSnapshotWithRetry(symbol, accountSeq, baseline);
       applyTradeSnapshot(state);
       return state;
@@ -446,18 +489,6 @@ export function useSymbolTrading(
         baselineSignature,
         createdOrderId,
         orderType
-      );
-    },
-    [refreshPortfolioOpenOrders]
-  );
-
-  const refreshOpenOrdersAfterCancelForAccount = useCallback(
-    async (params: { accountSeq: string; cancelledOrderId: string }) => {
-      const { accountSeq, cancelledOrderId } = params;
-      await refreshOpenOrdersAfterCancel(
-        () => refreshPortfolioOpenOrders(accountSeq),
-        () => getCachedOpenOrders(accountSeq),
-        cancelledOrderId
       );
     },
     [refreshPortfolioOpenOrders]

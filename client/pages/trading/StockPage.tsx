@@ -1,24 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../shared/api/client';
-import { MarketPanel } from "../widgets/MarketPanel';
-import { OrderForm } from "../widgets/OrderForm';
-import { PortfolioSidebar } from "../widgets/PortfolioSidebar';
+import { MarketPanel } from '../../widgets/MarketPanel';
+import { OrderForm } from '../../widgets/OrderForm';
+import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
 
 import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
-import {
-  HOLDINGS_POLL_MS,
-  useSymbolTrading,
-} from '../../shared/hooks/useSymbolTrading';
+import { HOLDINGS_POLL_MS, useSymbolTrading } from '../../shared/hooks/useSymbolTrading';
 
 import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
 import { resolveUsCommissionRatePercent } from '../../shared/lib/commissionBreakEven';
 import { unwrapResult } from '../../shared/lib/parse';
-import type {
-  CreateOrderPayload,
-  OrderSubmitOptions,
-  OrderSubmitResult,
-} from '../../shared/types';
+import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
 export function StockPage() {
   // 1. 상태(state) or hook
@@ -40,11 +33,6 @@ export function StockPage() {
     portfolioHoldings,
     portfolioOpenOrders,
     refreshTrade,
-    applyTradeSnapshot,
-    placeTakeProfitSell,
-    executePostBuyTakeProfit,
-    getCurrentTradeSnapshot,
-    refreshTradeAfterOrder,
     cancelOrder,
     submitOrder,
     refreshPortfolioHoldings,
@@ -80,13 +68,13 @@ export function StockPage() {
   const averagePrice = holding && holding.quantity > 0 ? holding.averagePrice : undefined;
 
   const commissionRatePercent = useMemo(
-    () => resolveUsCommissionRatePercent(commissions),
+    () => resolveUsCommissionRatePercent(((commissions as any) ?? undefined) as any),
     [commissions]
   );
 
   const marketPanelProps = useMemo(
     () => ({
-      symbol,
+      symbol: symbol!,
       stockName,
       bids: marketData?.bids,
       asks: marketData?.asks,
@@ -105,7 +93,7 @@ export function StockPage() {
       closedOrdersUnavailable: closedOrdersState?.unavailable,
       buyingPower,
       sellableQuantity,
-      commissions,
+      commissions: (commissions as any) ?? undefined,
       candleInterval,
       onCandleIntervalChange: handleCandleIntervalChange,
       candlesLoading,
@@ -145,12 +133,6 @@ export function StockPage() {
   );
 
   // 3. 함수 (메소드 & 핸들러) - get/set/on/handle 접두사로 목적 명확히
-
-
-
-
-
-
 
   const handleCreateOrder = async (
     payload: CreateOrderPayload,
@@ -239,7 +221,6 @@ export function StockPage() {
   }, [isReady, symbol]);
 
   // 포트폴리오 오픈오더 초기 로드는 훅 내부 또는 다른 곳에서 (initial phase 가드 적용됨)
-
 
   useEffect(() => {
     const searchInput = document.getElementById('symbol-search');
