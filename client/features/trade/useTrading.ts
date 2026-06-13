@@ -1,4 +1,4 @@
-import { useSymbolTrading } from '../../shared/hooks/useSymbolTrading';
+import { useSymbolTrading } from './useSymbolTrading';
 import { useRequireAccountSeq } from '../../app/providers/AppContext';
 import { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';

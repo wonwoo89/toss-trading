@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { useRequireAccountSeq } from '../../app/providers/AppContext';
-import { useSymbolTrading } from '../../shared/hooks/useSymbolTrading';
+import { useSymbolTrading } from './useSymbolTrading';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
 interface UseTradeActionsOptions {
