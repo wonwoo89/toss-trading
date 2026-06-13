@@ -1,20 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
 import { useToast } from '../context/ToastContext';
-import { buildBuyBreakEvenHint } from '../lib/commissionBreakEven';
-import { formatUsd } from '../lib/formatHoldings';
-import { buildLimitPriceRecommendation } from '../lib/limitPriceRecommendation';
-import { buildOrderPriceModeRecommendation } from '../lib/orderPriceModeRecommendation';
+import { buildBuyBreakEvenHint } from "../shared/lib/commissionBreakEven';
+import { formatUsd } from "../shared/lib/formatHoldings';
+import { buildLimitPriceRecommendation } from "../shared/lib/limitPriceRecommendation';
+import { buildOrderPriceModeRecommendation } from "../shared/lib/orderPriceModeRecommendation';
 import {
   buildOrderQuantityRecommendation,
   formatQuantityRecommendationValue,
   resolveOrderQuantity,
-} from '../lib/orderQuantityRecommendation';
-import { TAKE_PROFIT_RATE_OPTIONS } from '../lib/takeProfitRatePreference';
-import { buildTakeProfitRateRecommendation } from '../lib/takeProfitRateRecommendation';
+} from "../shared/lib/orderQuantityRecommendation';
+import { TAKE_PROFIT_RATE_OPTIONS } from "../shared/lib/takeProfitRatePreference';
+import { buildTakeProfitRateRecommendation } from "../shared/lib/takeProfitRateRecommendation';
 import type { CandleInterval, ChartCandle, HoldingItem, Order } from '../types';
-import { formatOrderSuccessMessage } from '../lib/formatOrderToast';
-import { ORDER_SIDE_LABEL } from '../lib/labels';
+import { formatOrderSuccessMessage } from "../shared/lib/formatOrderToast';
+import { ORDER_SIDE_LABEL } from "../shared/lib/labels';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../types';
 
 type PriceMode = 'limit' | 'current' | 'market';

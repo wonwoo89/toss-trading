@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../shared/api/client';
-import { MarketPanel } from '../components/MarketPanel';
-import { OrderForm } from '../components/OrderForm';
-import { PortfolioSidebar } from '../components/PortfolioSidebar';
+import { MarketPanel } from "../widgets/MarketPanel';
+import { OrderForm } from "../widgets/OrderForm';
+import { PortfolioSidebar } from "../widgets/PortfolioSidebar';
 
 import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
 import { useChartCandles } from '../hooks/useChartCandles';
@@ -24,35 +24,35 @@ import {
   getCachedOpenOrders,
   useSymbolTrading,
 } from '../hooks/useSymbolTrading';
-import { shouldEnableRecurringMarketPolling } from '../lib/usMarketCalendar';
-import { getStoredCandleInterval, setStoredCandleInterval } from '../lib/candleIntervalPreference';
-import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../lib/takeProfitRatePreference';
+import { shouldEnableRecurringMarketPolling } from '../../shared/lib/usMarketCalendar';
+import { getStoredCandleInterval, setStoredCandleInterval } from '../../shared/lib/candleIntervalPreference';
+import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../../shared/lib/takeProfitRatePreference';
 
-import { setLastSelectedSymbol } from '../lib/lastSymbolPreference';
-import { mapHoldings, mapOrders, resolveLiveProfitLoss } from '../lib/mapPortfolio';
+import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
+import { mapHoldings, mapOrders, resolveLiveProfitLoss } from '../../shared/lib/mapPortfolio';
 import {
   setPortfolioHoldings as savePortfolioHoldings,
   setPortfolioOpenOrders as savePortfolioOpenOrders,
   upsertPortfolioHolding,
-} from '../lib/portfolioCache';
+} from '../../shared/lib/portfolioCache';
 import {
   getOpenOrdersSignature,
   refreshOpenOrdersAfterCancel,
   refreshOpenOrdersAfterCreate,
-} from '../lib/refreshOpenOrders';
+} from '../../shared/lib/refreshOpenOrders';
 import {
   fetchTradeSnapshotState,
   fetchTradeSnapshotWithRetry,
   type TradeSnapshotState,
-} from '../lib/tradeSnapshot';
-import { resolveUsCommissionRatePercent } from '../lib/commissionBreakEven';
+} from '../../shared/lib/tradeSnapshot';
+import { resolveUsCommissionRatePercent } from '../../shared/lib/commissionBreakEven';
 import {
   calculateTakeProfitSellPrice,
   getTakeProfitCostContext,
   resolveTakeProfitSellQuantity,
   waitForTakeProfitSnapshot,
-} from '../lib/takeProfitSell';
-import { toNumber, unwrapResult } from '../lib/parse';
+} from '../../shared/lib/takeProfitSell';
+import { toNumber, unwrapResult } from '../../shared/lib/parse';
 import type {
   CandleInterval,
   CreateOrderPayload,

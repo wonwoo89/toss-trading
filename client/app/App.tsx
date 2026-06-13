@@ -1,5 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
-import { Header } from './components/Header';
+import { Header } from '../widgets/Header';
 import { AppProvider, useAppContext } from './providers/AppContext';
 import { ThemeProvider } from './providers/ThemeContext';
 import { ToastProvider } from './providers/ToastContext';

@@ -3,22 +3,22 @@ import {
   buildAtrMetric,
   buildDayPriceMetrics,
   buildSupportResistanceMetrics,
-} from '../lib/marketAnalytics';
+} from "../shared/lib/marketAnalytics';
 import {
   buildCommissionBreakEvenMetrics,
   resolveUsCommissionRatePercent,
-} from '../lib/commissionBreakEven';
-import { buildHoldingPositionSnapshot } from '../lib/holdingTarget';
+} from "../shared/lib/commissionBreakEven';
+import { buildHoldingPositionSnapshot } from "../shared/lib/holdingTarget';
 import {
   buildSpreadSnapshot,
   buildTradeFlowSnapshot,
   type MicrostructureBias,
-} from '../lib/marketMicrostructure';
-import { buildOrderExecutionMetrics } from '../lib/orderExecutionContext';
-import { buildRecentOrderActivityMetric } from '../lib/orderHistoryContext';
-import { formatUsd } from '../lib/formatHoldings';
-import { formatWarningSummary } from '../lib/warningLabels';
-import { resolveUsMarketSession, type UsMarketSessionKind } from '../lib/usMarketCalendar';
+} from "../shared/lib/marketMicrostructure';
+import { buildOrderExecutionMetrics } from "../shared/lib/orderExecutionContext';
+import { buildRecentOrderActivityMetric } from "../shared/lib/orderHistoryContext';
+import { formatUsd } from "../shared/lib/formatHoldings';
+import { formatWarningSummary } from "../shared/lib/warningLabels';
+import { resolveUsMarketSession, type UsMarketSessionKind } from "../shared/lib/usMarketCalendar';
 import type {
   CandleInterval,
   ChartCandle,

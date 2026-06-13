@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { OpenOrdersPanel } from './OpenOrdersPanel';
 import { PortfolioStats } from './PortfolioStats';
 import { StockLabel } from './StockLabel';
-import { formatProfitLoss, formatUsd, getKrProfitLossClass } from '../lib/formatHoldings';
+import { formatProfitLoss, formatUsd, getKrProfitLossClass } from "../shared/lib/formatHoldings';
 import type { HoldingItem, Order } from '../types';
 
 interface PortfolioSidebarProps {

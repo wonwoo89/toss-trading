@@ -5,7 +5,7 @@ import {
   formatQuantity,
   formatUsd,
   getKrProfitLossClass,
-} from '../lib/formatHoldings';
+} from "../shared/lib/formatHoldings';
 import type { HoldingItem } from '../types';
 
 interface HoldingsPanelProps {

@@ -5,8 +5,8 @@ import {
   getHistoryCandleCount,
   mapApiCandles,
   mergeChartCandles,
-} from '../lib/candles';
-import { unwrapResult } from '../lib/parse';
+} from '../shared/lib/candles';
+import { unwrapResult } from '../shared/lib/parse';
 import type { CandleInterval, ChartCandle } from '../types';
 
 const CANDLE_POLL_MS = 1000;

@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from 'react';
 import { api } from '../shared/api/client';
-import { toNumber, unwrapResult } from '../lib/parse';
+import { toNumber, unwrapResult } from "../shared/lib/parse';
 import type { Account } from '../types';
 
 interface AppContextValue {
