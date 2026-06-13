@@ -107,6 +107,7 @@ export function StockPage() {
     refreshTrade,
     applyTradeSnapshot,
     placeTakeProfitSell,
+    executePostBuyTakeProfit,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -448,15 +449,7 @@ export function StockPage() {
     let takeProfitSell: OrderSubmitResult['takeProfitSell']
 
     if (payload.side === 'BUY' && options?.takeProfitSell) {
-      state = await waitForTakeProfitSnapshot(
-        () => fetchTradeSnapshotState(symbol, accountSeq),
-        payload.quantity,
-        baselineQuantity,
-        state,
-      )
-      applyTradeSnapshot(state)
-
-      takeProfitSell = await placeTakeProfitSell(
+      takeProfitSell = await executePostBuyTakeProfit(
         options.takeProfitSell.profitRatePercent,
         payload.quantity,
         baselineQuantity,
@@ -474,8 +467,7 @@ export function StockPage() {
           getPortfolioOpenOrders(accountSeq),
         )
 
-        state = await fetchTradeSnapshotState(symbol, accountSeq)
-        applyTradeSnapshot(state)
+        await refreshTrade()
         refreshTradeNow()
         await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()])
         await refreshOpenOrdersAfterCreateForAccount(
