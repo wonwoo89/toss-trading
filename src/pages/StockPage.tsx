@@ -130,6 +130,12 @@ export function StockPage() {
     return shouldEnableRecurringMarketPolling(usMarketCalendar?.today)
   }, [isReady, hasSymbol, usMarketCalendar?.today])
 
+  // 계좌/포트폴리오 관련 데이터는 주말에도 기본적으로 로드 (포지션 확인 가치 있음)
+  // 시장 데이터(호가/캔들/체결)는 시장 가드 적용
+  const accountPollingEnabled = useMemo(() => {
+    return isReady && Boolean(selectedAccountSeq)
+  }, [isReady, selectedAccountSeq])
+
   useEffect(() => {
     if (!symbol) return
     setLastSelectedSymbol(symbol)
@@ -255,7 +261,7 @@ export function StockPage() {
   const { refreshNow: refreshTradeNow } = usePolling(
     refreshTrade,
     TRADE_POLL_MS,
-    marketPollingEnabled && Boolean(selectedAccountSeq),
+    accountPollingEnabled && hasSymbol,
     `${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
     { initialDelayMs: TRADE_INITIAL_DELAY_MS },
   )
@@ -263,7 +269,7 @@ export function StockPage() {
   const { refreshing: portfolioHoldingsRefreshing } = usePolling(
     refreshPortfolioHoldings,
     HOLDINGS_POLL_MS,
-    marketPollingEnabled && Boolean(selectedAccountSeq),
+    accountPollingEnabled,
     `holdings:${selectedAccountSeq ?? ''}`,
     { initialDelayMs: PORTFOLIO_INITIAL_DELAY_MS },
   )
@@ -338,7 +344,7 @@ export function StockPage() {
   const { data: commissions } = usePolling(
     commissionsFetcher,
     COMMISSIONS_POLL_MS,
-    marketPollingEnabled && Boolean(selectedAccountSeq),
+    accountPollingEnabled,
     `commissions:${selectedAccountSeq ?? ''}`,
   )
 
@@ -360,7 +366,7 @@ export function StockPage() {
   const { data: closedOrdersState } = usePolling(
     closedOrdersFetcher,
     CLOSED_ORDERS_POLL_MS,
-    marketPollingEnabled && Boolean(selectedAccountSeq) && hasSymbol,
+    accountPollingEnabled && hasSymbol,
     `closed-orders:${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
   )
 
