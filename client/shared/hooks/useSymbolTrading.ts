@@ -102,13 +102,15 @@ export function useSymbolTrading(
 
   const [initialLoadPhase, setInitialLoadPhase] = useState(true);
   const [closedMarketDone, setClosedMarketDone] = useState(false);
+  const [closedCandlesDone, setClosedCandlesDone] = useState(false);
   const [closedAccountDone, setClosedAccountDone] = useState(false);
 
   useEffect(() => {
     // symbol 변경(새 랜딩)마다 초기 phase + closed flags 리셋
-    // 폐장일: market용 1회, account용 1회 각각 보장
+    // 폐장일: live market 1회, candles 1회, account 1회 각각 독립 보장
     setInitialLoadPhase(true);
     setClosedMarketDone(false);
+    setClosedCandlesDone(false);
     setClosedAccountDone(false);
     const timer = setTimeout(() => setInitialLoadPhase(false), 8000);
     return () => clearTimeout(timer);
@@ -119,10 +121,10 @@ export function useSymbolTrading(
     return isUsMarketHoliday(usMarketCalendar?.today);
   }, [usMarketCalendar?.today]);
 
-  const effectiveMarketPollingEnabled = useMemo(() => {
+  const effectiveLiveMarketEnabled = useMemo(() => {
     if (!contextIsReady || !symbol) return false;
     if (isClosed) {
-      // 폐장일: market (시세/차트) 정확히 1회만
+      // 폐장일: live market (price/bids/asks for panels) 정확히 1회만
       return !closedMarketDone;
     }
     if (initialLoadPhase) return true;
@@ -132,6 +134,23 @@ export function useSymbolTrading(
     symbol,
     isClosed,
     closedMarketDone,
+    initialLoadPhase,
+    usMarketCalendar?.today,
+  ]);
+
+  const effectiveCandlesEnabled = useMemo(() => {
+    if (!contextIsReady || !symbol) return false;
+    if (isClosed) {
+      // 폐장일: candles (차트) 정확히 1회만 (독립 보장)
+      return !closedCandlesDone;
+    }
+    if (initialLoadPhase) return true;
+    return shouldEnableRecurringMarketPolling(usMarketCalendar?.today);
+  }, [
+    contextIsReady,
+    symbol,
+    isClosed,
+    closedCandlesDone,
     initialLoadPhase,
     usMarketCalendar?.today,
   ]);
@@ -240,11 +259,7 @@ export function useSymbolTrading(
 
   // 폐장일 account 데이터 (commissions/closedOrders) 1회 후 플래그
   useEffect(() => {
-    if (
-      isClosed &&
-      (commissionsPolling.data || closedOrdersPolling.data) &&
-      !closedAccountDone
-    ) {
+    if (isClosed && (commissionsPolling.data || closedOrdersPolling.data) && !closedAccountDone) {
       setClosedAccountDone(true);
     }
   }, [isClosed, commissionsPolling.data, closedOrdersPolling.data, closedAccountDone]);
@@ -252,22 +267,29 @@ export function useSymbolTrading(
   const marketPolling = usePolling({
     fetcher: marketFetcher,
     intervalMs: MARKET_POLL_MS,
-    enabled: effectiveMarketPollingEnabled,
+    enabled: effectiveLiveMarketEnabled,
     resetKey: symbol ?? '',
     options: { initialDelayMs: MARKET_INITIAL_DELAY_MS },
   });
 
-  // 폐장일 market 1회 후 플래그 (차트/시세 데이터 도착 시)
+  // 폐장일 market 1회 후 플래그 (live price 데이터 도착 시)
   useEffect(() => {
     if (isClosed && marketPolling.data && !closedMarketDone) {
       setClosedMarketDone(true);
     }
   }, [isClosed, marketPolling.data, closedMarketDone]);
 
-  const candlesData = useChartCandles(symbol ?? '', candleInterval, effectiveMarketPollingEnabled, {
+  const candlesData = useChartCandles(symbol ?? '', candleInterval, effectiveCandlesEnabled, {
     pollIntervalMs: CANDLE_POLL_MS,
     initialDelayMs: CANDLE_INITIAL_DELAY_MS,
   });
+
+  // 폐장일 candles 1회 후 플래그 (차트 데이터 도착 시) — candlesData 선언 후에 위치
+  useEffect(() => {
+    if (isClosed && candlesData.candles.length > 0 && !closedCandlesDone) {
+      setClosedCandlesDone(true);
+    }
+  }, [isClosed, candlesData.candles, closedCandlesDone]);
 
   const holdingSummary = useMemo(() => {
     if (!holding || holding.quantity <= 0) return undefined;
