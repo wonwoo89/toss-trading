@@ -108,6 +108,7 @@ export function StockPage() {
     applyTradeSnapshot,
     placeTakeProfitSell,
     executePostBuyTakeProfit,
+    getCurrentTradeSnapshot,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -420,11 +421,7 @@ export function StockPage() {
     const accountSeq = requireAccountSeq()
     const openOrdersBaselineSignature = getOpenOrdersSignature(portfolioOpenOrders)
     const baselineQuantity = holding?.quantity ?? 0
-    const tradeBaseline: TradeSnapshotState = {
-      holding,
-      sellableQuantity,
-      openOrders,
-    }
+    const tradeBaseline = getCurrentTradeSnapshot()
 
     const createdOrder = unwrapResult(await api.createOrder(payload, accountSeq))
     await refreshOpenOrdersAfterCreateForAccount(
