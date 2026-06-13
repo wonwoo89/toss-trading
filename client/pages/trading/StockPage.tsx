@@ -93,6 +93,7 @@ export function StockPage() {
     executePostBuyTakeProfit,
     getCurrentTradeSnapshot,
     refreshTradeAfterOrder,
+    cancelOrder,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -447,12 +448,12 @@ export function StockPage() {
     let takeProfitSell: OrderSubmitResult['takeProfitSell'];
 
     if (payload.side === 'BUY' && options?.takeProfitSell) {
-      takeProfitSell = await executePostBuyTakeProfit(
-        options.takeProfitSell.profitRatePercent,
-        payload.quantity,
+      takeProfitSell = await executePostBuyTakeProfit({
+        profitRatePercent: options.takeProfitSell.profitRatePercent,
+        boughtQuantity: payload.quantity,
         baselineQuantity,
-        state
-      ).catch((error: unknown) => ({
+        initialState: state,
+      }).catch((error: unknown) => ({
         placed: false,
         message:
           error instanceof Error
@@ -483,7 +484,7 @@ export function StockPage() {
   const handleCancelOrder = async (orderId: string) => {
     const accountSeq = requireAccountSeq();
 
-    await api.cancelOrder(orderId, accountSeq);
+    await cancelOrder(orderId);
     await refreshOpenOrdersAfterCancelForAccount({ accountSeq, cancelledOrderId: orderId });
     await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
 
