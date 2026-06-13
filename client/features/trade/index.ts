@@ -4,6 +4,7 @@
 // Trading feature public API (FSD)
 export { useTrading } from './useTrading';
 export type { UseTradingOptions } from './useTrading';
+export type { Position } from '../../entities/position';
 
 export { useTradeActions } from './useTradeActions';
 export { usePosition } from './usePosition';

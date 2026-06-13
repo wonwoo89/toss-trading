@@ -1,6 +1,10 @@
 import { useSymbolTrading } from './useSymbolTrading';
 import { useRequireAccountSeq } from '../../app/providers/AppContext';
-import { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
+import {
+  selectHoldingBySymbol,
+  selectOpenOrdersBySymbol,
+  type Position,
+} from '../../entities/position';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
 interface UseTradingOptions {
@@ -51,14 +55,16 @@ export function useTrading(options: UseTradingOptions = {}) {
     portfolioOpenOrders: data.portfolioOpenOrders,
     portfolioTotals: data.portfolioTotals,
 
-    // Entity selectors + formatters 를 사용한 enriched position data (feature + entity 협력)
-    currentHolding: selectHoldingBySymbol(data.portfolioHoldings, symbol),
-    currentOpenOrders: selectOpenOrdersBySymbol(data.portfolioOpenOrders, symbol),
-    positionSummary: formatPositionSummary(data.portfolioHoldings),
-    currentHoldingValue: formatHoldingValue(
-      selectHoldingBySymbol(data.portfolioHoldings, symbol),
-      data.marketPanelProps?.currentPrice
-    ),
+    // Entity를 활용한 position (feature + entity 협력)
+    position: {
+      holding: selectHoldingBySymbol(data.portfolioHoldings, symbol),
+      openOrders: selectOpenOrdersBySymbol(data.portfolioOpenOrders, symbol),
+      hasPosition: !!selectHoldingBySymbol(data.portfolioHoldings, symbol)?.quantity,
+      formattedValue: formatHoldingValue(
+        selectHoldingBySymbol(data.portfolioHoldings, symbol),
+        data.marketPanelProps?.currentPrice
+      ),
+    } satisfies Position,
 
     // (추가 노출 최소화 — page는 bags와 enriched로 충분)
   };
