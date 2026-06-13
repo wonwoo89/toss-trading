@@ -287,7 +287,9 @@ export function OrderForm({
   );
 
   const recommendedLimitPriceText =
-    limitPriceRecommendation.available && limitPriceRecommendation.price !== undefined
+    limitPriceRecommendation.available &&
+    limitPriceRecommendation.price !== undefined &&
+    Number.isFinite(limitPriceRecommendation.price)
       ? limitPriceRecommendation.price.toFixed(2)
       : undefined;
 
