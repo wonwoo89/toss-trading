@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../../shared/api/client';
-import { getPortfolioCache, upsertPortfolioHolding } from '../shared/lib/portfolioCache';
-import { sortHoldingsByMarketValue } from '../shared/lib/mapPortfolio';
-import { fetchTradeSnapshotState } from '../shared/lib/tradeSnapshot';
+import { api } from '../api/client';
+import { getPortfolioCache, upsertPortfolioHolding } from '../lib/portfolioCache';
+import { sortHoldingsByMarketValue } from '../lib/mapPortfolio';
+import { fetchTradeSnapshotState, fetchTradeSnapshotWithRetry } from '../lib/tradeSnapshot';
 import {
   calculateTakeProfitSellPrice,
   getTakeProfitCostContext,
   resolveTakeProfitSellQuantity,
   waitForTakeProfitSnapshot,
-} from '../shared/lib/takeProfitSell';
-import { unwrapResult } from '../shared/lib/parse';
+} from '../lib/takeProfitSell';
+import { unwrapResult } from '../lib/parse';
 import type {
   CreateOrderPayload,
   HoldingItem,
@@ -168,12 +168,13 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
   );
 
   const executePostBuyTakeProfit = useCallback(
-    async (
-      profitRatePercent: number,
-      boughtQuantity: number | undefined,
-      baselineQuantity: number,
-      initialState: TradeSnapshotState
-    ): Promise<OrderSubmitResult['takeProfitSell']> => {
+    async (params: {
+      profitRatePercent: number;
+      boughtQuantity: number | undefined;
+      baselineQuantity: number;
+      initialState: TradeSnapshotState;
+    }): Promise<OrderSubmitResult['takeProfitSell']> => {
+      const { profitRatePercent, boughtQuantity, baselineQuantity, initialState } = params;
       let currentState = initialState;
 
       // waitForTakeProfitSnapshot은 hook 내부에서 처리 (랜딩 시 초기 요청은 허용하되, 주말 가드는 상위에서 이미 적용됨)
@@ -241,6 +242,14 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     [accountSeq, symbol, applyTradeSnapshot]
   );
 
+  const cancelOrder = useCallback(
+    async (orderId: string) => {
+      if (!accountSeq) return;
+      await api.cancelOrder(orderId, accountSeq);
+    },
+    [accountSeq]
+  );
+
   return {
     symbol,
     accountSeq,
@@ -255,5 +264,6 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     executePostBuyTakeProfit,
     getCurrentTradeSnapshot,
     refreshTradeAfterOrder,
+    cancelOrder,
   };
 }
