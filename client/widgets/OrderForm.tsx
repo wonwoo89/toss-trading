@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
-import { useToast } from '../../app/providers/ToastContext';
+import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import { formatUsd } from '../shared/lib/formatHoldings';
 import { buildLimitPriceRecommendation } from '../shared/lib/limitPriceRecommendation';

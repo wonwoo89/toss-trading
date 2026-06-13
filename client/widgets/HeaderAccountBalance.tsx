@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useAppContext } from '../../app/providers/AppContext';
+import { useAppContext } from '../app/providers/AppContext';
 import { formatKrw, formatUsd } from '../shared/lib/formatHoldings';
 
 export function HeaderAccountBalance() {

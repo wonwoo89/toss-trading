@@ -14,7 +14,7 @@ import {
 } from 'lightweight-charts';
 import { calculateBollingerBandSeries } from '../shared/lib/bollingerBands';
 import { BollingerBandFillPrimitive } from '../shared/lib/bollingerBandFillPrimitive';
-import { useTheme } from '../../app/providers/ThemeContext';
+import { useTheme } from '../app/providers/ThemeContext';
 import {
   getStoredChartViewport,
   setStoredChartViewport,
