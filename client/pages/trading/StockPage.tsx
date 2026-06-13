@@ -47,7 +47,7 @@ export function StockPage() {
     payload: CreateOrderPayload,
     options?: OrderSubmitOptions
   ): Promise<OrderSubmitResult> => {
-    const accountSeq = requireAccountSeq();
+    requireAccountSeq(); // 계좌 선택 확인 (훅 내부에서 에러 throw)
 
     const result = await submitOrder(payload, options, {
       refreshMarketNow,
