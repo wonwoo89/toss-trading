@@ -4,6 +4,7 @@ import { useRequireAccountSeq } from '../../app/providers/AppContext';
 import {
   selectHoldingBySymbol,
   selectOpenOrdersBySymbol,
+  formatHoldingValue,
   type Position,
 } from '../../entities/position';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
