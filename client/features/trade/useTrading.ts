@@ -1,4 +1,5 @@
 import { useSymbolTrading } from '../../shared/hooks/useSymbolTrading';
+import { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
 interface UseTradingOptions {
@@ -28,10 +29,14 @@ export function useTrading(options: UseTradingOptions = {}) {
     createOrder: data.createOrder,
     cancelOrder: data.cancelOrder,
 
-    // Sidebar용 포트폴리오 데이터
+    // Sidebar용 포트폴리오 데이터 (raw)
     portfolioHoldings: data.portfolioHoldings,
     portfolioOpenOrders: data.portfolioOpenOrders,
     portfolioTotals: data.portfolioTotals,
+
+    // Entity selectors 를 사용한 enriched position data (feature + entity 협력)
+    currentHolding: selectHoldingBySymbol(data.portfolioHoldings, symbol),
+    currentOpenOrders: selectOpenOrdersBySymbol(data.portfolioOpenOrders, symbol),
 
     // 필요한 경우 추가 노출 (현재는 최소화)
     refreshPortfolioHoldings: data.refreshPortfolioHoldings,
