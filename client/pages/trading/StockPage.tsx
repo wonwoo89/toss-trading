@@ -7,14 +7,13 @@ import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
 import { useAppContext } from '../../app/providers/AppContext';
 import { HOLDINGS_POLL_MS, useTrading } from '../../features/trade';
 
-import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
 export function StockPage() {
   // 1. 상태(state) or hook
   const { symbol: routeSymbol } = useParams<{ symbol?: string }>();
   const symbol = routeSymbol?.toUpperCase();
   const hasSymbol = Boolean(symbol);
-  const { isReady, selectedAccountSeq, setBuyingPower, setTotalMarketValue, buyingPower } =
+  const { selectedAccountSeq, setBuyingPower, setTotalMarketValue, buyingPower } =
     useAppContext();
 
   const layoutRef = useRef<HTMLElement>(null);
