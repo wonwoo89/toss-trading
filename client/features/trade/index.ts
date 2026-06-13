@@ -6,6 +6,7 @@ export { useTrading } from './useTrading';
 export type { UseTradingOptions } from './useTrading';
 
 export { useTradeActions } from './useTradeActions';
+export { usePosition } from './usePosition';
 
 // 임시: 하위 호환용 constants (추후 feature 내부로 이동)
 export { HOLDINGS_POLL_MS } from '../../shared/hooks/useSymbolTrading';
