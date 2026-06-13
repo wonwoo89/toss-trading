@@ -626,8 +626,8 @@ export function useSymbolTrading(
 
   // commission + marketPanelProps 는 이제 훅 내부에서 조립 (StockPage 경량화)
   const commissionRatePercent = useMemo(
-    () => resolveUsCommissionRatePercent(commissions),
-    [commissions]
+    () => resolveUsCommissionRatePercent(commissionsPolling.data),
+    [commissionsPolling.data]
   );
 
   const marketPanelProps = useMemo(
@@ -688,6 +688,50 @@ export function useSymbolTrading(
     ]
   );
 
+  // OrderForm 용 props bag (StockPage를 더 얇게 만들기 위한 다음 단계)
+  const orderFormProps = useMemo(
+    () => ({
+      symbol,
+      currentPrice: marketPolling.data?.price,
+      buyingPower: contextBuyingPower,
+      sellableQuantity,
+      holdingQuantity: holdingSummary?.quantity,
+      holdingAveragePrice: holdingSummary?.averagePrice,
+      holdingMarketValue: holdingSummary?.marketValue,
+      holdingProfitLoss: holdingSummary?.profitLoss,
+      holdingProfitLossRate: holdingSummary?.profitLossRate,
+      takeProfitRatePercent,
+      onTakeProfitRateChange: handleTakeProfitRateChange,
+      commissionRatePercent,
+      candles: candlesData.candles,
+      candleInterval,
+      onCandleIntervalChange: handleCandleIntervalChange,
+      bids: marketPolling.data?.bids,
+      asks: marketPolling.data?.asks,
+      trades: marketPolling.data?.trades,
+      holding: holding && holding.quantity > 0 ? holding : undefined,
+      openOrders,
+    }),
+    [
+      symbol,
+      marketPolling.data,
+      contextBuyingPower,
+      sellableQuantity,
+      holdingSummary,
+      takeProfitRatePercent,
+      handleTakeProfitRateChange,
+      commissionRatePercent,
+      candlesData.candles,
+      candleInterval,
+      handleCandleIntervalChange,
+      marketPolling.data?.bids,
+      marketPolling.data?.asks,
+      marketPolling.data?.trades,
+      holding,
+      openOrders,
+    ]
+  );
+
   return {
     symbol,
     accountSeq,
@@ -731,5 +775,6 @@ export function useSymbolTrading(
     usMarketCalendarLoading,
     marketPanelProps,
     commissionRatePercent,
+    orderFormProps,
   };
 }

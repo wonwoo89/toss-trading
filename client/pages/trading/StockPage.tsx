@@ -22,9 +22,6 @@ export function StockPage() {
   const layoutRef = useRef<HTMLElement>(null);
 
   const {
-    sellableQuantity,
-    holding,
-    openOrders,
     portfolioHoldings,
     portfolioOpenOrders,
     refreshTrade,
@@ -33,13 +30,11 @@ export function StockPage() {
     refreshPortfolioHoldings,
     refreshPortfolioOpenOrders,
     refreshBuyingPower,
-    holdingSummary,
     portfolioTotals,
-    handleTakeProfitRateChange,
     refreshMarketNow,
     refreshCandlesNow,
     marketPanelProps,
-    commissionRatePercent,
+    orderFormProps,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -123,25 +118,7 @@ export function StockPage() {
               <MarketPanel {...marketPanelProps} />
               <section className="order-column">
                 <OrderForm
-                  symbol={symbol}
-                  currentPrice={marketPanelProps.currentPrice}
-                  buyingPower={buyingPower}
-                  sellableQuantity={sellableQuantity}
-                  holdingQuantity={holdingSummary?.quantity}
-                  holdingAveragePrice={holdingSummary?.averagePrice}
-                  holdingMarketValue={holdingSummary?.marketValue}
-                  holdingProfitLoss={holdingSummary?.profitLoss}
-                  holdingProfitLossRate={holdingSummary?.profitLossRate}
-                  takeProfitRatePercent={marketPanelProps.targetProfitRatePercent}
-                  onTakeProfitRateChange={handleTakeProfitRateChange}
-                  commissionRatePercent={commissionRatePercent}
-                  candles={marketPanelProps.candles}
-                  candleInterval={marketPanelProps.candleInterval}
-                  bids={marketPanelProps.bids}
-                  asks={marketPanelProps.asks}
-                  trades={marketPanelProps.trades}
-                  holding={marketPanelProps.holding}
-                  openOrders={marketPanelProps.openOrders}
+                  {...orderFormProps}
                   onSubmit={handleCreateOrder}
                 />
               </section>
