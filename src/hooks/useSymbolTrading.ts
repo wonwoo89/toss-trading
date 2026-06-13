@@ -28,3 +28,21 @@ export function getCachedOpenOrders(accountSeq?: string) {
   if (!accountSeq) return []
   return getPortfolioCache(accountSeq)?.openOrders ?? []
 }
+
+// 향후 Symbol별 trade 상태(holding, openOrders, sellable 등)를 관리할 커스텀 훅의 시작점
+export interface SymbolTradingOptions {
+  symbol?: string
+  accountSeq?: string
+}
+
+export function useSymbolTrading(options: SymbolTradingOptions = {}) {
+  const { symbol, accountSeq } = options
+
+  // 현재는 기존 헬퍼들을 노출. 이후 커밋에서 상태(useState), useEffect, refresh 로직을 점진적으로 이동할 예정
+  return {
+    symbol,
+    accountSeq,
+    getCachedHoldings: () => getCachedHoldings(accountSeq),
+    getCachedOpenOrders: () => getCachedOpenOrders(accountSeq),
+  }
+}
