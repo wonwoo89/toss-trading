@@ -755,7 +755,10 @@ export function useSymbolTrading(
 
   // thin actions with account require (page에서 로직 제거 목적)
   const createOrder = useCallback(
-    async (payload: CreateOrderPayload, options?: OrderSubmitOptions): Promise<OrderSubmitResult> => {
+    async (
+      payload: CreateOrderPayload,
+      options?: OrderSubmitOptions
+    ): Promise<OrderSubmitResult> => {
       requireAccountSeq();
       return submitOrder(payload, options);
     },
