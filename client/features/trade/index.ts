@@ -1,11 +1,12 @@
 // trade feature barrel (FSD)
 // 향후 order submission, take-profit, trade actions 등을 이 슬라이스로 이동
 
-export {
-  useSymbolTrading as useTrading,
-  HOLDINGS_POLL_MS,
-  // 기타 trading 관련 constants / hooks 는 여기서 re-export
-  // trading page에서는 const data = useTrading({ symbol, accountSeq, ... }) 로 사용
-} from '../../shared/hooks/useSymbolTrading';
+// Trading feature public API (FSD)
+export { useTrading } from './useTrading'
+export type { UseTradingOptions } from './useTrading'
 
-// TODO: 이곳에 useOrderSubmission, useTradeActions 등 feature 전용 훅으로 점진 이동 예정
+// 임시: 하위 호환용 constants (추후 feature 내부로 이동)
+export { HOLDINGS_POLL_MS } from '../../shared/hooks/useSymbolTrading'
+
+// TODO: useOrderSubmission, useTradeActions 등 feature 전용 훅으로 점진 이동
+// TODO: useSymbolTrading 자체를 이 feature로 이동 고려 중
