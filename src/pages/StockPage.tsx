@@ -91,9 +91,6 @@ export function StockPage() {
   const [warnings, setWarnings] = useState<string[]>([])
   const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval)
   const [takeProfitRatePercent, setTakeProfitRatePercent] = useState(getStoredTakeProfitRate)
-  const [sellableQuantity, setSellableQuantity] = useState<number>()
-  const [holding, setHolding] = useState<HoldingItem>()
-  const [openOrders, setOpenOrders] = useState<Order[]>([])
   const [portfolioHoldings, setPortfolioHoldings] = useState<HoldingItem[]>(() =>
     getCachedHoldings(selectedAccountSeq),
   )
@@ -102,29 +99,17 @@ export function StockPage() {
   )
   const layoutRef = useRef<HTMLElement>(null)
 
-  // trade snapshot 처리를 hook으로 위임 (onTradeSnapshot으로 실제 setState 전달)
+  // trade snapshot 상태(holding, openOrders, sellableQuantity)와 refresh/apply 로직은 훅이 소유
   const {
+    sellableQuantity,
+    holding,
+    openOrders,
     refreshTrade,
     applyTradeSnapshot,
+    resetTradeState,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
-    onTradeSnapshot: (state) => {
-      setSellableQuantity(state.sellableQuantity)
-      setHolding(state.holding)
-      setOpenOrders(state.openOrders)
-
-      if (!selectedAccountSeq) return
-
-      if (state.holding && state.holding.quantity > 0) {
-        upsertPortfolioHolding(selectedAccountSeq, state.holding)
-      } else {
-        upsertPortfolioHolding(selectedAccountSeq, {
-          symbol,
-          quantity: 0,
-        })
-      }
-    },
   })
 
   useEffect(() => {
@@ -133,10 +118,8 @@ export function StockPage() {
   }, [symbol])
 
   useEffect(() => {
-    setHolding(undefined)
-    setSellableQuantity(undefined)
-    setOpenOrders([])
-  }, [symbol])
+    resetTradeState?.()
+  }, [symbol, resetTradeState])
 
   useEffect(() => {
     if (!selectedAccountSeq) {
