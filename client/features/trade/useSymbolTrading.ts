@@ -184,7 +184,7 @@ export function useSymbolTrading(
 
   // UI preference 상태 (candle interval, take profit rate) 를 먼저 선언 (후속 useChartCandles / pollers 의존)
   const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval);
-  const [takeProfitRatePercent, setTakeProfitRatePercent] = useState(getStoredTakeProfitRate);
+  const [takeProfitRatePercent, setTakeProfitRatePercent] = useState<number>(getStoredTakeProfitRate);
 
   const handleCandleIntervalChange = useCallback((interval: CandleInterval) => {
     setCandleInterval(interval);
@@ -192,8 +192,8 @@ export function useSymbolTrading(
   }, []);
 
   const handleTakeProfitRateChange = useCallback((rate: number) => {
-    setTakeProfitRatePercent(rate as any);
-    setStoredTakeProfitRate(rate as any);
+    setTakeProfitRatePercent(rate);
+    setStoredTakeProfitRate(rate);
   }, []);
 
   // symbol meta (이름, 경고) 도 훅이 소유 (이전 StockPage의 loadStockMeta 이동)
