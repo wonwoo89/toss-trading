@@ -20,6 +20,9 @@ export {
   formatHoldingValue,
   formatPositionSummary,
   computePortfolioSummary,
+  formatProfitLoss,
+  formatSignedPercent,
+  formatSignedUsd,
   type Position,
 } from '../../entities/position';
 
