@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { api } from '../api/client'
 import {
   getPortfolioCache,
   upsertPortfolioHolding,
@@ -7,7 +8,20 @@ import {
   sortHoldingsByMarketValue,
 } from '../lib/mapPortfolio'
 import { fetchTradeSnapshotState } from '../lib/tradeSnapshot'
-import type { HoldingItem, Order, TradeSnapshotState } from '../types'
+import {
+  calculateTakeProfitSellPrice,
+  getTakeProfitCostContext,
+  resolveTakeProfitSellQuantity,
+} from '../lib/takeProfitSell'
+import { unwrapResult } from '../lib/parse'
+import type {
+  CreateOrderPayload,
+  HoldingItem,
+  Order,
+  OrderSubmitOptions,
+  OrderSubmitResult,
+  TradeSnapshotState,
+} from '../types'
 
 // Symbol trading 관련 폴링 주기 상수
 export const MARKET_POLL_MS = 250
@@ -89,6 +103,71 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     }
   }, [symbol, resetTradeState])
 
+  const placeTakeProfitSell = useCallback(
+    async (
+      profitRatePercent: number,
+      boughtQuantity: number | undefined,
+      baselineQuantity: number,
+      state: TradeSnapshotState,
+    ): Promise<OrderSubmitResult['takeProfitSell']> => {
+      const targetAccountSeq = accountSeq
+      if (!targetAccountSeq || !symbol) {
+        return { placed: false, message: '계좌 또는 종목 정보가 없습니다.' }
+      }
+
+      const averagePrice = state.holding?.averagePrice
+      const sellQuantity = resolveTakeProfitSellQuantity(
+        boughtQuantity,
+        baselineQuantity,
+        state.holding?.quantity,
+      )
+
+      if (!averagePrice || averagePrice <= 0) {
+        return {
+          placed: false,
+          message: '평단가를 확인하지 못해 목표 수익률 매도 주문을 넣지 못했습니다.',
+        }
+      }
+
+      if (!sellQuantity || sellQuantity <= 0) {
+        return {
+          placed: false,
+          message: '체결 수량을 확인하지 못해 목표 수익률 매도 주문을 넣지 못했습니다.',
+        }
+      }
+
+      const sellPrice = calculateTakeProfitSellPrice(
+        averagePrice,
+        sellQuantity,
+        profitRatePercent,
+        getTakeProfitCostContext(state.holding),
+      )
+
+      const createdOrder = unwrapResult(
+        await api.createOrder(
+          {
+            symbol: symbol.toUpperCase(),
+            side: 'SELL',
+            orderType: 'LIMIT',
+            quantity: sellQuantity,
+            price: sellPrice,
+            clientOrderId: crypto.randomUUID(),
+          },
+          targetAccountSeq,
+        ),
+      )
+
+      return {
+        placed: true,
+        price: sellPrice,
+        quantity: sellQuantity,
+        orderId: createdOrder.orderId,
+        message: `세금·수수료 반영 ${profitRatePercent}% 실수익률 목표가 ${sellPrice.toFixed(2)} USD에 ${sellQuantity}주 매도 주문을 넣었습니다.`,
+      }
+    },
+    [symbol, accountSeq],
+  )
+
   return {
     symbol,
     accountSeq,
@@ -99,5 +178,6 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     getCachedOpenOrders: () => getCachedOpenOrders(accountSeq),
     refreshTrade,
     applyTradeSnapshot,
+    placeTakeProfitSell,
   }
 }
