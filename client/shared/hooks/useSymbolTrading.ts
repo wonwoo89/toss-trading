@@ -26,6 +26,7 @@ import {
   refreshOpenOrdersAfterCreate,
 } from '../lib/refreshOpenOrders';
 import { shouldEnableRecurringMarketPolling } from '../lib/usMarketCalendar';
+import { resolveUsCommissionRatePercent } from '../lib/commissionBreakEven';
 import type {
   CandleInterval,
   CommissionRaw,
@@ -77,7 +78,7 @@ export function useSymbolTrading(
 ) {
   const { symbol, accountSeq, setBuyingPower, currentPrice } = options;
 
-  const { isReady: contextIsReady } = useAppContext();
+  const { isReady: contextIsReady, buyingPower: contextBuyingPower } = useAppContext();
 
   // 주말/휴장 가드와 initial phase 를 훅 내부에서 완전 관리
   const calendarFetcher = useCallback(async () => {
@@ -126,6 +127,10 @@ export function useSymbolTrading(
     setTakeProfitRatePercent(rate as any);
     setStoredTakeProfitRate(rate as any);
   }, []);
+
+  // symbol meta (이름, 경고) 도 훅이 소유 (이전 StockPage의 loadStockMeta 이동)
+  const [stockName, setStockName] = useState<string>();
+  const [warnings, setWarnings] = useState<string[]>([]);
 
   const [sellableQuantity, setSellableQuantity] = useState<number>();
   const [holding, setHolding] = useState<HoldingItem>();
@@ -300,6 +305,41 @@ export function useSymbolTrading(
       resetTradeState();
     }
   }, [symbol, resetTradeState]);
+
+  // symbol 메타 (stockName, warnings) 로드 — StockPage에서 이동 (api + isReady + symbol 의존)
+  useEffect(() => {
+    if (!contextIsReady || !symbol) return;
+
+    let cancelled = false;
+
+    const loadStockMeta = async () => {
+      try {
+        const stockRes = await api.getStock(symbol);
+        if (cancelled) return;
+
+        const stock = unwrapResult(stockRes)[0];
+        setStockName(stock?.englishName ?? stock?.name);
+
+        const warningsRes = await api
+          .getWarnings(symbol)
+          .catch(() => ({ result: [] as { warningType: string }[] }));
+        if (cancelled) return;
+
+        setWarnings(unwrapResult(warningsRes).map((warning) => warning.warningType));
+      } catch {
+        if (!cancelled) {
+          setStockName(undefined);
+          setWarnings([]);
+        }
+      }
+    };
+
+    void loadStockMeta();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contextIsReady, symbol]);
 
   const placeTakeProfitSell = useCallback(
     async (
@@ -584,6 +624,70 @@ export function useSymbolTrading(
     ]
   );
 
+  // commission + marketPanelProps 는 이제 훅 내부에서 조립 (StockPage 경량화)
+  const commissionRatePercent = useMemo(
+    () => resolveUsCommissionRatePercent(commissions),
+    [commissions]
+  );
+
+  const marketPanelProps = useMemo(
+    () => ({
+      symbol,
+      stockName,
+      bids: marketPolling.data?.bids,
+      asks: marketPolling.data?.asks,
+      trades: marketPolling.data?.trades,
+      candles: candlesData.candles,
+      averagePrice: holding && holding.quantity > 0 ? holding.averagePrice : undefined,
+      currentPrice: marketPolling.data?.price,
+      holding: holding && holding.quantity > 0 ? holding : undefined,
+      holdingProfitLossRate: holdingSummary?.profitLossRate,
+      targetProfitRatePercent: takeProfitRatePercent,
+      usMarketDay: usMarketCalendar?.today,
+      usMarketCalendarError,
+      usMarketCalendarLoading,
+      openOrders,
+      closedOrders: closedOrdersPolling.data?.orders,
+      closedOrdersUnavailable: closedOrdersPolling.data?.unavailable,
+      buyingPower: contextBuyingPower,
+      sellableQuantity,
+      commissions: commissionsPolling.data,
+      candleInterval,
+      onCandleIntervalChange: handleCandleIntervalChange,
+      candlesLoading: candlesData.loading,
+      candlesLoadingOlder: candlesData.loadingOlder,
+      candlesError: candlesData.error,
+      hasMoreHistory: candlesData.hasMoreHistory,
+      onLoadOlderCandles: candlesData.loadOlder,
+      warnings,
+    }),
+    [
+      symbol,
+      stockName,
+      marketPolling.data,
+      candlesData.candles,
+      holding,
+      holdingSummary,
+      takeProfitRatePercent,
+      usMarketCalendar,
+      usMarketCalendarError,
+      usMarketCalendarLoading,
+      openOrders,
+      closedOrdersPolling.data,
+      contextBuyingPower,
+      sellableQuantity,
+      commissionsPolling.data,
+      candleInterval,
+      handleCandleIntervalChange,
+      candlesData.loading,
+      candlesData.loadingOlder,
+      candlesData.error,
+      candlesData.hasMoreHistory,
+      candlesData.loadOlder,
+      warnings,
+    ]
+  );
+
   return {
     symbol,
     accountSeq,
@@ -625,5 +729,7 @@ export function useSymbolTrading(
     usMarketCalendar,
     usMarketCalendarError,
     usMarketCalendarLoading,
+    marketPanelProps,
+    commissionRatePercent,
   };
 }

@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { api } from '../../shared/api/client';
 import { MarketPanel } from '../../widgets/MarketPanel';
 import { OrderForm } from '../../widgets/OrderForm';
 import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
@@ -9,8 +8,6 @@ import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppCont
 import { HOLDINGS_POLL_MS, useSymbolTrading } from '../../shared/hooks/useSymbolTrading';
 
 import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
-import { resolveUsCommissionRatePercent } from '../../shared/lib/commissionBreakEven';
-import { unwrapResult } from '../../shared/lib/parse';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
 export function StockPage() {
@@ -22,8 +19,6 @@ export function StockPage() {
     useAppContext();
   const requireAccountSeq = useRequireAccountSeq();
 
-  const [stockName, setStockName] = useState<string>();
-  const [warnings, setWarnings] = useState<string[]>([]);
   const layoutRef = useRef<HTMLElement>(null);
 
   const {
@@ -58,79 +53,13 @@ export function StockPage() {
     usMarketCalendar,
     usMarketCalendarError,
     usMarketCalendarLoading,
+    marketPanelProps,
+    commissionRatePercent,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
     setBuyingPower,
   });
-
-  // 2. 일반 const
-  const averagePrice = holding && holding.quantity > 0 ? holding.averagePrice : undefined;
-
-  const commissionRatePercent = useMemo(
-    () => resolveUsCommissionRatePercent(((commissions as any) ?? undefined) as any),
-    [commissions]
-  );
-
-  const marketPanelProps = useMemo(
-    () => ({
-      symbol: symbol!,
-      stockName,
-      bids: marketData?.bids,
-      asks: marketData?.asks,
-      trades: marketData?.trades,
-      candles,
-      averagePrice,
-      currentPrice: marketData?.price,
-      holding: holding && holding.quantity > 0 ? holding : undefined,
-      holdingProfitLossRate: holdingSummary?.profitLossRate,
-      targetProfitRatePercent: takeProfitRatePercent,
-      usMarketDay: usMarketCalendar?.today,
-      usMarketCalendarError,
-      usMarketCalendarLoading,
-      openOrders,
-      closedOrders: closedOrdersState?.orders,
-      closedOrdersUnavailable: closedOrdersState?.unavailable,
-      buyingPower,
-      sellableQuantity,
-      commissions: (commissions as any) ?? undefined,
-      candleInterval,
-      onCandleIntervalChange: handleCandleIntervalChange,
-      candlesLoading,
-      candlesLoadingOlder,
-      candlesError,
-      hasMoreHistory,
-      onLoadOlderCandles: loadOlderCandles,
-      warnings,
-    }),
-    [
-      averagePrice,
-      buyingPower,
-      candles,
-      candlesError,
-      candlesLoading,
-      candlesLoadingOlder,
-      candleInterval,
-      closedOrdersState?.orders,
-      closedOrdersState?.unavailable,
-      commissions,
-      handleCandleIntervalChange,
-      hasMoreHistory,
-      holding,
-      holdingSummary?.profitLossRate,
-      loadOlderCandles,
-      marketData,
-      openOrders,
-      sellableQuantity,
-      stockName,
-      symbol,
-      takeProfitRatePercent,
-      usMarketCalendar?.today,
-      usMarketCalendarError,
-      usMarketCalendarLoading,
-      warnings,
-    ]
-  );
 
   // 3. 함수 (메소드 & 핸들러) - get/set/on/handle 접두사로 목적 명확히
 
@@ -185,40 +114,6 @@ export function StockPage() {
     const total = portfolioHoldings.reduce((sum, item) => sum + (item.marketValue ?? 0), 0);
     setTotalMarketValue(total);
   }, [portfolioHoldings, setTotalMarketValue]);
-
-  useEffect(() => {
-    if (!isReady || !symbol) return;
-
-    let cancelled = false;
-
-    const loadStockMeta = async () => {
-      try {
-        const stockRes = await api.getStock(symbol);
-        if (cancelled) return;
-
-        const stock = unwrapResult(stockRes)[0];
-        setStockName(stock?.englishName ?? stock?.name);
-
-        const warningsRes = await api
-          .getWarnings(symbol)
-          .catch(() => ({ result: [] as { warningType: string }[] }));
-        if (cancelled) return;
-
-        setWarnings(unwrapResult(warningsRes).map((warning) => warning.warningType));
-      } catch {
-        if (!cancelled) {
-          setStockName(undefined);
-          setWarnings([]);
-        }
-      }
-    };
-
-    void loadStockMeta();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isReady, symbol]);
 
   // 포트폴리오 오픈오더 초기 로드는 훅 내부 또는 다른 곳에서 (initial phase 가드 적용됨)
 
