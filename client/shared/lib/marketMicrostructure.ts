@@ -55,7 +55,7 @@ export function buildSpreadSnapshot(
   const bestAsk = getBestAsk(asks);
 
   if (bestBid === undefined || bestAsk === undefined || bestAsk <= bestBid || bestBid <= 0) {
-    return { label: '스프레드', value: '—', bias: 'neutral' };
+    return { id: 'spread', label: '스프레드', value: '—', bias: 'neutral' };
   }
 
   const spread = bestAsk - bestBid;
@@ -105,6 +105,7 @@ export function buildTradeFlowSnapshot(
 ): TradeFlowSnapshot {
   if (trades.length === 0) {
     return {
+      id: 'trade-flow',
       buyVolume: 0,
       sellVolume: 0,
       buyRatio: 0.5,

@@ -97,18 +97,23 @@ export function useSymbolTrading(
   });
 
   const [initialLoadPhase, setInitialLoadPhase] = useState(true);
+  const [hasMarketData, setHasMarketData] = useState(false);
+
   useEffect(() => {
-    // symbol 변경(새 랜딩) 시마다 초기 로드 phase를 재시작 → 폐장일에도 최초 데이터 1회+ 는 받을 수 있게
+    // symbol 변경(새 랜딩) 시마다 초기 로드 phase + hasMarketData 리셋 → 폐장일 랜딩에서도 최초 데이터 보장
     setInitialLoadPhase(true);
+    setHasMarketData(false);
     const timer = setTimeout(() => setInitialLoadPhase(false), 8000);
     return () => clearTimeout(timer);
   }, [symbol]);
 
   const effectiveMarketPollingEnabled = useMemo(() => {
     if (!contextIsReady || !symbol) return false;
-    if (initialLoadPhase) return true;
+    // initial phase 동안 또는 아직 market data를 한 번도 못 받았다면 강제 enable
+    // → 폐장일이라도 최초 랜딩 데이터 수신 보장, 데이터 오면 recurring 가드 적용
+    if (initialLoadPhase || !hasMarketData) return true;
     return shouldEnableRecurringMarketPolling(usMarketCalendar?.today);
-  }, [contextIsReady, symbol, usMarketCalendar?.today, initialLoadPhase]);
+  }, [contextIsReady, symbol, usMarketCalendar?.today, initialLoadPhase, hasMarketData]);
 
   const effectiveAccountPollingEnabled = useMemo(() => {
     if (!contextIsReady || !accountSeq) return false;
@@ -205,6 +210,13 @@ export function useSymbolTrading(
     resetKey: symbol ?? '',
     options: { initialDelayMs: MARKET_INITIAL_DELAY_MS },
   });
+
+  // market data 도착 시 hasMarketData true로 (recurring 가드 발동을 위해)
+  useEffect(() => {
+    if (marketPolling.data && !hasMarketData) {
+      setHasMarketData(true);
+    }
+  }, [marketPolling.data, hasMarketData]);
 
   const candlesData = useChartCandles(symbol ?? '', candleInterval, effectiveMarketPollingEnabled, {
     pollIntervalMs: CANDLE_POLL_MS,
