@@ -1,37 +1,37 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { usePolling } from './usePolling';
-import { useChartCandles } from './useChartCandles';
+import { usePolling } from '../../shared/hooks/usePolling';
+import { useChartCandles } from '../../shared/hooks/useChartCandles';
 import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
-import { api } from '../api/client';
-import { getPortfolioCache, upsertPortfolioHolding } from '../lib/portfolioCache';
+import { api } from '../../shared/api/client';
+import { getPortfolioCache, upsertPortfolioHolding } from '../../shared/lib/portfolioCache';
 import {
   mapHoldings,
   mapOrders,
   resolveLiveProfitLoss,
   sortHoldingsByMarketValue,
-} from '../lib/mapPortfolio';
-import { fetchTradeSnapshotState, fetchTradeSnapshotWithRetry } from '../lib/tradeSnapshot';
+} from '../../shared/lib/mapPortfolio';
+import { fetchTradeSnapshotState, fetchTradeSnapshotWithRetry } from '../../shared/lib/tradeSnapshot';
 import {
   calculateTakeProfitSellPrice,
   getTakeProfitCostContext,
   resolveTakeProfitSellQuantity,
   waitForTakeProfitSnapshot,
-} from '../lib/takeProfitSell';
-import { toNumber, unwrapResult } from '../lib/parse';
-import { getStoredCandleInterval, setStoredCandleInterval } from '../lib/candleIntervalPreference';
-import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../lib/takeProfitRatePreference';
-import { setLastSelectedSymbol } from '../lib/lastSymbolPreference';
+} from '../../shared/lib/takeProfitSell';
+import { toNumber, unwrapResult } from '../../shared/lib/parse';
+import { getStoredCandleInterval, setStoredCandleInterval } from '../../shared/lib/candleIntervalPreference';
+import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../../shared/lib/takeProfitRatePreference';
+import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
 import {
   getOpenOrdersSignature,
   refreshOpenOrdersAfterCancel,
   refreshOpenOrdersAfterCreate,
-} from '../lib/refreshOpenOrders';
+} from '../../shared/lib/refreshOpenOrders';
 import {
   isUsMarketHoliday,
   isUsWeekend,
   shouldEnableRecurringMarketPolling,
-} from '../lib/usMarketCalendar';
-import { resolveUsCommissionRatePercent } from '../lib/commissionBreakEven';
+} from '../../shared/lib/usMarketCalendar';
+import { resolveUsCommissionRatePercent } from '../../shared/lib/commissionBreakEven';
 import type {
   CandleInterval,
   CommissionRaw,
@@ -40,8 +40,8 @@ import type {
   Order,
   OrderSubmitOptions,
   OrderSubmitResult,
-} from '../types';
-import type { TradeSnapshotState } from '../lib/tradeSnapshot';
+} from '../../shared/types';
+import type { TradeSnapshotState } from '../../shared/lib/tradeSnapshot';
 
 // Symbol trading 관련 폴링 주기 상수
 export const MARKET_POLL_MS = 250;

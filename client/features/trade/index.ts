@@ -9,7 +9,7 @@ export { useTradeActions } from './useTradeActions';
 export { usePosition } from './usePosition';
 
 // 임시: 하위 호환용 constants (추후 feature 내부로 이동)
-export { HOLDINGS_POLL_MS } from '../../shared/hooks/useSymbolTrading';
+export { HOLDINGS_POLL_MS } from './useSymbolTrading';
 
 // Position entity selectors (entities/position 과 협력)
 export { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
