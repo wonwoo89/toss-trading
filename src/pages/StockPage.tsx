@@ -134,10 +134,6 @@ export function StockPage() {
   }, [symbol])
 
   useEffect(() => {
-    resetTradeState?.()
-  }, [symbol, resetTradeState])
-
-  useEffect(() => {
     if (!selectedAccountSeq) {
       setPortfolioHoldings([])
       setPortfolioOpenOrders([])
