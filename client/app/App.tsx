@@ -1,9 +1,9 @@
 import { Route, Routes } from 'react-router-dom';
 import { Header } from './components/Header';
-import { AppProvider, useAppContext } from './context/AppContext';
-import { ThemeProvider } from './context/ThemeContext';
-import { ToastProvider } from './context/ToastContext';
-import { StockPage } from './pages/StockPage';
+import { AppProvider, useAppContext } from './providers/AppContext';
+import { ThemeProvider } from './providers/ThemeContext';
+import { ToastProvider } from './providers/ToastContext';
+import { StockPage } from '../pages/trading/StockPage';
 import './App.css';
 
 function AppShell() {

@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { api } from '../api/client';
+import { api } from '../shared/api/client';
 import { toNumber, unwrapResult } from '../lib/parse';
 import type { Account } from '../types';
 

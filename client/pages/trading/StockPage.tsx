@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { api } from '../api/client';
+import { api } from '../../shared/api/client';
 import { MarketPanel } from '../components/MarketPanel';
 import { OrderForm } from '../components/OrderForm';
 import { PortfolioSidebar } from '../components/PortfolioSidebar';
 
-import { useAppContext, useRequireAccountSeq } from '../context/AppContext';
+import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
 import { useChartCandles } from '../hooks/useChartCandles';
 import { usePolling } from '../hooks/usePolling';
 import {

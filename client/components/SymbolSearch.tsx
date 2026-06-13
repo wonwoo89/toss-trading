@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { api } from '../api/client';
+import { api } from '../../shared/api/client';
 import { setLastSelectedSymbol } from '../lib/lastSymbolPreference';
 import type { StockInfo } from '../types';
 
