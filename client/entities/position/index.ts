@@ -43,4 +43,12 @@ export function formatPositionSummary(holdings: HoldingItem[]): {
   };
 }
 
+// Simple Position type for the feature
+export interface Position {
+  holding?: HoldingItem;
+  openOrders: Order[];
+  hasPosition: boolean;
+  formattedValue: string;
+}
+
 // TODO: more from mapPortfolio, formatHoldings etc.
