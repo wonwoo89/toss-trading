@@ -1,0 +1,124 @@
+:root,
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg-base: #0a0a0a;
+  --bg-elevated: #111111;
+  --bg-panel: rgba(20, 20, 20, 0.96);
+  --bg-input: #1a1a1a;
+  --bg-button: #242424;
+  --bg-subtle: rgba(255, 255, 255, 0.04);
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-active: rgba(255, 255, 255, 0.18);
+  --chip-selected-bg: #565656;
+  --chip-selected-text: #ffffff;
+  --chip-selected-border: rgba(255, 255, 255, 0.52);
+  --holding-item-active-bg: rgba(255, 255, 255, 0.07);
+  --holding-item-active-border: rgba(255, 255, 255, 0.12);
+  --btn-selected-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 2px 10px rgba(0, 0, 0, 0.38);
+  --portfolio-sidebar-width: 320px;
+  --color-up-bg-selected: rgba(231, 76, 94, 0.34);
+  --color-down-bg-selected: rgba(74, 143, 231, 0.34);
+
+  --text-primary: #f0f0f0;
+  --text-secondary: #a3a3a3;
+  --text-muted: #737373;
+  --text-emphasis: #d4d4d4;
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-default: rgba(255, 255, 255, 0.12);
+
+  --brand-mark-bg: linear-gradient(135deg, #2e2e2e, #454545);
+  --brand-mark-text: #f5f5f5;
+
+  --link-hover: #d4d4d4;
+  --refresh-dot: #a3a3a3;
+
+  --chart-bg: #141414;
+  --chart-text: #a3a3a3;
+  --chart-grid: rgba(255, 255, 255, 0.06);
+  --chart-border: rgba(255, 255, 255, 0.1);
+  --chart-crosshair: rgba(163, 163, 163, 0.45);
+  --chart-separator: rgba(255, 255, 255, 0.14);
+  --chart-separator-hover: rgba(163, 163, 163, 0.28);
+  --chart-avg-price-line: #d4a24a;
+  --chart-avg-price-label-text: #171717;
+  --chart-bb-upper: #f5d547;
+  --chart-bb-middle: #f5d547;
+  --chart-bb-lower: #f5d547;
+  --chart-bb-fill: rgba(245, 213, 71, 0.08);
+
+  --color-up: #e74c5e;
+  --color-down: #4a8fe7;
+  --color-up-bg: rgba(231, 76, 94, 0.18);
+  --color-down-bg: rgba(74, 143, 231, 0.18);
+
+  --color-error: #ff8f9a;
+  --color-error-bg: rgba(255, 107, 122, 0.12);
+  --color-error-border: rgba(255, 107, 122, 0.2);
+
+  --color-warning-bg: rgba(255, 171, 64, 0.12);
+  --color-warning-border: rgba(255, 171, 64, 0.25);
+}
+
+[data-theme='light'] {
+  color-scheme: light;
+
+  --bg-base: #ececec;
+  --bg-elevated: #f5f5f5;
+  --bg-panel: rgba(255, 255, 255, 0.98);
+  --bg-input: #ffffff;
+  --bg-button: #e5e5e5;
+  --bg-subtle: rgba(0, 0, 0, 0.03);
+  --bg-hover: rgba(0, 0, 0, 0.04);
+  --bg-active: rgba(0, 0, 0, 0.12);
+  --chip-selected-bg: #ffffff;
+  --chip-selected-text: #171717;
+  --chip-selected-border: rgba(0, 0, 0, 0.38);
+  --holding-item-active-bg: rgba(0, 0, 0, 0.04);
+  --holding-item-active-border: rgba(0, 0, 0, 0.1);
+  --btn-selected-shadow: 0 0 0 1px rgba(0, 0, 0, 0.14), 0 2px 8px rgba(0, 0, 0, 0.12);
+  --portfolio-sidebar-width: 320px;
+  --color-up-bg-selected: rgba(231, 76, 94, 0.24);
+  --color-down-bg-selected: rgba(74, 143, 231, 0.24);
+
+  --text-primary: #171717;
+  --text-secondary: #525252;
+  --text-muted: #737373;
+  --text-emphasis: #404040;
+
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --border-default: rgba(0, 0, 0, 0.12);
+
+  --brand-mark-bg: linear-gradient(135deg, #262626, #404040);
+  --brand-mark-text: #ffffff;
+
+  --link-hover: #262626;
+  --refresh-dot: #525252;
+
+  --chart-bg: #ffffff;
+  --chart-text: #525252;
+  --chart-grid: rgba(0, 0, 0, 0.06);
+  --chart-border: rgba(0, 0, 0, 0.1);
+  --chart-crosshair: rgba(82, 82, 82, 0.45);
+  --chart-separator: rgba(0, 0, 0, 0.12);
+  --chart-separator-hover: rgba(0, 0, 0, 0.18);
+  --chart-avg-price-line: #b8860b;
+  --chart-avg-price-label-text: #ffffff;
+  --chart-bb-upper: #d4a017;
+  --chart-bb-middle: #d4a017;
+  --chart-bb-lower: #d4a017;
+  --chart-bb-fill: rgba(212, 160, 23, 0.07);
+
+  --color-up: #e74c5e;
+  --color-down: #4a8fe7;
+  --color-up-bg: rgba(231, 76, 94, 0.14);
+  --color-down-bg: rgba(74, 143, 231, 0.14);
+
+  --color-error: #d64558;
+  --color-error-bg: rgba(214, 69, 88, 0.1);
+  --color-error-border: rgba(214, 69, 88, 0.2);
+
+  --color-warning-bg: rgba(255, 171, 64, 0.14);
+  --color-warning-border: rgba(255, 171, 64, 0.3);
+}
