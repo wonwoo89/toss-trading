@@ -681,8 +681,6 @@ export function useSymbolTrading(
       payload: CreateOrderPayload,
       options?: OrderSubmitOptions,
       sideEffects?: {
-        refreshMarketNow?: () => void;
-        refreshCandlesNow?: () => void;
         refreshBuyingPower?: (acc: string) => Promise<void>;
         refreshPortfolioHoldings?: () => Promise<void>;
         refreshPortfolioOpenOrders?: (acc?: string) => Promise<void>;
@@ -702,8 +700,9 @@ export function useSymbolTrading(
         orderType: payload.orderType,
       });
 
-      sideEffects?.refreshMarketNow?.();
-      sideEffects?.refreshCandlesNow?.();
+      // 내부 polling refresh (이전 외부 sideEffect 제거 — 훅이 소유)
+      marketPolling.refreshNow?.();
+      candlesData.refreshNow?.();
 
       let st = await refreshTradeAfterOrder(tradeBase);
       if (sideEffects?.refreshBuyingPower) await sideEffects.refreshBuyingPower(acc);
@@ -751,6 +750,8 @@ export function useSymbolTrading(
       executePostBuyTakeProfit,
       getCachedOpenOrders,
       refreshTrade,
+      marketPolling,
+      candlesData,
     ]
   );
 
