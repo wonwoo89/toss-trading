@@ -753,26 +753,6 @@ export function useSymbolTrading(
     ]
   );
 
-  // thin actions with account require (page에서 로직 제거 목적)
-  const createOrder = useCallback(
-    async (
-      payload: CreateOrderPayload,
-      options?: OrderSubmitOptions
-    ): Promise<OrderSubmitResult> => {
-      requireAccountSeq();
-      return submitOrder(payload, options);
-    },
-    [requireAccountSeq, submitOrder]
-  );
-
-  const cancel = useCallback(
-    async (orderId: string) => {
-      requireAccountSeq();
-      await cancelOrder(orderId);
-    },
-    [requireAccountSeq, cancelOrder]
-  );
-
   // commission + marketPanelProps 는 이제 훅 내부에서 조립 (StockPage 경량화)
   const commissionRatePercent = useMemo(
     () => resolveUsCommissionRatePercent(commissionsPolling.data),
@@ -925,7 +905,5 @@ export function useSymbolTrading(
     marketPanelProps,
     commissionRatePercent,
     orderFormProps,
-    createOrder,
-    cancelOrder: cancel,
   };
 }

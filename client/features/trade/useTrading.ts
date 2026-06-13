@@ -1,5 +1,7 @@
 import { useSymbolTrading } from '../../shared/hooks/useSymbolTrading';
+import { useRequireAccountSeq } from '../../app/providers/AppContext';
 import { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
+import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
 interface UseTradingOptions {
   symbol?: string;
@@ -18,15 +20,28 @@ export function useTrading(options: UseTradingOptions = {}) {
     setTotalMarketValue,
   });
 
+  const requireAccountSeq = useRequireAccountSeq();
+
+  // Feature 전용 thin actions (require + 로직 캡슐화)
+  const createOrder = (payload: CreateOrderPayload, opts?: OrderSubmitOptions): Promise<OrderSubmitResult> => {
+    requireAccountSeq();
+    return data.submitOrder(payload, opts);
+  };
+
+  const cancelOrder = async (orderId: string) => {
+    requireAccountSeq();
+    await data.cancelOrder(orderId);
+  };
+
   // Feature가 제공하는 public API (page는 이걸 통해서만 trading 관련 데이터를 받는다)
   return {
     // UI용 bags
     marketPanelProps: data.marketPanelProps,
     orderFormProps: data.orderFormProps,
 
-    // actions (require + 로직은 훅 내부에서 처리)
-    createOrder: data.createOrder,
-    cancelOrder: data.cancelOrder,
+    // actions (feature에서 require 처리)
+    createOrder,
+    cancelOrder,
 
     // Sidebar용 포트폴리오 데이터 (raw)
     portfolioHoldings: data.portfolioHoldings,
