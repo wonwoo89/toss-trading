@@ -240,13 +240,21 @@ export function useSymbolTrading(
       const p = snap.price?.[0];
       const ob = snap.orderbook;
       return {
-        bids: (ob?.bids ?? []).map((b: { price: number; quantity: number }) => ({ price: b.price, quantity: b.quantity })),
-        asks: (ob?.asks ?? []).map((a: { price: number; quantity: number }) => ({ price: a.price, quantity: a.quantity })),
-        trades: (snap.trades ?? []).map((t: { price: number; quantity: number; timestamp: string }) => ({
-          price: t.price,
-          quantity: t.quantity,
-          timestamp: t.timestamp,
+        bids: (ob?.bids ?? []).map((b: { price: number; quantity: number }) => ({
+          price: b.price,
+          quantity: b.quantity,
         })),
+        asks: (ob?.asks ?? []).map((a: { price: number; quantity: number }) => ({
+          price: a.price,
+          quantity: a.quantity,
+        })),
+        trades: (snap.trades ?? []).map(
+          (t: { price: number; quantity: number; timestamp: string }) => ({
+            price: t.price,
+            quantity: t.quantity,
+            timestamp: t.timestamp,
+          })
+        ),
         price: (p as any)?.price ?? (p as any)?.lastPrice,
       };
     } catch {
