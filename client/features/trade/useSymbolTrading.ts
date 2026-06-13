@@ -10,7 +10,10 @@ import {
   resolveLiveProfitLoss,
   sortHoldingsByMarketValue,
 } from '../../shared/lib/mapPortfolio';
-import { fetchTradeSnapshotState, fetchTradeSnapshotWithRetry } from '../../shared/lib/tradeSnapshot';
+import {
+  fetchTradeSnapshotState,
+  fetchTradeSnapshotWithRetry,
+} from '../../shared/lib/tradeSnapshot';
 import {
   calculateTakeProfitSellPrice,
   getTakeProfitCostContext,
@@ -18,8 +21,14 @@ import {
   waitForTakeProfitSnapshot,
 } from '../../shared/lib/takeProfitSell';
 import { toNumber, unwrapResult } from '../../shared/lib/parse';
-import { getStoredCandleInterval, setStoredCandleInterval } from '../../shared/lib/candleIntervalPreference';
-import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../../shared/lib/takeProfitRatePreference';
+import {
+  getStoredCandleInterval,
+  setStoredCandleInterval,
+} from '../../shared/lib/candleIntervalPreference';
+import {
+  getStoredTakeProfitRate,
+  setStoredTakeProfitRate,
+} from '../../shared/lib/takeProfitRatePreference';
 import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
 import {
   getOpenOrdersSignature,
