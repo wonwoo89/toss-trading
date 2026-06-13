@@ -1,6 +1,10 @@
 import { toNumber } from './parse';
 import type { HoldingItem, HoldingsItemRaw, HoldingsRaw, Order, OrdersPageRaw } from '../types';
 
+// Pure domain ops now owned by entities/position (FSD). Re-export for internal compat.
+import { sortHoldingsByMarketValue } from '../../entities/position';
+export { resolveLiveProfitLoss, sortHoldingsByMarketValue } from '../../entities/position';
+
 function mapHoldingItemRaw(item: HoldingsItemRaw): HoldingItem {
   const quantity = toNumber(item.quantity) ?? 0;
   const averagePrice = toNumber(item.averagePurchasePrice);
@@ -39,37 +43,6 @@ function mapHoldingItemRaw(item: HoldingsItemRaw): HoldingItem {
   };
 }
 
-export function resolveLiveProfitLoss(
-  holding: HoldingItem,
-  liveMarketValue: number
-): { profitLoss?: number; profitLossRate?: number } {
-  const purchaseAmount = holding.purchaseAmount;
-  if (purchaseAmount === undefined) {
-    return {
-      profitLoss: holding.profitLoss,
-      profitLossRate: holding.profitLossRate,
-    };
-  }
-
-  const apiMarketValue = holding.marketValue;
-  const apiAfterCostProfit = holding.profitLoss;
-
-  if (apiMarketValue === undefined || apiAfterCostProfit === undefined) {
-    const grossProfit = liveMarketValue - purchaseAmount;
-    return {
-      profitLoss: grossProfit,
-      profitLossRate: purchaseAmount !== 0 ? grossProfit / purchaseAmount : undefined,
-    };
-  }
-
-  const grossProfitAtApi = apiMarketValue - purchaseAmount;
-  const costDeduction = grossProfitAtApi - apiAfterCostProfit;
-  const profitLoss = liveMarketValue - purchaseAmount - costDeduction;
-  const profitLossRate = purchaseAmount !== 0 ? profitLoss / purchaseAmount : undefined;
-
-  return { profitLoss, profitLossRate };
-}
-
 export function mapHoldingItem(item: HoldingsItemRaw): HoldingItem {
   return mapHoldingItemRaw(item);
 }
@@ -83,14 +56,6 @@ export function findHoldingBySymbol(
   );
   if (!item) return undefined;
   return mapHoldingItem(item);
-}
-
-export function sortHoldingsByMarketValue(holdings: HoldingItem[]): HoldingItem[] {
-  return [...holdings].sort((a, b) => {
-    const marketValueDiff = (b.marketValue ?? 0) - (a.marketValue ?? 0);
-    if (marketValueDiff !== 0) return marketValueDiff;
-    return a.symbol.localeCompare(b.symbol);
-  });
 }
 
 export function mapHoldings(holdings: HoldingsRaw): HoldingItem[] {

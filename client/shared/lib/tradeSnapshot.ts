@@ -1,5 +1,5 @@
 import { api } from '../../shared/api/client';
-import { mapHoldingItem, mapOrders } from './mapPortfolio';
+import { mapHoldingItem, mapOrders } from '../../entities/position';
 import { toNumber, unwrapResult } from './parse';
 import type { HoldingItem, Order } from '../types';
 
