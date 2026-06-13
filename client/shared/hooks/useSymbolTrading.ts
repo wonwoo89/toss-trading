@@ -98,9 +98,11 @@ export function useSymbolTrading(
 
   const [initialLoadPhase, setInitialLoadPhase] = useState(true);
   useEffect(() => {
+    // symbol 변경(새 랜딩) 시마다 초기 로드 phase를 재시작 → 폐장일에도 최초 데이터 1회+ 는 받을 수 있게
+    setInitialLoadPhase(true);
     const timer = setTimeout(() => setInitialLoadPhase(false), 8000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [symbol]);
 
   const effectiveMarketPollingEnabled = useMemo(() => {
     if (!contextIsReady || !symbol) return false;
