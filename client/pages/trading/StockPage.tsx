@@ -94,6 +94,9 @@ export function StockPage() {
     refreshPortfolioHoldings,
     refreshPortfolioOpenOrders,
     refreshBuyingPower,
+    marketFetcher,
+    commissionsFetcher,
+    closedOrdersFetcher,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -300,51 +303,7 @@ export function StockPage() {
     return unwrapResult(await api.getUsMarketCalendar());
   }, []);
 
-  const commissionsFetcher = useCallback(async () => {
-    if (!selectedAccountSeq) return [];
-    return unwrapResult(await api.getCommissions(selectedAccountSeq));
-  }, [selectedAccountSeq]);
 
-  const closedOrdersFetcher = useCallback(async () => {
-    if (!selectedAccountSeq || !symbol) {
-      return { orders: [] as Order[], unavailable: false };
-    }
-
-    try {
-      const page = unwrapResult(
-        await api.getOrders({ status: 'CLOSED', symbol }, selectedAccountSeq)
-      );
-      return { orders: mapOrders(page), unavailable: false };
-    } catch {
-      return { orders: [] as Order[], unavailable: true };
-    }
-  }, [selectedAccountSeq, symbol]);
-
-  const marketFetcher = useCallback(async () => {
-    if (!symbol) throw new Error('종목이 선택되지 않았습니다.');
-
-    const snapshot = unwrapResult(await api.getMarketSnapshot(symbol));
-    const price = snapshot.price[0];
-    const orderbook = snapshot.orderbook;
-    const trades = snapshot.trades;
-
-    return {
-      price: toNumber(price?.lastPrice),
-      bids: orderbook.bids.map((entry) => ({
-        price: toNumber(entry.price) ?? 0,
-        quantity: toNumber(entry.volume) ?? 0,
-      })),
-      asks: orderbook.asks.map((entry) => ({
-        price: toNumber(entry.price) ?? 0,
-        quantity: toNumber(entry.volume) ?? 0,
-      })),
-      trades: trades.map((trade) => ({
-        price: toNumber(trade.price) ?? 0,
-        quantity: toNumber(trade.volume) ?? 0,
-        timestamp: trade.timestamp,
-      })),
-    };
-  }, [symbol]);
 
 
 
