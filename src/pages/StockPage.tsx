@@ -501,8 +501,8 @@ export function StockPage() {
 
     if (!symbol) return
 
-    const state = await fetchTradeSnapshotState(symbol, accountSeq)
-    applyTradeSnapshot(state)
+    // 훅의 refreshTrade가 fetch + apply를 담당
+    await refreshTrade()
     refreshTradeNow()
   }
 
