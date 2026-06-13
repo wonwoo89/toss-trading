@@ -50,13 +50,19 @@ function roundUsd(price: number) {
 }
 
 function getBestBid(bids: OrderbookLevel[]) {
-  if (bids.length === 0) return undefined;
-  return Math.max(...bids.map((bid) => bid.price));
+  const prices = bids
+    .map((bid) => bid.price)
+    .filter((p) => Number.isFinite(p) && p > 0);
+  if (prices.length === 0) return undefined;
+  return Math.max(...prices);
 }
 
 function getBestAsk(asks: OrderbookLevel[]) {
-  if (asks.length === 0) return undefined;
-  return Math.min(...asks.map((ask) => ask.price));
+  const prices = asks
+    .map((ask) => ask.price)
+    .filter((p) => Number.isFinite(p) && p > 0);
+  if (prices.length === 0) return undefined;
+  return Math.min(...prices);
 }
 
 function getTodayCandles(candles: ChartCandle[], interval: CandleInterval) {
@@ -88,15 +94,22 @@ function getVwapAndDayRange(candles: ChartCandle[], interval: CandleInterval) {
   let dayLow = Infinity;
 
   for (const candle of todayCandles) {
-    const typical = (candle.high + candle.low + candle.close) / 3;
-    vwapNumerator += typical * candle.volume;
-    volumeSum += candle.volume;
-    dayHigh = Math.max(dayHigh, candle.high);
-    dayLow = Math.min(dayLow, candle.low);
+    const h = candle.high;
+    const l = candle.low;
+    const c = candle.close;
+    if (!Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(c)) continue;
+    const typical = (h + l + c) / 3;
+    const vol = candle.volume;
+    if (!Number.isFinite(vol) || vol <= 0) continue;
+    vwapNumerator += typical * vol;
+    volumeSum += vol;
+    dayHigh = Math.max(dayHigh, h);
+    dayLow = Math.min(dayLow, l);
   }
 
+  const vwap = volumeSum > 0 ? vwapNumerator / volumeSum : undefined;
   return {
-    vwap: volumeSum > 0 ? vwapNumerator / volumeSum : undefined,
+    vwap: Number.isFinite(vwap) ? vwap : undefined,
     dayHigh: Number.isFinite(dayHigh) ? dayHigh : undefined,
     dayLow: Number.isFinite(dayLow) ? dayLow : undefined,
   };
@@ -109,9 +122,14 @@ function getSupportResistance(candles: ChartCandle[]) {
     return { support: undefined, resistance: undefined };
   }
 
+  const lows = recent.map((c) => c.low).filter((l) => Number.isFinite(l));
+  const highs = recent.map((c) => c.high).filter((h) => Number.isFinite(h));
+  const support = lows.length > 0 ? Math.min(...lows) : undefined;
+  const resistance = highs.length > 0 ? Math.max(...highs) : undefined;
+
   return {
-    support: Math.min(...recent.map((candle) => candle.low)),
-    resistance: Math.max(...recent.map((candle) => candle.high)),
+    support: Number.isFinite(support) ? support : undefined,
+    resistance: Number.isFinite(resistance) ? resistance : undefined,
   };
 }
 
@@ -124,17 +142,23 @@ function calculateAtr(candles: ChartCandle[]) {
   for (let index = 1; index < sorted.length; index += 1) {
     const current = sorted[index];
     const previous = sorted[index - 1];
+    const h = current.high;
+    const l = current.low;
+    const pc = previous.close;
+    if (!Number.isFinite(h) || !Number.isFinite(l) || !Number.isFinite(pc)) continue;
     trueRanges.push(
       Math.max(
-        current.high - current.low,
-        Math.abs(current.high - previous.close),
-        Math.abs(current.low - previous.close)
+        h - l,
+        Math.abs(h - pc),
+        Math.abs(l - pc)
       )
     );
   }
 
-  const recent = trueRanges.slice(-ATR_PERIOD);
-  return recent.reduce((sum, value) => sum + value, 0) / recent.length;
+  const recent = trueRanges.filter((v) => Number.isFinite(v)).slice(-ATR_PERIOD);
+  if (recent.length === 0) return undefined;
+  const atrValue = recent.reduce((sum, value) => sum + value, 0) / recent.length;
+  return Number.isFinite(atrValue) ? atrValue : undefined;
 }
 
 function getTradeFlowBias(trades: TradeTick[], bestBid?: number, bestAsk?: number) {
@@ -265,7 +289,7 @@ export function buildLimitPriceRecommendation(
     openOrders = [],
   } = input;
 
-  if (currentPrice === undefined || currentPrice <= 0) {
+  if (currentPrice === undefined || currentPrice <= 0 || Number.isNaN(currentPrice)) {
     return {
       available: false,
       priceLabel: '—',
@@ -321,6 +345,15 @@ export function buildLimitPriceRecommendation(
 
     price = clampBuyPrice(price, currentPrice, bestAsk, atr);
     price = avoidOpenOrderCollision(price, 'BUY', openOrders);
+
+    if (!Number.isFinite(price)) {
+      return {
+        available: false,
+        priceLabel: '—',
+        summary: '추천가를 계산할 수 없습니다.',
+        reasons: [],
+      };
+    }
 
     const usedReasons = belowMarket
       .sort((a, b) => b.price - a.price)
@@ -388,6 +421,15 @@ export function buildLimitPriceRecommendation(
 
   price = clampSellPrice(price, currentPrice, bestBid, atr);
   price = avoidOpenOrderCollision(price, 'SELL', openOrders);
+
+  if (!Number.isFinite(price)) {
+    return {
+      available: false,
+      priceLabel: '—',
+      summary: '추천가를 계산할 수 없습니다.',
+      reasons: [],
+    };
+  }
 
   const usedReasons = aboveMarket
     .sort((a, b) => a.price - b.price)
