@@ -212,6 +212,12 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     return Boolean(averagePrice && averagePrice > 0 && sellQuantity && sellQuantity > 0)
   }
 
+  const getCurrentTradeSnapshot = useCallback((): TradeSnapshotState => ({
+    holding,
+    sellableQuantity,
+    openOrders,
+  }), [holding, sellableQuantity, openOrders])
+
   return {
     symbol,
     accountSeq,
@@ -224,5 +230,6 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     applyTradeSnapshot,
     placeTakeProfitSell,
     executePostBuyTakeProfit,
+    getCurrentTradeSnapshot,
   }
 }
