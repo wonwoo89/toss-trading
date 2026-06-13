@@ -622,6 +622,15 @@ export function useSymbolTrading(
     // savePortfolioHoldings(accountSeq, mapped); // 필요시 외부에서
   }, [accountSeq, setBuyingPower, isClosed, closedAccountDone]);
 
+  // account 변경 시 포트폴리오 로드 트리거 (이전 StockPage useEffect 이동)
+  useEffect(() => {
+    if (accountSeq) {
+      void refreshPortfolioHoldings();
+    } else {
+      if (setTotalMarketValue) setTotalMarketValue(undefined);
+    }
+  }, [accountSeq, refreshPortfolioHoldings, setTotalMarketValue]);
+
   const refreshPortfolioOpenOrders = useCallback(
     async (accSeq?: string) => {
       const target = accSeq ?? accountSeq;
