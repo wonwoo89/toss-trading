@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { usePolling } from './usePolling';
+import { useChartCandles } from './useChartCandles';
 import { api } from '../api/client';
 import { getPortfolioCache, upsertPortfolioHolding } from '../lib/portfolioCache';
 import { mapHoldings, resolveLiveProfitLoss, sortHoldingsByMarketValue } from '../lib/mapPortfolio';
@@ -107,6 +108,11 @@ export function useSymbolTrading(
     enabled: effectiveMarketPollingEnabled,
     resetKey: symbol ?? '',
     options: { initialDelayMs: MARKET_INITIAL_DELAY_MS },
+  });
+
+  const candlesData = useChartCandles(symbol ?? '', candleInterval, effectiveMarketPollingEnabled, {
+    pollIntervalMs: CANDLE_POLL_MS,
+    initialDelayMs: CANDLE_INITIAL_DELAY_MS,
   });
 
   // UI preference 상태 (candle interval, take profit rate) 도 훅 소유
@@ -546,5 +552,12 @@ export function useSymbolTrading(
     closedOrdersState: closedOrdersPolling.data,
     marketData: marketPolling.data,
     refreshMarketNow: marketPolling.refreshNow,
+    candles: candlesData.candles,
+    candlesError: candlesData.error,
+    candlesLoading: candlesData.loading,
+    candlesLoadingOlder: candlesData.loadingOlder,
+    hasMoreHistory: candlesData.hasMoreHistory,
+    loadOlderCandles: candlesData.loadOlder,
+    refreshCandlesNow: candlesData.refreshNow,
   };
 }
