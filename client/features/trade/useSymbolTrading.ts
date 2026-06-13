@@ -48,6 +48,8 @@ import type {
   Order,
   OrderSubmitOptions,
   OrderSubmitResult,
+  OrderbookEntryRaw,
+  TradeRaw,
 } from '../../shared/types';
 import type { TradeSnapshotState } from '../../shared/lib/tradeSnapshot';
 
@@ -237,23 +239,22 @@ export function useSymbolTrading(
       const snap = unwrapResult(await api.getMarketSnapshot(symbol));
       const p = snap.price?.[0];
       const ob = snap.orderbook;
+      const priceInfo = p as { lastPrice?: string; price?: string } | undefined;
       return {
-        bids: (ob?.bids ?? []).map((b: { price: number; quantity: number }) => ({
-          price: b.price,
-          quantity: b.quantity,
+        bids: (ob?.bids ?? []).map((b: OrderbookEntryRaw) => ({
+          price: toNumber(b.price) ?? 0,
+          quantity: toNumber(b.volume) ?? 0,
         })),
-        asks: (ob?.asks ?? []).map((a: { price: number; quantity: number }) => ({
-          price: a.price,
-          quantity: a.quantity,
+        asks: (ob?.asks ?? []).map((a: OrderbookEntryRaw) => ({
+          price: toNumber(a.price) ?? 0,
+          quantity: toNumber(a.volume) ?? 0,
         })),
-        trades: (snap.trades ?? []).map(
-          (t: { price: number; quantity: number; timestamp: string }) => ({
-            price: t.price,
-            quantity: t.quantity,
-            timestamp: t.timestamp,
-          })
-        ),
-        price: (p as any)?.price ?? (p as any)?.lastPrice,
+        trades: (snap.trades ?? []).map((t: TradeRaw) => ({
+          price: toNumber(t.price) ?? 0,
+          quantity: toNumber(t.volume) ?? 0,
+          timestamp: t.timestamp,
+        })),
+        price: toNumber(priceInfo?.lastPrice ?? priceInfo?.price),
       };
     } catch {
       return undefined;
@@ -715,7 +716,7 @@ export function useSymbolTrading(
       marketPolling.refreshNow?.();
       candlesData.refreshNow?.();
 
-      let st = await refreshTradeAfterOrder(tradeBase);
+      let st = (await refreshTradeAfterOrder(tradeBase)) ?? tradeBase;
       await refreshBuyingPower(acc);
       await refreshPortfolioHoldings();
 
@@ -770,7 +771,7 @@ export function useSymbolTrading(
 
   // commission + marketPanelProps 는 이제 훅 내부에서 조립 (StockPage 경량화)
   const commissionRatePercent = useMemo(
-    () => resolveUsCommissionRatePercent(commissionsPolling.data),
+    () => resolveUsCommissionRatePercent(commissionsPolling.data ?? undefined),
     [commissionsPolling.data]
   );
 
