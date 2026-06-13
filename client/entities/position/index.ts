@@ -55,12 +55,20 @@ export interface Position {
 export function computePortfolioSummary(holdings: HoldingItem[]) {
   const summary = formatPositionSummary(holdings);
   const totalProfitLoss = holdings.reduce((sum, h) => sum + (h.profitLoss ?? 0), 0);
-  const totalProfitLossRate = summary.totalValue > 0 ? totalProfitLoss / summary.totalValue : undefined;
+  const totalProfitLossRate =
+    summary.totalValue > 0 ? totalProfitLoss / summary.totalValue : undefined;
   return {
     ...summary,
     totalProfitLoss,
     totalProfitLossRate,
   };
 }
+
+// Re-export position-related formatters from shared/lib for entity ownership (FSD)
+export {
+  formatProfitLoss,
+  formatSignedPercent,
+  formatSignedUsd,
+} from '../../shared/lib/formatHoldings';
 
 // TODO: more from mapPortfolio, formatHoldings etc. (e.g., full mapPortfolio logic)
