@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   getPortfolioCache,
   upsertPortfolioHolding,
@@ -81,6 +81,13 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     setHolding(undefined)
     setOpenOrders([])
   }, [])
+
+  // symbol 변경 시 trade 상태 자동 리셋 (훅 내부에서 캡슐화)
+  useEffect(() => {
+    if (!symbol) {
+      resetTradeState()
+    }
+  }, [symbol, resetTradeState])
 
   return {
     symbol,
