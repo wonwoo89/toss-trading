@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 import { getPortfolioCache, upsertPortfolioHolding } from '../lib/portfolioCache';
-import { sortHoldingsByMarketValue } from '../lib/mapPortfolio';
+import { mapHoldings, resolveLiveProfitLoss, sortHoldingsByMarketValue } from '../lib/mapPortfolio';
 import { fetchTradeSnapshotState, fetchTradeSnapshotWithRetry } from '../lib/tradeSnapshot';
 import {
   calculateTakeProfitSellPrice,
@@ -57,9 +57,10 @@ export interface SymbolTradingOptions {
 export function useSymbolTrading(
   options: SymbolTradingOptions & {
     setBuyingPower?: (value?: number) => void;
+    currentPrice?: number;
   } = {}
 ) {
-  const { symbol, accountSeq, setBuyingPower } = options;
+  const { symbol, accountSeq, setBuyingPower, currentPrice } = options;
 
   const [sellableQuantity, setSellableQuantity] = useState<number>();
   const [holding, setHolding] = useState<HoldingItem>();
@@ -72,6 +73,57 @@ export function useSymbolTrading(
   const [portfolioOpenOrders, setPortfolioOpenOrders] = useState<Order[]>(() =>
     getCachedOpenOrders(accountSeq)
   );
+
+  const holdingSummary = useMemo(() => {
+    if (!holding || holding.quantity <= 0) return undefined;
+
+    const marketValue =
+      currentPrice !== undefined ? holding.quantity * currentPrice : holding.marketValue;
+    const purchaseAmount =
+      holding.purchaseAmount ??
+      (holding.averagePrice !== undefined ? holding.quantity * holding.averagePrice : undefined);
+
+    if (marketValue === undefined || purchaseAmount === undefined) {
+      return {
+        quantity: holding.quantity,
+        averagePrice: holding.averagePrice,
+        marketValue: holding.marketValue,
+        profitLoss: holding.profitLoss,
+        profitLossRate: holding.profitLossRate,
+      };
+    }
+
+    const { profitLoss, profitLossRate } = resolveLiveProfitLoss(holding, marketValue);
+
+    return {
+      quantity: holding.quantity,
+      averagePrice: holding.averagePrice,
+      marketValue,
+      profitLoss,
+      profitLossRate,
+    };
+  }, [holding, currentPrice]);
+
+  const portfolioTotals = useMemo(() => {
+    const totalMarketValue = portfolioHoldings.reduce(
+      (sum, item) => sum + (item.marketValue ?? 0),
+      0
+    );
+    const totalPurchaseAmount = portfolioHoldings.reduce(
+      (sum, item) => sum + (item.purchaseAmount ?? 0),
+      0
+    );
+    const totalProfitLoss =
+      portfolioHoldings.length > 0
+        ? portfolioHoldings.reduce((sum, item) => sum + (item.profitLoss ?? 0), 0)
+        : undefined;
+    const totalProfitLossRate =
+      totalPurchaseAmount > 0 && totalProfitLoss !== undefined
+        ? totalProfitLoss / totalPurchaseAmount
+        : undefined;
+
+    return { totalMarketValue, totalProfitLoss, totalProfitLossRate };
+  }, [portfolioHoldings]);
 
   const tradeRefreshSeqRef = useRef(0);
 
@@ -435,5 +487,7 @@ export function useSymbolTrading(
     refreshPortfolioHoldings,
     refreshPortfolioOpenOrders,
     refreshBuyingPower,
+    holdingSummary,
+    portfolioTotals,
   };
 }

@@ -97,6 +97,8 @@ export function StockPage() {
     marketFetcher,
     commissionsFetcher,
     closedOrdersFetcher,
+    holdingSummary,
+    portfolioTotals,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -180,57 +182,6 @@ export function StockPage() {
   });
 
   // 2. 일반 const
-  const holdingSummary = useMemo(() => {
-    if (!holding || holding.quantity <= 0) return undefined;
-
-    const marketValue =
-      marketData?.price !== undefined ? holding.quantity * marketData.price : holding.marketValue;
-    const purchaseAmount =
-      holding.purchaseAmount ??
-      (holding.averagePrice !== undefined ? holding.quantity * holding.averagePrice : undefined);
-
-    if (marketValue === undefined || purchaseAmount === undefined) {
-      return {
-        quantity: holding.quantity,
-        averagePrice: holding.averagePrice,
-        marketValue: holding.marketValue,
-        profitLoss: holding.profitLoss,
-        profitLossRate: holding.profitLossRate,
-      };
-    }
-
-    const { profitLoss, profitLossRate } = resolveLiveProfitLoss(holding, marketValue);
-
-    return {
-      quantity: holding.quantity,
-      averagePrice: holding.averagePrice,
-      marketValue,
-      profitLoss,
-      profitLossRate,
-    };
-  }, [holding, marketData?.price]);
-
-  const portfolioTotals = useMemo(() => {
-    const totalMarketValue = portfolioHoldings.reduce(
-      (sum, item) => sum + (item.marketValue ?? 0),
-      0
-    );
-    const totalPurchaseAmount = portfolioHoldings.reduce(
-      (sum, item) => sum + (item.purchaseAmount ?? 0),
-      0
-    );
-    const totalProfitLoss =
-      portfolioHoldings.length > 0
-        ? portfolioHoldings.reduce((sum, item) => sum + (item.profitLoss ?? 0), 0)
-        : undefined;
-    const totalProfitLossRate =
-      totalPurchaseAmount > 0 && totalProfitLoss !== undefined
-        ? totalProfitLoss / totalPurchaseAmount
-        : undefined;
-
-    return { totalMarketValue, totalProfitLoss, totalProfitLossRate };
-  }, [portfolioHoldings]);
-
   const averagePrice = holding && holding.quantity > 0 ? holding.averagePrice : undefined;
 
   const commissionRatePercent = useMemo(
