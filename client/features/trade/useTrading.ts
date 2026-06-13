@@ -1,6 +1,5 @@
 import { useSymbolTrading } from '../../shared/hooks/useSymbolTrading';
 import { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
-import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
 interface UseTradingOptions {
   symbol?: string;
