@@ -20,6 +20,7 @@ import {
 import { toNumber, unwrapResult } from '../lib/parse';
 import { getStoredCandleInterval, setStoredCandleInterval } from '../lib/candleIntervalPreference';
 import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../lib/takeProfitRatePreference';
+import { setLastSelectedSymbol } from '../lib/lastSymbolPreference';
 import {
   getOpenOrdersSignature,
   refreshOpenOrdersAfterCancel,
@@ -395,6 +396,12 @@ export function useSymbolTrading(
       resetTradeState();
     }
   }, [symbol, resetTradeState]);
+
+  // 마지막 선택 심볼 저장 (이전 StockPage useEffect 이동)
+  useEffect(() => {
+    if (!symbol) return;
+    setLastSelectedSymbol(symbol);
+  }, [symbol]);
 
   // symbol 메타 (stockName, warnings) 로드 — StockPage에서 이동 (api + isReady + symbol 의존)
   useEffect(() => {
