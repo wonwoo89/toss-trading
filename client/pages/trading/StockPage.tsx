@@ -63,6 +63,7 @@ import type {
 } from '../types';
 
 export function StockPage() {
+  // 1. 상태(state) or hook
   const { symbol: routeSymbol } = useParams<{ symbol?: string }>();
   const symbol = routeSymbol?.toUpperCase();
   const hasSymbol = Boolean(symbol);
@@ -82,7 +83,6 @@ export function StockPage() {
   );
   const layoutRef = useRef<HTMLElement>(null);
 
-  // trade snapshot 상태(holding, openOrders, sellableQuantity)와 refresh/apply 로직은 훅이 소유
   const {
     sellableQuantity,
     holding,
@@ -97,11 +97,6 @@ export function StockPage() {
     accountSeq: selectedAccountSeq,
   });
 
-  // 주말/휴장 폴링 가드를 일찍 선언 (useChartCandles 등에서 사용하기 때문에 선언 순서 중요)
-  const calendarFetcher = useCallback(async () => {
-    return unwrapResult(await api.getUsMarketCalendar());
-  }, []);
-
   const {
     data: usMarketCalendar,
     error: usMarketCalendarError,
@@ -113,83 +108,19 @@ export function StockPage() {
     resetKey: 'us-market-calendar',
   });
 
-  // 최초 랜딩/새로고침 시점에는 1회 데이터 fetch를 강제 (주말/휴장 가드와 무관)
-  // 일정 시간 후에는 recurring polling 가드만 적용
   const [initialLoadPhase, setInitialLoadPhase] = useState(true);
-  useEffect(() => {
-    const timer = setTimeout(() => setInitialLoadPhase(false), 8000);
-    return () => clearTimeout(timer);
-  }, []);
 
-  // market 폴링 enabled: initial phase 동안은 무조건 1회 허용, 이후 closed 가드
   const effectiveMarketPollingEnabled = useMemo(() => {
     if (!isReady || !hasSymbol) return false;
     if (initialLoadPhase) return true;
     return shouldEnableRecurringMarketPolling(usMarketCalendar?.today);
   }, [isReady, hasSymbol, usMarketCalendar?.today, initialLoadPhase]);
 
-  // account/snapshot 폴링 enabled: initial phase 동안 1회 허용, 이후 closed 가드
   const effectiveAccountPollingEnabled = useMemo(() => {
     if (!isReady || !selectedAccountSeq) return false;
     if (initialLoadPhase) return true;
     return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today);
   }, [isReady, selectedAccountSeq, usMarketCalendar?.today, initialLoadPhase]);
-
-  useEffect(() => {
-    if (!symbol) return;
-    setLastSelectedSymbol(symbol);
-  }, [symbol]);
-
-  useEffect(() => {
-    if (!selectedAccountSeq) {
-      setPortfolioHoldings([]);
-      setPortfolioOpenOrders([]);
-      setTotalMarketValue(undefined);
-      return;
-    }
-
-    setPortfolioHoldings(getCachedHoldings(selectedAccountSeq));
-    setPortfolioOpenOrders(getCachedOpenOrders(selectedAccountSeq));
-  }, [selectedAccountSeq, setTotalMarketValue]);
-
-  useEffect(() => {
-    const total = portfolioHoldings.reduce((sum, item) => sum + (item.marketValue ?? 0), 0);
-    setTotalMarketValue(total);
-  }, [portfolioHoldings, setTotalMarketValue]);
-
-  useEffect(() => {
-    if (!isReady || !symbol) return;
-
-    let cancelled = false;
-
-    const loadStockMeta = async () => {
-      try {
-        const stockRes = await api.getStock(symbol);
-        if (cancelled) return;
-
-        const stock = unwrapResult(stockRes)[0];
-        setStockName(stock?.englishName ?? stock?.name);
-
-        const warningsRes = await api
-          .getWarnings(symbol)
-          .catch(() => ({ result: [] as { warningType: string }[] }));
-        if (cancelled) return;
-
-        setWarnings(unwrapResult(warningsRes).map((warning) => warning.warningType));
-      } catch {
-        if (!cancelled) {
-          setStockName(undefined);
-          setWarnings([]);
-        }
-      }
-    };
-
-    void loadStockMeta();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [isReady, symbol]);
 
   const {
     candles,
@@ -203,62 +134,6 @@ export function StockPage() {
     pollIntervalMs: CANDLE_POLL_MS,
     initialDelayMs: CANDLE_INITIAL_DELAY_MS,
   });
-
-  const refreshPortfolioHoldings = useCallback(async () => {
-    if (!selectedAccountSeq) return;
-
-    const snapshot = unwrapResult(await api.getPortfolioSnapshot(selectedAccountSeq));
-    const mapped = mapHoldings(snapshot.holdings);
-
-    setBuyingPower(toNumber(snapshot.buyingPower.cashBuyingPower));
-    setPortfolioHoldings(mapped);
-    savePortfolioHoldings(selectedAccountSeq, mapped);
-  }, [selectedAccountSeq, setBuyingPower]);
-
-  const refreshPortfolioOpenOrders = useCallback(
-    async (accountSeq?: string) => {
-      const targetAccountSeq = accountSeq ?? selectedAccountSeq;
-      if (!targetAccountSeq) return;
-
-      const orders = unwrapResult(await api.getAllOpenOrders(targetAccountSeq));
-      const mapped = mapOrders(orders);
-
-      setPortfolioOpenOrders(mapped);
-      savePortfolioOpenOrders(targetAccountSeq, mapped);
-    },
-    [selectedAccountSeq]
-  );
-
-  const refreshOpenOrdersAfterCreateForAccount = useCallback(
-    async (params: {
-      accountSeq: string;
-      baselineSignature: string;
-      createdOrderId?: string;
-      orderType?: 'LIMIT' | 'MARKET';
-    }) => {
-      const { accountSeq, baselineSignature, createdOrderId, orderType = 'LIMIT' } = params;
-      await refreshOpenOrdersAfterCreate(
-        () => refreshPortfolioOpenOrders(accountSeq),
-        () => getCachedOpenOrders(accountSeq),
-        baselineSignature,
-        createdOrderId,
-        orderType
-      );
-    },
-    [refreshPortfolioOpenOrders]
-  );
-
-  const refreshOpenOrdersAfterCancelForAccount = useCallback(
-    async (params: { accountSeq: string; cancelledOrderId: string }) => {
-      const { accountSeq, cancelledOrderId } = params;
-      await refreshOpenOrdersAfterCancel(
-        () => refreshPortfolioOpenOrders(accountSeq),
-        () => getCachedOpenOrders(accountSeq),
-        cancelledOrderId
-      );
-    },
-    [refreshPortfolioOpenOrders]
-  );
 
   const { refreshNow: refreshTradeNow } = usePolling({
     fetcher: refreshTrade,
@@ -276,60 +151,6 @@ export function StockPage() {
     options: { initialDelayMs: PORTFOLIO_INITIAL_DELAY_MS },
   });
 
-  useEffect(() => {
-    if (!isReady || !selectedAccountSeq) return;
-
-    const timer = setTimeout(() => {
-      void refreshPortfolioOpenOrders();
-    }, PORTFOLIO_INITIAL_DELAY_MS);
-
-    return () => clearTimeout(timer);
-  }, [isReady, selectedAccountSeq, refreshPortfolioOpenOrders]);
-
-  const refreshBuyingPower = useCallback(
-    async (accountSeq: string) => {
-      const buyingPowerRes = await api.getBuyingPower(accountSeq).catch(() => null);
-      if (buyingPowerRes) {
-        setBuyingPower(toNumber(unwrapResult(buyingPowerRes).cashBuyingPower));
-      }
-    },
-    [setBuyingPower]
-  );
-
-  useEffect(() => {
-    const searchInput = document.getElementById('symbol-search');
-    if (searchInput instanceof HTMLElement) {
-      searchInput.blur();
-    }
-    layoutRef.current?.focus({ preventScroll: true });
-  }, [symbol]);
-
-  const marketFetcher = useCallback(async () => {
-    if (!symbol) throw new Error('종목이 선택되지 않았습니다.');
-
-    const snapshot = unwrapResult(await api.getMarketSnapshot(symbol));
-    const price = snapshot.price[0];
-    const orderbook = snapshot.orderbook;
-    const trades = snapshot.trades;
-
-    return {
-      price: toNumber(price?.lastPrice),
-      bids: orderbook.bids.map((entry) => ({
-        price: toNumber(entry.price) ?? 0,
-        quantity: toNumber(entry.volume) ?? 0,
-      })),
-      asks: orderbook.asks.map((entry) => ({
-        price: toNumber(entry.price) ?? 0,
-        quantity: toNumber(entry.volume) ?? 0,
-      })),
-      trades: trades.map((trade) => ({
-        price: toNumber(trade.price) ?? 0,
-        quantity: toNumber(trade.volume) ?? 0,
-        timestamp: trade.timestamp,
-      })),
-    };
-  }, [symbol]);
-
   const { data: marketData, refreshNow: refreshMarketNow } = usePolling({
     fetcher: marketFetcher,
     intervalMs: MARKET_POLL_MS,
@@ -338,32 +159,12 @@ export function StockPage() {
     options: { initialDelayMs: MARKET_INITIAL_DELAY_MS },
   });
 
-  const commissionsFetcher = useCallback(async () => {
-    if (!selectedAccountSeq) return [];
-    return unwrapResult(await api.getCommissions(selectedAccountSeq));
-  }, [selectedAccountSeq]);
-
   const { data: commissions } = usePolling({
     fetcher: commissionsFetcher,
     intervalMs: COMMISSIONS_POLL_MS,
     enabled: effectiveAccountPollingEnabled,
     resetKey: `commissions:${selectedAccountSeq ?? ''}`,
   });
-
-  const closedOrdersFetcher = useCallback(async () => {
-    if (!selectedAccountSeq || !symbol) {
-      return { orders: [] as Order[], unavailable: false };
-    }
-
-    try {
-      const page = unwrapResult(
-        await api.getOrders({ status: 'CLOSED', symbol }, selectedAccountSeq)
-      );
-      return { orders: mapOrders(page), unavailable: false };
-    } catch {
-      return { orders: [] as Order[], unavailable: true };
-    }
-  }, [selectedAccountSeq, symbol]);
 
   const { data: closedOrdersState } = usePolling({
     fetcher: closedOrdersFetcher,
@@ -372,11 +173,7 @@ export function StockPage() {
     resetKey: `closed-orders:${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
   });
 
-  const handleTakeProfitRateChange = useCallback((rate: number) => {
-    setTakeProfitRatePercent(rate);
-    setStoredTakeProfitRate(rate);
-  }, []);
-
+  // 2. 일반 const
   const holdingSummary = useMemo(() => {
     if (!holding || holding.quantity <= 0) return undefined;
 
@@ -406,86 +203,6 @@ export function StockPage() {
       profitLossRate,
     };
   }, [holding, marketData?.price]);
-
-  const handleCandleIntervalChange = useCallback((interval: CandleInterval) => {
-    setCandleInterval(interval);
-    setStoredCandleInterval(interval);
-  }, []);
-
-  const handleCreateOrder = async (
-    payload: CreateOrderPayload,
-    options?: OrderSubmitOptions
-  ): Promise<OrderSubmitResult> => {
-    const accountSeq = requireAccountSeq();
-    const openOrdersBaselineSignature = getOpenOrdersSignature(portfolioOpenOrders);
-    const baselineQuantity = holding?.quantity ?? 0;
-    const tradeBaseline = getCurrentTradeSnapshot();
-
-    const createdOrder = unwrapResult(await api.createOrder(payload, accountSeq));
-    await refreshOpenOrdersAfterCreateForAccount({
-      accountSeq,
-      baselineSignature: openOrdersBaselineSignature,
-      createdOrderId: createdOrder.orderId,
-      orderType: payload.orderType,
-    });
-
-    refreshMarketNow();
-    refreshCandlesNow();
-
-    let state = await fetchTradeSnapshotWithRetry(symbol, accountSeq, tradeBaseline);
-    applyTradeSnapshot(state);
-    refreshTradeNow();
-    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
-
-    let takeProfitSell: OrderSubmitResult['takeProfitSell'];
-
-    if (payload.side === 'BUY' && options?.takeProfitSell) {
-      takeProfitSell = await executePostBuyTakeProfit(
-        options.takeProfitSell.profitRatePercent,
-        payload.quantity,
-        baselineQuantity,
-        state
-      ).catch((error: unknown) => ({
-        placed: false,
-        message:
-          error instanceof Error
-            ? `목표 수익률 매도 주문 실패: ${error.message}`
-            : '목표 수익률 매도 주문에 실패했습니다.',
-      }));
-
-      if (takeProfitSell?.placed) {
-        const openOrdersBeforeTakeProfit = getOpenOrdersSignature(getCachedOpenOrders(accountSeq));
-
-        await refreshTrade();
-        refreshTradeNow();
-        await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
-        await refreshOpenOrdersAfterCreateForAccount({
-          accountSeq,
-          baselineSignature: openOrdersBeforeTakeProfit,
-          createdOrderId: takeProfitSell.orderId,
-          orderType: 'LIMIT',
-        });
-      }
-    }
-
-    await refreshPortfolioOpenOrders(accountSeq);
-
-    return { takeProfitSell };
-  };
-
-  const handleCancelOrder = async (orderId: string) => {
-    const accountSeq = requireAccountSeq();
-
-    await api.cancelOrder(orderId, accountSeq);
-    await refreshOpenOrdersAfterCancelForAccount({ accountSeq, cancelledOrderId: orderId });
-    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
-
-    if (!symbol) return;
-
-    // 훅의 refreshTrade가 fetch + apply를 담당
-    await refreshTrade();
-    refreshTradeNow();
-  };
 
   const portfolioTotals = useMemo(() => {
     const totalMarketValue = portfolioHoldings.reduce(
@@ -574,6 +291,288 @@ export function StockPage() {
       warnings,
     ]
   );
+
+  // 3. 함수 (메소드 & 핸들러) - get/set/on/handle 접두사로 목적 명확히
+  const calendarFetcher = useCallback(async () => {
+    return unwrapResult(await api.getUsMarketCalendar());
+  }, []);
+
+  const commissionsFetcher = useCallback(async () => {
+    if (!selectedAccountSeq) return [];
+    return unwrapResult(await api.getCommissions(selectedAccountSeq));
+  }, [selectedAccountSeq]);
+
+  const closedOrdersFetcher = useCallback(async () => {
+    if (!selectedAccountSeq || !symbol) {
+      return { orders: [] as Order[], unavailable: false };
+    }
+
+    try {
+      const page = unwrapResult(
+        await api.getOrders({ status: 'CLOSED', symbol }, selectedAccountSeq)
+      );
+      return { orders: mapOrders(page), unavailable: false };
+    } catch {
+      return { orders: [] as Order[], unavailable: true };
+    }
+  }, [selectedAccountSeq, symbol]);
+
+  const marketFetcher = useCallback(async () => {
+    if (!symbol) throw new Error('종목이 선택되지 않았습니다.');
+
+    const snapshot = unwrapResult(await api.getMarketSnapshot(symbol));
+    const price = snapshot.price[0];
+    const orderbook = snapshot.orderbook;
+    const trades = snapshot.trades;
+
+    return {
+      price: toNumber(price?.lastPrice),
+      bids: orderbook.bids.map((entry) => ({
+        price: toNumber(entry.price) ?? 0,
+        quantity: toNumber(entry.volume) ?? 0,
+      })),
+      asks: orderbook.asks.map((entry) => ({
+        price: toNumber(entry.price) ?? 0,
+        quantity: toNumber(entry.volume) ?? 0,
+      })),
+      trades: trades.map((trade) => ({
+        price: toNumber(trade.price) ?? 0,
+        quantity: toNumber(trade.volume) ?? 0,
+        timestamp: trade.timestamp,
+      })),
+    };
+  }, [symbol]);
+
+  const refreshPortfolioHoldings = useCallback(async () => {
+    if (!selectedAccountSeq) return;
+
+    const snapshot = unwrapResult(await api.getPortfolioSnapshot(selectedAccountSeq));
+    const mapped = mapHoldings(snapshot.holdings);
+
+    setBuyingPower(toNumber(snapshot.buyingPower.cashBuyingPower));
+    setPortfolioHoldings(mapped);
+    savePortfolioHoldings(selectedAccountSeq, mapped);
+  }, [selectedAccountSeq, setBuyingPower]);
+
+  const refreshPortfolioOpenOrders = useCallback(
+    async (accountSeq?: string) => {
+      const targetAccountSeq = accountSeq ?? selectedAccountSeq;
+      if (!targetAccountSeq) return;
+
+      const orders = unwrapResult(await api.getAllOpenOrders(targetAccountSeq));
+      const mapped = mapOrders(orders);
+
+      setPortfolioOpenOrders(mapped);
+      savePortfolioOpenOrders(targetAccountSeq, mapped);
+    },
+    [selectedAccountSeq]
+  );
+
+  const refreshOpenOrdersAfterCreateForAccount = useCallback(
+    async (params: {
+      accountSeq: string;
+      baselineSignature: string;
+      createdOrderId?: string;
+      orderType?: 'LIMIT' | 'MARKET';
+    }) => {
+      const { accountSeq, baselineSignature, createdOrderId, orderType = 'LIMIT' } = params;
+      await refreshOpenOrdersAfterCreate(
+        () => refreshPortfolioOpenOrders(accountSeq),
+        () => getCachedOpenOrders(accountSeq),
+        baselineSignature,
+        createdOrderId,
+        orderType
+      );
+    },
+    [refreshPortfolioOpenOrders]
+  );
+
+  const refreshOpenOrdersAfterCancelForAccount = useCallback(
+    async (params: { accountSeq: string; cancelledOrderId: string }) => {
+      const { accountSeq, cancelledOrderId } = params;
+      await refreshOpenOrdersAfterCancel(
+        () => refreshPortfolioOpenOrders(accountSeq),
+        () => getCachedOpenOrders(accountSeq),
+        cancelledOrderId
+      );
+    },
+    [refreshPortfolioOpenOrders]
+  );
+
+  const refreshBuyingPower = useCallback(
+    async (accountSeq: string) => {
+      const buyingPowerRes = await api.getBuyingPower(accountSeq).catch(() => null);
+      if (buyingPowerRes) {
+        setBuyingPower(toNumber(unwrapResult(buyingPowerRes).cashBuyingPower));
+      }
+    },
+    [setBuyingPower]
+  );
+
+  const handleTakeProfitRateChange = useCallback((rate: number) => {
+    setTakeProfitRatePercent(rate);
+    setStoredTakeProfitRate(rate);
+  }, []);
+
+  const handleCandleIntervalChange = useCallback((interval: CandleInterval) => {
+    setCandleInterval(interval);
+    setStoredCandleInterval(interval);
+  }, []);
+
+  const handleCreateOrder = async (
+    payload: CreateOrderPayload,
+    options?: OrderSubmitOptions
+  ): Promise<OrderSubmitResult> => {
+    const accountSeq = requireAccountSeq();
+    const openOrdersBaselineSignature = getOpenOrdersSignature(portfolioOpenOrders);
+    const baselineQuantity = holding?.quantity ?? 0;
+    const tradeBaseline = getCurrentTradeSnapshot();
+
+    const createdOrder = unwrapResult(await api.createOrder(payload, accountSeq));
+    await refreshOpenOrdersAfterCreateForAccount({
+      accountSeq,
+      baselineSignature: openOrdersBaselineSignature,
+      createdOrderId: createdOrder.orderId,
+      orderType: payload.orderType,
+    });
+
+    refreshMarketNow();
+    refreshCandlesNow();
+
+    let state = await fetchTradeSnapshotWithRetry(symbol, accountSeq, tradeBaseline);
+    applyTradeSnapshot(state);
+    refreshTradeNow();
+    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
+
+    let takeProfitSell: OrderSubmitResult['takeProfitSell'];
+
+    if (payload.side === 'BUY' && options?.takeProfitSell) {
+      takeProfitSell = await executePostBuyTakeProfit(
+        options.takeProfitSell.profitRatePercent,
+        payload.quantity,
+        baselineQuantity,
+        state
+      ).catch((error: unknown) => ({
+        placed: false,
+        message:
+          error instanceof Error
+            ? `목표 수익률 매도 주문 실패: ${error.message}`
+            : '목표 수익률 매도 주문에 실패했습니다.',
+      }));
+
+      if (takeProfitSell?.placed) {
+        const openOrdersBeforeTakeProfit = getOpenOrdersSignature(getCachedOpenOrders(accountSeq));
+
+        await refreshTrade();
+        refreshTradeNow();
+        await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
+        await refreshOpenOrdersAfterCreateForAccount({
+          accountSeq,
+          baselineSignature: openOrdersBeforeTakeProfit,
+          createdOrderId: takeProfitSell.orderId,
+          orderType: 'LIMIT',
+        });
+      }
+    }
+
+    await refreshPortfolioOpenOrders(accountSeq);
+
+    return { takeProfitSell };
+  };
+
+  const handleCancelOrder = async (orderId: string) => {
+    const accountSeq = requireAccountSeq();
+
+    await api.cancelOrder(orderId, accountSeq);
+    await refreshOpenOrdersAfterCancelForAccount({ accountSeq, cancelledOrderId: orderId });
+    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
+
+    if (!symbol) return;
+
+    // 훅의 refreshTrade가 fetch + apply를 담당
+    await refreshTrade();
+    refreshTradeNow();
+  };
+
+  // 4. useEffect (side effect 로직은 return 직전)
+  useEffect(() => {
+    if (!symbol) return;
+    setLastSelectedSymbol(symbol);
+  }, [symbol]);
+
+  useEffect(() => {
+    if (!selectedAccountSeq) {
+      setPortfolioHoldings([]);
+      setPortfolioOpenOrders([]);
+      setTotalMarketValue(undefined);
+      return;
+    }
+
+    setPortfolioHoldings(getCachedHoldings(selectedAccountSeq));
+    setPortfolioOpenOrders(getCachedOpenOrders(selectedAccountSeq));
+  }, [selectedAccountSeq, setTotalMarketValue]);
+
+  useEffect(() => {
+    const total = portfolioHoldings.reduce((sum, item) => sum + (item.marketValue ?? 0), 0);
+    setTotalMarketValue(total);
+  }, [portfolioHoldings, setTotalMarketValue]);
+
+  useEffect(() => {
+    if (!isReady || !symbol) return;
+
+    let cancelled = false;
+
+    const loadStockMeta = async () => {
+      try {
+        const stockRes = await api.getStock(symbol);
+        if (cancelled) return;
+
+        const stock = unwrapResult(stockRes)[0];
+        setStockName(stock?.englishName ?? stock?.name);
+
+        const warningsRes = await api
+          .getWarnings(symbol)
+          .catch(() => ({ result: [] as { warningType: string }[] }));
+        if (cancelled) return;
+
+        setWarnings(unwrapResult(warningsRes).map((warning) => warning.warningType));
+      } catch {
+        if (!cancelled) {
+          setStockName(undefined);
+          setWarnings([]);
+        }
+      }
+    };
+
+    void loadStockMeta();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isReady, symbol]);
+
+  useEffect(() => {
+    if (!isReady || !selectedAccountSeq) return;
+
+    const timer = setTimeout(() => {
+      void refreshPortfolioOpenOrders();
+    }, PORTFOLIO_INITIAL_DELAY_MS);
+
+    return () => clearTimeout(timer);
+  }, [isReady, selectedAccountSeq, refreshPortfolioOpenOrders]);
+
+  useEffect(() => {
+    const searchInput = document.getElementById('symbol-search');
+    if (searchInput instanceof HTMLElement) {
+      searchInput.blur();
+    }
+    layoutRef.current?.focus({ preventScroll: true });
+  }, [symbol]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setInitialLoadPhase(false), 8000);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <>
