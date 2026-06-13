@@ -1,25 +1,21 @@
-import { useNavigate } from 'react-router-dom'
-import { OpenOrdersPanel } from './OpenOrdersPanel'
-import { PortfolioStats } from './PortfolioStats'
-import { StockLabel } from './StockLabel'
-import {
-  formatProfitLoss,
-  formatUsd,
-  getKrProfitLossClass,
-} from '../lib/formatHoldings'
-import type { HoldingItem, Order } from '../types'
+import { useNavigate } from 'react-router-dom';
+import { OpenOrdersPanel } from './OpenOrdersPanel';
+import { PortfolioStats } from './PortfolioStats';
+import { StockLabel } from './StockLabel';
+import { formatProfitLoss, formatUsd, getKrProfitLossClass } from '../lib/formatHoldings';
+import type { HoldingItem, Order } from '../types';
 
 interface PortfolioSidebarProps {
-  buyingPower?: number
-  totalMarketValue?: number
-  totalProfitLoss?: number
-  totalProfitLossRate?: number
-  holdings: HoldingItem[]
-  openOrders: Order[]
-  activeSymbol?: string
-  holdingsPollIntervalMs?: number
-  holdingsRefreshing?: boolean
-  onCancelOrder: (orderId: string) => Promise<void>
+  buyingPower?: number;
+  totalMarketValue?: number;
+  totalProfitLoss?: number;
+  totalProfitLossRate?: number;
+  holdings: HoldingItem[];
+  openOrders: Order[];
+  activeSymbol?: string;
+  holdingsPollIntervalMs?: number;
+  holdingsRefreshing?: boolean;
+  onCancelOrder: (orderId: string) => Promise<void>;
 }
 
 export function PortfolioSidebar({
@@ -34,11 +30,11 @@ export function PortfolioSidebar({
   holdingsRefreshing,
   onCancelOrder,
 }: PortfolioSidebarProps) {
-  const navigate = useNavigate()
+  const navigate = useNavigate();
 
   const goToStock = (symbol: string) => {
-    navigate(`/stock/${symbol}`)
-  }
+    navigate(`/stock/${symbol}`);
+  };
 
   return (
     <aside className="portfolio-sidebar">
@@ -69,7 +65,7 @@ export function PortfolioSidebar({
           ) : (
             <ul className="portfolio-holdings-list__items">
               {holdings.map((item) => {
-                const isActive = item.symbol.toUpperCase() === activeSymbol?.toUpperCase()
+                const isActive = item.symbol.toUpperCase() === activeSymbol?.toUpperCase();
 
                 return (
                   <li key={item.symbol}>
@@ -99,7 +95,7 @@ export function PortfolioSidebar({
                       </div>
                     </button>
                   </li>
-                )
+                );
               })}
             </ul>
           )}
@@ -108,5 +104,5 @@ export function PortfolioSidebar({
 
       <OpenOrdersPanel openOrders={openOrders} onCancel={onCancelOrder} />
     </aside>
-  )
+  );
 }

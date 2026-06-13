@@ -1,29 +1,25 @@
-import { useNavigate } from 'react-router-dom'
-import { StockLabel } from './StockLabel'
+import { useNavigate } from 'react-router-dom';
+import { StockLabel } from './StockLabel';
 import {
   formatProfitLoss,
   formatQuantity,
   formatUsd,
   getKrProfitLossClass,
-} from '../lib/formatHoldings'
-import type { HoldingItem } from '../types'
+} from '../lib/formatHoldings';
+import type { HoldingItem } from '../types';
 
 interface HoldingsPanelProps {
-  holdings: HoldingItem[]
-  pollIntervalMs?: number
-  refreshing?: boolean
+  holdings: HoldingItem[];
+  pollIntervalMs?: number;
+  refreshing?: boolean;
 }
 
-export function HoldingsPanel({
-  holdings,
-  pollIntervalMs = 5000,
-  refreshing,
-}: HoldingsPanelProps) {
-  const navigate = useNavigate()
+export function HoldingsPanel({ holdings, pollIntervalMs = 5000, refreshing }: HoldingsPanelProps) {
+  const navigate = useNavigate();
 
   const goToStock = (symbol: string) => {
-    navigate(`/stock/${symbol}`)
-  }
+    navigate(`/stock/${symbol}`);
+  };
 
   return (
     <section className="panel holdings-panel">
@@ -40,7 +36,9 @@ export function HoldingsPanel({
 
       <div className="panel-body">
         {holdings.length === 0 ? (
-          <p className="hint">보유한 미국 주식이 없습니다. 위에서 종목을 검색해 거래 화면으로 이동할 수 있습니다.</p>
+          <p className="hint">
+            보유한 미국 주식이 없습니다. 위에서 종목을 검색해 거래 화면으로 이동할 수 있습니다.
+          </p>
         ) : (
           <table>
             <thead>
@@ -62,8 +60,8 @@ export function HoldingsPanel({
                   onClick={() => goToStock(item.symbol)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault()
-                      goToStock(item.symbol)
+                      event.preventDefault();
+                      goToStock(item.symbol);
                     }
                   }}
                 >
@@ -88,5 +86,5 @@ export function HoldingsPanel({
         )}
       </div>
     </section>
-  )
+  );
 }

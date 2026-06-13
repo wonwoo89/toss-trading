@@ -1,26 +1,26 @@
-import { toNumber } from './parse'
-import type { CandleInterval, CandleRaw, ChartCandle } from '../types'
+import { toNumber } from './parse';
+import type { CandleInterval, CandleRaw, ChartCandle } from '../types';
 
 export function getCandleCount(interval: CandleInterval) {
-  if (interval === '1M') return 24
-  if (interval === '1w') return 52
-  return 120
+  if (interval === '1M') return 24;
+  if (interval === '1w') return 52;
+  return 120;
 }
 
 export function getHistoryCandleCount() {
-  return 200
+  return 200;
 }
 
 export function mergeChartCandles(...groups: ChartCandle[][]): ChartCandle[] {
-  const byTime = new Map<number, ChartCandle>()
+  const byTime = new Map<number, ChartCandle>();
 
   for (const group of groups) {
     for (const candle of group) {
-      byTime.set(candle.time, candle)
+      byTime.set(candle.time, candle);
     }
   }
 
-  return [...byTime.values()].sort((a, b) => a.time - b.time)
+  return [...byTime.values()].sort((a, b) => a.time - b.time);
 }
 
 export function mapApiCandles(candles: CandleRaw[]): ChartCandle[] {
@@ -33,5 +33,5 @@ export function mapApiCandles(candles: CandleRaw[]): ChartCandle[] {
       close: toNumber(candle.closePrice) ?? 0,
       volume: toNumber(candle.volume) ?? 0,
     }))
-    .filter((candle) => candle.open > 0 && candle.close > 0)
+    .filter((candle) => candle.open > 0 && candle.close > 0);
 }

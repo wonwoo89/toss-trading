@@ -1,13 +1,13 @@
-import { useMemo, useState } from 'react'
-import { CandleChart } from './CandleChart'
-import { ChartMarketContextPanel } from './ChartMarketContextPanel'
-import { ChartSignalPanel } from './ChartSignalPanel'
-import { StockLabel } from './StockLabel'
+import { useMemo, useState } from 'react';
+import { CandleChart } from './CandleChart';
+import { ChartMarketContextPanel } from './ChartMarketContextPanel';
+import { ChartSignalPanel } from './ChartSignalPanel';
+import { StockLabel } from './StockLabel';
 import {
   buildSpreadSnapshot,
   buildTradeFlowSnapshot,
   type MicrostructureBias,
-} from '../lib/marketMicrostructure'
+} from '../lib/marketMicrostructure';
 import {
   CANDLE_INTERVALS,
   type CandleInterval,
@@ -16,53 +16,53 @@ import {
   type HoldingItem,
   type Order,
   type UsMarketDayRaw,
-} from '../types'
+} from '../types';
 
 interface OrderbookEntry {
-  price: number
-  quantity: number
+  price: number;
+  quantity: number;
 }
 
 interface MarketPanelProps {
-  symbol: string
-  stockName?: string
-  bids?: OrderbookEntry[]
-  asks?: OrderbookEntry[]
-  trades?: { price: number; quantity: number; timestamp: string }[]
-  candles?: ChartCandle[]
-  averagePrice?: number
-  candleInterval: CandleInterval
-  onCandleIntervalChange: (interval: CandleInterval) => void
-  candlesLoading?: boolean
-  candlesLoadingOlder?: boolean
-  candlesError?: string | null
-  hasMoreHistory?: boolean
-  onLoadOlderCandles?: () => void
-  warnings?: string[]
-  currentPrice?: number
-  holding?: HoldingItem
-  holdingProfitLossRate?: number
-  targetProfitRatePercent?: number
-  usMarketDay?: UsMarketDayRaw
-  usMarketCalendarError?: string | null
-  usMarketCalendarLoading?: boolean
-  openOrders?: Order[]
-  closedOrders?: Order[]
-  closedOrdersUnavailable?: boolean
-  buyingPower?: number
-  sellableQuantity?: number
-  commissions?: CommissionRaw[]
+  symbol: string;
+  stockName?: string;
+  bids?: OrderbookEntry[];
+  asks?: OrderbookEntry[];
+  trades?: { price: number; quantity: number; timestamp: string }[];
+  candles?: ChartCandle[];
+  averagePrice?: number;
+  candleInterval: CandleInterval;
+  onCandleIntervalChange: (interval: CandleInterval) => void;
+  candlesLoading?: boolean;
+  candlesLoadingOlder?: boolean;
+  candlesError?: string | null;
+  hasMoreHistory?: boolean;
+  onLoadOlderCandles?: () => void;
+  warnings?: string[];
+  currentPrice?: number;
+  holding?: HoldingItem;
+  holdingProfitLossRate?: number;
+  targetProfitRatePercent?: number;
+  usMarketDay?: UsMarketDayRaw;
+  usMarketCalendarError?: string | null;
+  usMarketCalendarLoading?: boolean;
+  openOrders?: Order[];
+  closedOrders?: Order[];
+  closedOrdersUnavailable?: boolean;
+  buyingPower?: number;
+  sellableQuantity?: number;
+  commissions?: CommissionRaw[];
 }
 
 function formatUsd(value?: number) {
-  if (value === undefined) return '—'
-  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`
+  if (value === undefined) return '—';
+  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 }
 
 function getMetricBiasClass(bias: MicrostructureBias) {
-  if (bias === 'bullish') return 'orderbook-summary__metric--bullish'
-  if (bias === 'bearish') return 'orderbook-summary__metric--bearish'
-  return 'orderbook-summary__metric--neutral'
+  if (bias === 'bullish') return 'orderbook-summary__metric--bullish';
+  if (bias === 'bearish') return 'orderbook-summary__metric--bearish';
+  return 'orderbook-summary__metric--neutral';
 }
 
 export function MarketPanel({
@@ -95,13 +95,10 @@ export function MarketPanel({
   sellableQuantity,
   commissions = [],
 }: MarketPanelProps) {
-  const [orderbookExpanded, setOrderbookExpanded] = useState(false)
+  const [orderbookExpanded, setOrderbookExpanded] = useState(false);
 
-  const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids])
-  const tradeFlow = useMemo(
-    () => buildTradeFlowSnapshot(trades, bids, asks),
-    [asks, bids, trades],
-  )
+  const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids]);
+  const tradeFlow = useMemo(() => buildTradeFlowSnapshot(trades, bids, asks), [asks, bids, trades]);
 
   return (
     <section className="panel market-panel">
@@ -179,15 +176,11 @@ export function MarketPanel({
           <div className="orderbook-summary__metrics" aria-live="polite">
             <span className="orderbook-summary__metric orderbook-summary__metric--bearish">
               <span className="orderbook-summary__metric-label">매도 1호가</span>
-              <span className="orderbook-summary__metric-value">
-                {formatUsd(spread.bestAsk)}
-              </span>
+              <span className="orderbook-summary__metric-value">{formatUsd(spread.bestAsk)}</span>
             </span>
             <span className="orderbook-summary__metric orderbook-summary__metric--bullish">
               <span className="orderbook-summary__metric-label">매수 1호가</span>
-              <span className="orderbook-summary__metric-value">
-                {formatUsd(spread.bestBid)}
-              </span>
+              <span className="orderbook-summary__metric-value">{formatUsd(spread.bestBid)}</span>
             </span>
             <span className={`orderbook-summary__metric ${getMetricBiasClass(spread.bias)}`}>
               <span className="orderbook-summary__metric-label">{spread.label}</span>
@@ -293,5 +286,5 @@ export function MarketPanel({
         )}
       </div>
     </section>
-  )
+  );
 }

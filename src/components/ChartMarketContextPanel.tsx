@@ -1,27 +1,24 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react';
 import {
   buildAtrMetric,
   buildDayPriceMetrics,
   buildSupportResistanceMetrics,
-} from '../lib/marketAnalytics'
+} from '../lib/marketAnalytics';
 import {
   buildCommissionBreakEvenMetrics,
   resolveUsCommissionRatePercent,
-} from '../lib/commissionBreakEven'
-import { buildHoldingPositionSnapshot } from '../lib/holdingTarget'
+} from '../lib/commissionBreakEven';
+import { buildHoldingPositionSnapshot } from '../lib/holdingTarget';
 import {
   buildSpreadSnapshot,
   buildTradeFlowSnapshot,
   type MicrostructureBias,
-} from '../lib/marketMicrostructure'
-import { buildOrderExecutionMetrics } from '../lib/orderExecutionContext'
-import { buildRecentOrderActivityMetric } from '../lib/orderHistoryContext'
-import { formatUsd } from '../lib/formatHoldings'
-import { formatWarningSummary } from '../lib/warningLabels'
-import {
-  resolveUsMarketSession,
-  type UsMarketSessionKind,
-} from '../lib/usMarketCalendar'
+} from '../lib/marketMicrostructure';
+import { buildOrderExecutionMetrics } from '../lib/orderExecutionContext';
+import { buildRecentOrderActivityMetric } from '../lib/orderHistoryContext';
+import { formatUsd } from '../lib/formatHoldings';
+import { formatWarningSummary } from '../lib/warningLabels';
+import { resolveUsMarketSession, type UsMarketSessionKind } from '../lib/usMarketCalendar';
 import type {
   CandleInterval,
   ChartCandle,
@@ -29,46 +26,46 @@ import type {
   HoldingItem,
   Order,
   UsMarketDayRaw,
-} from '../types'
+} from '../types';
 
 interface OrderbookEntry {
-  price: number
-  quantity: number
+  price: number;
+  quantity: number;
 }
 
 interface TradeEntry {
-  price: number
-  quantity: number
-  timestamp: string
+  price: number;
+  quantity: number;
+  timestamp: string;
 }
 
 interface ChartMarketContextPanelProps {
-  marketDay?: UsMarketDayRaw
-  calendarError?: string | null
-  calendarLoading?: boolean
-  bids?: OrderbookEntry[]
-  asks?: OrderbookEntry[]
-  trades?: TradeEntry[]
-  candles?: ChartCandle[]
-  candleInterval?: CandleInterval
-  currentPrice?: number
-  holding?: HoldingItem
-  profitLossRate?: number
-  targetProfitRatePercent: number
-  openOrders?: Order[]
-  closedOrders?: Order[]
-  closedOrdersUnavailable?: boolean
-  buyingPower?: number
-  sellableQuantity?: number
-  commissions?: CommissionRaw[]
-  warnings?: string[]
+  marketDay?: UsMarketDayRaw;
+  calendarError?: string | null;
+  calendarLoading?: boolean;
+  bids?: OrderbookEntry[];
+  asks?: OrderbookEntry[];
+  trades?: TradeEntry[];
+  candles?: ChartCandle[];
+  candleInterval?: CandleInterval;
+  currentPrice?: number;
+  holding?: HoldingItem;
+  profitLossRate?: number;
+  targetProfitRatePercent: number;
+  openOrders?: Order[];
+  closedOrders?: Order[];
+  closedOrdersUnavailable?: boolean;
+  buyingPower?: number;
+  sellableQuantity?: number;
+  commissions?: CommissionRaw[];
+  warnings?: string[];
 }
 
 interface ContextMetric {
-  id: string
-  label: string
-  value: string
-  bias: MicrostructureBias
+  id: string;
+  label: string;
+  value: string;
+  bias: MicrostructureBias;
 }
 
 function getSessionClassName(kind: UsMarketSessionKind) {
@@ -77,40 +74,34 @@ function getSessionClassName(kind: UsMarketSessionKind) {
     case 'pre':
     case 'regular':
     case 'after':
-      return 'market-context__session--open'
+      return 'market-context__session--open';
     case 'holiday':
-      return 'market-context__session--holiday'
+      return 'market-context__session--holiday';
     case 'closed':
-      return 'market-context__session--closed'
+      return 'market-context__session--closed';
     default:
-      return 'market-context__session--unknown'
+      return 'market-context__session--unknown';
   }
 }
 
 function getMetricClassName(bias: MicrostructureBias) {
   switch (bias) {
     case 'bullish':
-      return 'market-context__metric--bullish'
+      return 'market-context__metric--bullish';
     case 'bearish':
-      return 'market-context__metric--bearish'
+      return 'market-context__metric--bearish';
     default:
-      return 'market-context__metric--neutral'
+      return 'market-context__metric--neutral';
   }
 }
 
 function getProfitClassName(rate?: number) {
-  if (rate === undefined || rate === 0) return 'market-context__metric--neutral'
-  return rate > 0 ? 'market-context__metric--bullish' : 'market-context__metric--bearish'
+  if (rate === undefined || rate === 0) return 'market-context__metric--neutral';
+  return rate > 0 ? 'market-context__metric--bullish' : 'market-context__metric--bearish';
 }
 
-function MetricRow({
-  label,
-  metrics,
-}: {
-  label: string
-  metrics: ContextMetric[]
-}) {
-  if (metrics.length === 0) return null
+function MetricRow({ label, metrics }: { label: string; metrics: ContextMetric[] }) {
+  if (metrics.length === 0) return null;
 
   return (
     <div className="market-context__row">
@@ -127,7 +118,7 @@ function MetricRow({
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 export function ChartMarketContextPanel({
@@ -151,23 +142,17 @@ export function ChartMarketContextPanel({
   commissions = [],
   warnings = [],
 }: ChartMarketContextPanelProps) {
-  const [now, setNow] = useState(() => new Date())
+  const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 1000)
-    return () => clearInterval(timer)
-  }, [])
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  const session = useMemo(
-    () => resolveUsMarketSession(marketDay, now),
-    [marketDay, now],
-  )
+  const session = useMemo(() => resolveUsMarketSession(marketDay, now), [marketDay, now]);
 
-  const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids])
-  const tradeFlow = useMemo(
-    () => buildTradeFlowSnapshot(trades, bids, asks),
-    [asks, bids, trades],
-  )
+  const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids]);
+  const tradeFlow = useMemo(() => buildTradeFlowSnapshot(trades, bids, asks), [asks, bids, trades]);
 
   const position = useMemo(
     () =>
@@ -177,28 +162,22 @@ export function ChartMarketContextPanel({
         profitLossRate,
         targetProfitRatePercent,
       }),
-    [currentPrice, holding, profitLossRate, targetProfitRatePercent],
-  )
+    [currentPrice, holding, profitLossRate, targetProfitRatePercent]
+  );
 
   const commissionRatePercent = useMemo(
     () => resolveUsCommissionRatePercent(commissions),
-    [commissions],
-  )
+    [commissions]
+  );
 
   const dayPriceMetrics = useMemo(
     () => buildDayPriceMetrics(candles, candleInterval, currentPrice),
-    [candleInterval, candles, currentPrice],
-  )
+    [candleInterval, candles, currentPrice]
+  );
 
-  const supportResistanceMetrics = useMemo(
-    () => buildSupportResistanceMetrics(candles),
-    [candles],
-  )
+  const supportResistanceMetrics = useMemo(() => buildSupportResistanceMetrics(candles), [candles]);
 
-  const atrMetric = useMemo(
-    () => buildAtrMetric(candles, currentPrice),
-    [candles, currentPrice],
-  )
+  const atrMetric = useMemo(() => buildAtrMetric(candles, currentPrice), [candles, currentPrice]);
 
   const orderExecutionMetrics = useMemo(
     () =>
@@ -208,8 +187,8 @@ export function ChartMarketContextPanel({
         sellableQuantity,
         currentPrice,
       }),
-    [buyingPower, currentPrice, openOrders, sellableQuantity],
-  )
+    [buyingPower, currentPrice, openOrders, sellableQuantity]
+  );
 
   const commissionMetrics = useMemo(
     () =>
@@ -218,45 +197,36 @@ export function ChartMarketContextPanel({
         currentPrice,
         commissionRatePercent,
       }),
-    [commissionRatePercent, currentPrice, holding?.averagePrice],
-  )
+    [commissionRatePercent, currentPrice, holding?.averagePrice]
+  );
 
   const orderHistoryMetric = useMemo(
-    () =>
-      buildRecentOrderActivityMetric(
-        openOrders,
-        closedOrders,
-        closedOrdersUnavailable,
-      ),
-    [closedOrders, closedOrdersUnavailable, openOrders],
-  )
+    () => buildRecentOrderActivityMetric(openOrders, closedOrders, closedOrdersUnavailable),
+    [closedOrders, closedOrdersUnavailable, openOrders]
+  );
 
-  const warningSummary = formatWarningSummary(warnings)
+  const warningSummary = formatWarningSummary(warnings);
 
   const sessionDetail = session.unavailable
-    ? calendarError ?? (calendarLoading ? '장 정보 불러오는 중…' : '장 정보를 불러오지 못했습니다')
+    ? (calendarError ??
+      (calendarLoading ? '장 정보 불러오는 중…' : '장 정보를 불러오지 못했습니다'))
     : [session.detail, session.countdown ? `남은 ${session.countdown}` : undefined]
         .filter(Boolean)
-        .join(' · ')
+        .join(' · ');
 
   return (
     <div className="market-context" aria-live="polite">
       <div className="market-context__row">
         <span className="market-context__row-label">장 상태</span>
         <div className="market-context__row-content">
-          <span
-            className={`market-context__session ${getSessionClassName(session.kind)}`}
-          >
+          <span className={`market-context__session ${getSessionClassName(session.kind)}`}>
             {session.label}
           </span>
           <span className="market-context__detail">{sessionDetail}</span>
         </div>
       </div>
 
-      <MetricRow
-        label="호가·체결"
-        metrics={[spread, tradeFlow]}
-      />
+      <MetricRow label="호가·체결" metrics={[spread, tradeFlow]} />
 
       <MetricRow
         label="당일·변동"
@@ -279,9 +249,7 @@ export function ChartMarketContextPanel({
               className={`market-context__metric ${getProfitClassName(position.profitLossRate)}`}
             >
               <span className="market-context__metric-label">실수익률</span>
-              <span className="market-context__metric-value">
-                {position.profitLossRateLabel}
-              </span>
+              <span className="market-context__metric-value">{position.profitLossRateLabel}</span>
             </span>
             <span
               className={`market-context__metric ${
@@ -294,18 +262,13 @@ export function ChartMarketContextPanel({
               <span className="market-context__metric-label">
                 목표 {position.targetProfitRatePercent}%
               </span>
-              <span className="market-context__metric-value">
-                {position.distanceToTargetLabel}
-              </span>
+              <span className="market-context__metric-value">{position.distanceToTargetLabel}</span>
             </span>
           </div>
         </div>
       )}
 
-      <MetricRow
-        label="수수료·체결"
-        metrics={[...commissionMetrics, orderHistoryMetric]}
-      />
+      <MetricRow label="수수료·체결" metrics={[...commissionMetrics, orderHistoryMetric]} />
 
       {warningSummary && (
         <div className="market-context__row">
@@ -316,5 +279,5 @@ export function ChartMarketContextPanel({
         </div>
       )}
     </div>
-  )
+  );
 }

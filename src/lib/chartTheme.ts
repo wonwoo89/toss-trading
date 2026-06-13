@@ -1,24 +1,24 @@
 export interface ChartThemeColors {
-  background: string
-  text: string
-  grid: string
-  border: string
-  crosshair: string
-  separator: string
-  separatorHover: string
-  candleUp: string
-  candleDown: string
-  avgPriceLine: string
-  avgPriceLabelText: string
-  bollingerUpper: string
-  bollingerMiddle: string
-  bollingerLower: string
-  bollingerFill: string
+  background: string;
+  text: string;
+  grid: string;
+  border: string;
+  crosshair: string;
+  separator: string;
+  separatorHover: string;
+  candleUp: string;
+  candleDown: string;
+  avgPriceLine: string;
+  avgPriceLabelText: string;
+  bollingerUpper: string;
+  bollingerMiddle: string;
+  bollingerLower: string;
+  bollingerFill: string;
 }
 
 function readCssVar(name: string, fallback: string) {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
-  return value || fallback
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return value || fallback;
 }
 
 export function getChartThemeColors(): ChartThemeColors {
@@ -38,5 +38,5 @@ export function getChartThemeColors(): ChartThemeColors {
     bollingerMiddle: readCssVar('--chart-bb-middle', '#f5d547'),
     bollingerLower: readCssVar('--chart-bb-lower', '#f5d547'),
     bollingerFill: readCssVar('--chart-bb-fill', 'rgba(245, 213, 71, 0.08)'),
-  }
+  };
 }

@@ -1,6 +1,6 @@
-import { HeaderAccountBalance } from './HeaderAccountBalance'
-import { SymbolSearch } from './SymbolSearch'
-import { ThemeToggle } from './ThemeToggle'
+import { HeaderAccountBalance } from './HeaderAccountBalance';
+import { SymbolSearch } from './SymbolSearch';
+import { ThemeToggle } from './ThemeToggle';
 
 export function Header() {
   return (
@@ -15,5 +15,5 @@ export function Header() {
         <SymbolSearch />
       </div>
     </header>
-  )
+  );
 }
