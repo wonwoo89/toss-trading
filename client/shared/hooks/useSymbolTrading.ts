@@ -125,7 +125,14 @@ export function useSymbolTrading(
     }
     if (initialLoadPhase) return true;
     return shouldEnableRecurringMarketPolling(usMarketCalendar?.today);
-  }, [contextIsReady, symbol, isClosed, closedDayInitialDone, initialLoadPhase, usMarketCalendar?.today]);
+  }, [
+    contextIsReady,
+    symbol,
+    isClosed,
+    closedDayInitialDone,
+    initialLoadPhase,
+    usMarketCalendar?.today,
+  ]);
 
   const effectiveAccountPollingEnabled = useMemo(() => {
     if (!contextIsReady || !accountSeq) return false;
@@ -134,7 +141,14 @@ export function useSymbolTrading(
     }
     if (initialLoadPhase) return true;
     return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today);
-  }, [contextIsReady, accountSeq, isClosed, closedDayInitialDone, initialLoadPhase, usMarketCalendar?.today]);
+  }, [
+    contextIsReady,
+    accountSeq,
+    isClosed,
+    closedDayInitialDone,
+    initialLoadPhase,
+    usMarketCalendar?.today,
+  ]);
 
   // UI preference 상태 (candle interval, take profit rate) 를 먼저 선언 (후속 useChartCandles / pollers 의존)
   const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval);
@@ -169,11 +183,13 @@ export function useSymbolTrading(
   // account data pollings encapsulated in hook
   const commissionsFetcher = useCallback(async () => {
     if (!accountSeq) return [] as CommissionRaw[];
+    if (isClosed && closedDayInitialDone) return [] as CommissionRaw[];
     return unwrapResult(await api.getCommissions(accountSeq));
-  }, [accountSeq]);
+  }, [accountSeq, isClosed, closedDayInitialDone]);
 
   const closedOrdersFetcher = useCallback(async () => {
     if (!accountSeq || !symbol) return { orders: [] as Order[], unavailable: false };
+    if (isClosed && closedDayInitialDone) return { orders: [] as Order[], unavailable: false };
     try {
       const res = await api.getOrders({ status: 'CLOSED', symbol }, accountSeq);
       const orders = mapOrders(unwrapResult(res));
@@ -181,10 +197,11 @@ export function useSymbolTrading(
     } catch {
       return { orders: [] as Order[], unavailable: true };
     }
-  }, [accountSeq, symbol]);
+  }, [accountSeq, symbol, isClosed, closedDayInitialDone]);
 
   const marketFetcher = useCallback(async () => {
     if (!symbol) return undefined;
+    if (isClosed && closedDayInitialDone) return undefined;
     try {
       const snap = unwrapResult(await api.getMarketSnapshot(symbol));
       const p = snap.price?.[0] as any;
@@ -202,7 +219,7 @@ export function useSymbolTrading(
     } catch {
       return undefined;
     }
-  }, [symbol]);
+  }, [symbol, isClosed, closedDayInitialDone]);
 
   const commissionsPolling = usePolling({
     fetcher: commissionsFetcher,
@@ -220,7 +237,11 @@ export function useSymbolTrading(
 
   // 폐장일 account 데이터 (commissions/closedOrders) 1회 후 플래그
   useEffect(() => {
-    if (isClosed && (commissionsPolling.data || closedOrdersPolling.data) && !closedDayInitialDone) {
+    if (
+      isClosed &&
+      (commissionsPolling.data || closedOrdersPolling.data) &&
+      !closedDayInitialDone
+    ) {
       setClosedDayInitialDone(true);
     }
   }, [isClosed, commissionsPolling.data, closedOrdersPolling.data, closedDayInitialDone]);
