@@ -106,7 +106,6 @@ export function StockPage() {
     openOrders,
     refreshTrade,
     applyTradeSnapshot,
-    resetTradeState,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,

@@ -99,6 +99,5 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     getCachedOpenOrders: () => getCachedOpenOrders(accountSeq),
     refreshTrade,
     applyTradeSnapshot,
-    resetTradeState,
   }
 }
