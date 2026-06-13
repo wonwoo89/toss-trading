@@ -94,6 +94,7 @@ export function StockPage() {
     getCurrentTradeSnapshot,
     refreshTradeAfterOrder,
     cancelOrder,
+    submitOrder,
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
@@ -427,58 +428,20 @@ export function StockPage() {
   ): Promise<OrderSubmitResult> => {
     const accountSeq = requireAccountSeq();
     const openOrdersBaselineSignature = getOpenOrdersSignature(portfolioOpenOrders);
-    const baselineQuantity = holding?.quantity ?? 0;
-    const tradeBaseline = getCurrentTradeSnapshot();
 
-    const createdOrder = unwrapResult(await api.createOrder(payload, accountSeq));
-    await refreshOpenOrdersAfterCreateForAccount({
-      accountSeq,
-      baselineSignature: openOrdersBaselineSignature,
-      createdOrderId: createdOrder.orderId,
-      orderType: payload.orderType,
+    const result = await submitOrder(payload, options, {
+      refreshOpenOrdersAfterCreateForAccount: (p) => refreshOpenOrdersAfterCreateForAccount(p),
+      refreshMarketNow,
+      refreshCandlesNow,
+      refreshBuyingPower,
+      refreshPortfolioHoldings,
+      refreshPortfolioOpenOrders,
     });
 
-    refreshMarketNow();
-    refreshCandlesNow();
-
-    let state = await refreshTradeAfterOrder(tradeBaseline);
-    refreshTradeNow();
-    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
-
-    let takeProfitSell: OrderSubmitResult['takeProfitSell'];
-
-    if (payload.side === 'BUY' && options?.takeProfitSell) {
-      takeProfitSell = await executePostBuyTakeProfit({
-        profitRatePercent: options.takeProfitSell.profitRatePercent,
-        boughtQuantity: payload.quantity,
-        baselineQuantity,
-        initialState: state,
-      }).catch((error: unknown) => ({
-        placed: false,
-        message:
-          error instanceof Error
-            ? `목표 수익률 매도 주문 실패: ${error.message}`
-            : '목표 수익률 매도 주문에 실패했습니다.',
-      }));
-
-      if (takeProfitSell?.placed) {
-        const openOrdersBeforeTakeProfit = getOpenOrdersSignature(getCachedOpenOrders(accountSeq));
-
-        await refreshTrade();
-        refreshTradeNow();
-        await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
-        await refreshOpenOrdersAfterCreateForAccount({
-          accountSeq,
-          baselineSignature: openOrdersBeforeTakeProfit,
-          createdOrderId: takeProfitSell.orderId,
-          orderType: 'LIMIT',
-        });
-      }
-    }
-
+    // 최종 포트폴리오 오픈오더 refresh (훅 외부 UI 동기화)
     await refreshPortfolioOpenOrders(accountSeq);
 
-    return { takeProfitSell };
+    return result;
   };
 
   const handleCancelOrder = async (orderId: string) => {

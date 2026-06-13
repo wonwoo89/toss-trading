@@ -250,6 +250,89 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     [accountSeq]
   );
 
+  // 전체 주문 제출 (create + trade refresh + optional take profit)
+  // 3개 이상 side effect 콜백은 object payload로 (컨벤션)
+  const submitOrder = useCallback(
+    async (
+      payload: CreateOrderPayload,
+      options?: OrderSubmitOptions,
+      sideEffects?: {
+        refreshOpenOrdersAfterCreateForAccount?: (p: any) => Promise<void>;
+        refreshMarketNow?: () => void;
+        refreshCandlesNow?: () => void;
+        refreshBuyingPower?: (acc: string) => Promise<void>;
+        refreshPortfolioHoldings?: () => Promise<void>;
+        refreshPortfolioOpenOrders?: (acc?: string) => Promise<void>;
+      }
+    ): Promise<OrderSubmitResult> => {
+      const acc = accountSeq!;
+      const baselineSig = getOpenOrdersSignature([]); // baseline은 호출부 관리
+      const baseQty = getCurrentTradeSnapshot().holding?.quantity ?? 0;
+      const tradeBase = getCurrentTradeSnapshot();
+
+      const created = unwrapResult(await api.createOrder(payload, acc));
+
+      if (sideEffects?.refreshOpenOrdersAfterCreateForAccount) {
+        await sideEffects.refreshOpenOrdersAfterCreateForAccount({
+          accountSeq: acc,
+          baselineSignature: baselineSig,
+          createdOrderId: created.orderId,
+          orderType: payload.orderType,
+        });
+      }
+
+      sideEffects?.refreshMarketNow?.();
+      sideEffects?.refreshCandlesNow?.();
+
+      let st = await refreshTradeAfterOrder(tradeBase);
+      if (sideEffects?.refreshBuyingPower) await sideEffects.refreshBuyingPower(acc);
+      if (sideEffects?.refreshPortfolioHoldings) await sideEffects.refreshPortfolioHoldings();
+
+      let tp: OrderSubmitResult['takeProfitSell'];
+
+      if (payload.side === 'BUY' && options?.takeProfitSell) {
+        tp = await executePostBuyTakeProfit({
+          profitRatePercent: options.takeProfitSell.profitRatePercent,
+          boughtQuantity: payload.quantity,
+          baselineQuantity: baseQty,
+          initialState: st,
+        }).catch((e: unknown) => ({
+          placed: false,
+          message:
+            e instanceof Error
+              ? `목표 수익률 매도 주문 실패: ${e.message}`
+              : '목표 수익률 매도 주문 실패',
+        }));
+
+        if (tp?.placed && sideEffects?.refreshOpenOrdersAfterCreateForAccount) {
+          const before = getOpenOrdersSignature(getCachedOpenOrders(acc));
+          await refreshTrade();
+          if (sideEffects?.refreshBuyingPower) await sideEffects.refreshBuyingPower(acc);
+          if (sideEffects?.refreshPortfolioHoldings) await sideEffects.refreshPortfolioHoldings();
+          await sideEffects.refreshOpenOrdersAfterCreateForAccount({
+            accountSeq: acc,
+            baselineSignature: before,
+            createdOrderId: tp.orderId,
+            orderType: 'LIMIT',
+          });
+        }
+      }
+
+      if (sideEffects?.refreshPortfolioOpenOrders)
+        await sideEffects.refreshPortfolioOpenOrders(acc);
+
+      return { takeProfitSell: tp };
+    },
+    [
+      accountSeq,
+      getCurrentTradeSnapshot,
+      refreshTradeAfterOrder,
+      executePostBuyTakeProfit,
+      getCachedOpenOrders,
+      refreshTrade,
+    ]
+  );
+
   return {
     symbol,
     accountSeq,
@@ -265,5 +348,6 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     getCurrentTradeSnapshot,
     refreshTradeAfterOrder,
     cancelOrder,
+    submitOrder,
   };
 }
