@@ -25,7 +25,11 @@ import {
   refreshOpenOrdersAfterCancel,
   refreshOpenOrdersAfterCreate,
 } from '../lib/refreshOpenOrders';
-import { shouldEnableRecurringMarketPolling } from '../lib/usMarketCalendar';
+import {
+  isUsMarketHoliday,
+  isUsWeekend,
+  shouldEnableRecurringMarketPolling,
+} from '../lib/usMarketCalendar';
 import { resolveUsCommissionRatePercent } from '../lib/commissionBreakEven';
 import type {
   CandleInterval,
@@ -97,29 +101,40 @@ export function useSymbolTrading(
   });
 
   const [initialLoadPhase, setInitialLoadPhase] = useState(true);
-  const [hasMarketData, setHasMarketData] = useState(false);
+  const [closedDayInitialDone, setClosedDayInitialDone] = useState(false);
 
   useEffect(() => {
-    // symbol 변경(새 랜딩) 시마다 초기 로드 phase + hasMarketData 리셋 → 폐장일 랜딩에서도 최초 데이터 보장
+    // symbol 변경 시 초기 phase 리셋 + closed 플래그 리셋
+    // 폐장일에는 "정확히 1회"만 호출되도록 강제
     setInitialLoadPhase(true);
-    setHasMarketData(false);
+    setClosedDayInitialDone(false);
     const timer = setTimeout(() => setInitialLoadPhase(false), 8000);
     return () => clearTimeout(timer);
   }, [symbol]);
 
+  const isClosed = useMemo(() => {
+    if (isUsWeekend()) return true;
+    return isUsMarketHoliday(usMarketCalendar?.today);
+  }, [usMarketCalendar?.today]);
+
   const effectiveMarketPollingEnabled = useMemo(() => {
     if (!contextIsReady || !symbol) return false;
-    // initial phase 동안 또는 아직 market data를 한 번도 못 받았다면 강제 enable
-    // → 폐장일이라도 최초 랜딩 데이터 수신 보장, 데이터 오면 recurring 가드 적용
-    if (initialLoadPhase || !hasMarketData) return true;
+    if (isClosed) {
+      // 폐장일: 정확히 1회만 (랜딩 시 최초 1회 호출 후 즉시 중단)
+      return !closedDayInitialDone;
+    }
+    if (initialLoadPhase) return true;
     return shouldEnableRecurringMarketPolling(usMarketCalendar?.today);
-  }, [contextIsReady, symbol, usMarketCalendar?.today, initialLoadPhase, hasMarketData]);
+  }, [contextIsReady, symbol, isClosed, closedDayInitialDone, initialLoadPhase, usMarketCalendar?.today]);
 
   const effectiveAccountPollingEnabled = useMemo(() => {
     if (!contextIsReady || !accountSeq) return false;
+    if (isClosed) {
+      return !closedDayInitialDone;
+    }
     if (initialLoadPhase) return true;
     return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today);
-  }, [contextIsReady, accountSeq, usMarketCalendar?.today, initialLoadPhase]);
+  }, [contextIsReady, accountSeq, isClosed, closedDayInitialDone, initialLoadPhase, usMarketCalendar?.today]);
 
   // UI preference 상태 (candle interval, take profit rate) 를 먼저 선언 (후속 useChartCandles / pollers 의존)
   const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval);
@@ -203,6 +218,13 @@ export function useSymbolTrading(
     resetKey: `closed-orders:${accountSeq ?? ''}:${symbol ?? ''}`,
   });
 
+  // 폐장일 account 데이터 (commissions/closedOrders) 1회 후 플래그
+  useEffect(() => {
+    if (isClosed && (commissionsPolling.data || closedOrdersPolling.data) && !closedDayInitialDone) {
+      setClosedDayInitialDone(true);
+    }
+  }, [isClosed, commissionsPolling.data, closedOrdersPolling.data, closedDayInitialDone]);
+
   const marketPolling = usePolling({
     fetcher: marketFetcher,
     intervalMs: MARKET_POLL_MS,
@@ -211,12 +233,12 @@ export function useSymbolTrading(
     options: { initialDelayMs: MARKET_INITIAL_DELAY_MS },
   });
 
-  // market data 도착 시 hasMarketData true로 (recurring 가드 발동을 위해)
+  // 폐장일 1회 호출 후 플래그 세팅 (market data 도착 시)
   useEffect(() => {
-    if (marketPolling.data && !hasMarketData) {
-      setHasMarketData(true);
+    if (isClosed && marketPolling.data && !closedDayInitialDone) {
+      setClosedDayInitialDone(true);
     }
-  }, [marketPolling.data, hasMarketData]);
+  }, [isClosed, marketPolling.data, closedDayInitialDone]);
 
   const candlesData = useChartCandles(symbol ?? '', candleInterval, effectiveMarketPollingEnabled, {
     pollIntervalMs: CANDLE_POLL_MS,
@@ -507,13 +529,22 @@ export function useSymbolTrading(
   const refreshPortfolioHoldings = useCallback(async () => {
     if (!accountSeq) return;
 
+    if (isClosed && closedDayInitialDone) {
+      // 폐장일: 최초 1회 이후 추가 호출 방지
+      return;
+    }
+
     const snapshot = unwrapResult(await api.getPortfolioSnapshot(accountSeq));
     const mapped = mapHoldings(snapshot.holdings);
 
     if (setBuyingPower) setBuyingPower(toNumber(snapshot.buyingPower.cashBuyingPower));
     setPortfolioHoldings(mapped);
+
+    if (isClosed && !closedDayInitialDone) {
+      setClosedDayInitialDone(true);
+    }
     // savePortfolioHoldings(accountSeq, mapped); // 필요시 외부에서
-  }, [accountSeq, setBuyingPower]);
+  }, [accountSeq, setBuyingPower, isClosed, closedDayInitialDone]);
 
   const refreshPortfolioOpenOrders = useCallback(
     async (accSeq?: string) => {
