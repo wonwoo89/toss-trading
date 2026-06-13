@@ -7,7 +7,6 @@ import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
 import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
 import { HOLDINGS_POLL_MS, useSymbolTrading } from '../../shared/hooks/useSymbolTrading';
 
-import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
 export function StockPage() {
@@ -66,11 +65,6 @@ export function StockPage() {
   };
 
   // 4. useEffect (side effect 로직은 return 직전)
-  useEffect(() => {
-    if (!symbol) return;
-    setLastSelectedSymbol(symbol);
-  }, [symbol]);
-
   useEffect(() => {
     if (!selectedAccountSeq) {
       setTotalMarketValue(undefined);
