@@ -23,7 +23,10 @@ export function useTrading(options: UseTradingOptions = {}) {
   const requireAccountSeq = useRequireAccountSeq();
 
   // Feature 전용 thin actions (require + 로직 캡슐화)
-  const createOrder = (payload: CreateOrderPayload, opts?: OrderSubmitOptions): Promise<OrderSubmitResult> => {
+  const createOrder = (
+    payload: CreateOrderPayload,
+    opts?: OrderSubmitOptions
+  ): Promise<OrderSubmitResult> => {
     requireAccountSeq();
     return data.submitOrder(payload, opts);
   };

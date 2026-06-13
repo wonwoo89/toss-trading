@@ -5,11 +5,13 @@
 export { useTrading } from './useTrading';
 export type { UseTradingOptions } from './useTrading';
 
+export { useTradeActions } from './useTradeActions';
+
 // 임시: 하위 호환용 constants (추후 feature 내부로 이동)
 export { HOLDINGS_POLL_MS } from '../../shared/hooks/useSymbolTrading';
 
 // Position entity selectors (entities/position 과 협력)
 export { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
 
-// TODO: useOrderSubmission, useTradeActions 등 feature 전용 훅으로 점진 이동
+// TODO: useOrderSubmission 등 추가 feature 훅 이동
 // TODO: useSymbolTrading 자체를 이 feature로 이동 고려 중
