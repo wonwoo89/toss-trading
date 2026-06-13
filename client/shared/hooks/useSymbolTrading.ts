@@ -101,13 +101,15 @@ export function useSymbolTrading(
   });
 
   const [initialLoadPhase, setInitialLoadPhase] = useState(true);
-  const [closedDayInitialDone, setClosedDayInitialDone] = useState(false);
+  const [closedMarketDone, setClosedMarketDone] = useState(false);
+  const [closedAccountDone, setClosedAccountDone] = useState(false);
 
   useEffect(() => {
-    // symbol 변경 시 초기 phase 리셋 + closed 플래그 리셋
-    // 폐장일에는 "정확히 1회"만 호출되도록 강제
+    // symbol 변경(새 랜딩)마다 초기 phase + closed flags 리셋
+    // 폐장일: market용 1회, account용 1회 각각 보장
     setInitialLoadPhase(true);
-    setClosedDayInitialDone(false);
+    setClosedMarketDone(false);
+    setClosedAccountDone(false);
     const timer = setTimeout(() => setInitialLoadPhase(false), 8000);
     return () => clearTimeout(timer);
   }, [symbol]);
@@ -120,8 +122,8 @@ export function useSymbolTrading(
   const effectiveMarketPollingEnabled = useMemo(() => {
     if (!contextIsReady || !symbol) return false;
     if (isClosed) {
-      // 폐장일: 정확히 1회만 (랜딩 시 최초 1회 호출 후 즉시 중단)
-      return !closedDayInitialDone;
+      // 폐장일: market (시세/차트) 정확히 1회만
+      return !closedMarketDone;
     }
     if (initialLoadPhase) return true;
     return shouldEnableRecurringMarketPolling(usMarketCalendar?.today);
@@ -129,7 +131,7 @@ export function useSymbolTrading(
     contextIsReady,
     symbol,
     isClosed,
-    closedDayInitialDone,
+    closedMarketDone,
     initialLoadPhase,
     usMarketCalendar?.today,
   ]);
@@ -137,7 +139,8 @@ export function useSymbolTrading(
   const effectiveAccountPollingEnabled = useMemo(() => {
     if (!contextIsReady || !accountSeq) return false;
     if (isClosed) {
-      return !closedDayInitialDone;
+      // 폐장일: account (스냅샷/포트폴리오) 정확히 1회만
+      return !closedAccountDone;
     }
     if (initialLoadPhase) return true;
     return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today);
@@ -145,7 +148,7 @@ export function useSymbolTrading(
     contextIsReady,
     accountSeq,
     isClosed,
-    closedDayInitialDone,
+    closedAccountDone,
     initialLoadPhase,
     usMarketCalendar?.today,
   ]);
@@ -183,13 +186,13 @@ export function useSymbolTrading(
   // account data pollings encapsulated in hook
   const commissionsFetcher = useCallback(async () => {
     if (!accountSeq) return [] as CommissionRaw[];
-    if (isClosed && closedDayInitialDone) return [] as CommissionRaw[];
+    if (isClosed && closedAccountDone) return [] as CommissionRaw[];
     return unwrapResult(await api.getCommissions(accountSeq));
-  }, [accountSeq, isClosed, closedDayInitialDone]);
+  }, [accountSeq, isClosed, closedAccountDone]);
 
   const closedOrdersFetcher = useCallback(async () => {
     if (!accountSeq || !symbol) return { orders: [] as Order[], unavailable: false };
-    if (isClosed && closedDayInitialDone) return { orders: [] as Order[], unavailable: false };
+    if (isClosed && closedAccountDone) return { orders: [] as Order[], unavailable: false };
     try {
       const res = await api.getOrders({ status: 'CLOSED', symbol }, accountSeq);
       const orders = mapOrders(unwrapResult(res));
@@ -197,11 +200,11 @@ export function useSymbolTrading(
     } catch {
       return { orders: [] as Order[], unavailable: true };
     }
-  }, [accountSeq, symbol, isClosed, closedDayInitialDone]);
+  }, [accountSeq, symbol, isClosed, closedAccountDone]);
 
   const marketFetcher = useCallback(async () => {
     if (!symbol) return undefined;
-    if (isClosed && closedDayInitialDone) return undefined;
+    if (isClosed && closedMarketDone) return undefined;
     try {
       const snap = unwrapResult(await api.getMarketSnapshot(symbol));
       const p = snap.price?.[0] as any;
@@ -219,7 +222,7 @@ export function useSymbolTrading(
     } catch {
       return undefined;
     }
-  }, [symbol, isClosed, closedDayInitialDone]);
+  }, [symbol, isClosed, closedMarketDone]);
 
   const commissionsPolling = usePolling({
     fetcher: commissionsFetcher,
@@ -240,11 +243,11 @@ export function useSymbolTrading(
     if (
       isClosed &&
       (commissionsPolling.data || closedOrdersPolling.data) &&
-      !closedDayInitialDone
+      !closedAccountDone
     ) {
-      setClosedDayInitialDone(true);
+      setClosedAccountDone(true);
     }
-  }, [isClosed, commissionsPolling.data, closedOrdersPolling.data, closedDayInitialDone]);
+  }, [isClosed, commissionsPolling.data, closedOrdersPolling.data, closedAccountDone]);
 
   const marketPolling = usePolling({
     fetcher: marketFetcher,
@@ -254,12 +257,12 @@ export function useSymbolTrading(
     options: { initialDelayMs: MARKET_INITIAL_DELAY_MS },
   });
 
-  // 폐장일 1회 호출 후 플래그 세팅 (market data 도착 시)
+  // 폐장일 market 1회 후 플래그 (차트/시세 데이터 도착 시)
   useEffect(() => {
-    if (isClosed && marketPolling.data && !closedDayInitialDone) {
-      setClosedDayInitialDone(true);
+    if (isClosed && marketPolling.data && !closedMarketDone) {
+      setClosedMarketDone(true);
     }
-  }, [isClosed, marketPolling.data, closedDayInitialDone]);
+  }, [isClosed, marketPolling.data, closedMarketDone]);
 
   const candlesData = useChartCandles(symbol ?? '', candleInterval, effectiveMarketPollingEnabled, {
     pollIntervalMs: CANDLE_POLL_MS,
@@ -550,8 +553,8 @@ export function useSymbolTrading(
   const refreshPortfolioHoldings = useCallback(async () => {
     if (!accountSeq) return;
 
-    if (isClosed && closedDayInitialDone) {
-      // 폐장일: 최초 1회 이후 추가 호출 방지
+    if (isClosed && closedAccountDone) {
+      // 폐장일: account 스냅샷 1회 이후 스킵
       return;
     }
 
@@ -561,11 +564,11 @@ export function useSymbolTrading(
     if (setBuyingPower) setBuyingPower(toNumber(snapshot.buyingPower.cashBuyingPower));
     setPortfolioHoldings(mapped);
 
-    if (isClosed && !closedDayInitialDone) {
-      setClosedDayInitialDone(true);
+    if (isClosed && !closedAccountDone) {
+      setClosedAccountDone(true);
     }
     // savePortfolioHoldings(accountSeq, mapped); // 필요시 외부에서
-  }, [accountSeq, setBuyingPower, isClosed, closedDayInitialDone]);
+  }, [accountSeq, setBuyingPower, isClosed, closedAccountDone]);
 
   const refreshPortfolioOpenOrders = useCallback(
     async (accSeq?: string) => {
