@@ -9,6 +9,21 @@ import { useAppContext, useRequireAccountSeq } from '../context/AppContext'
 import { useChartCandles } from '../hooks/useChartCandles'
 import { usePolling } from '../hooks/usePolling'
 import {
+  MARKET_POLL_MS,
+  MARKET_CALENDAR_POLL_MS,
+  COMMISSIONS_POLL_MS,
+  CLOSED_ORDERS_POLL_MS,
+  CANDLE_POLL_MS,
+  TRADE_POLL_MS,
+  HOLDINGS_POLL_MS,
+  MARKET_INITIAL_DELAY_MS,
+  CANDLE_INITIAL_DELAY_MS,
+  TRADE_INITIAL_DELAY_MS,
+  PORTFOLIO_INITIAL_DELAY_MS,
+  getCachedHoldings,
+  getCachedOpenOrders,
+} from '../hooks/useSymbolTrading'
+import {
   getStoredCandleInterval,
   setStoredCandleInterval,
 } from '../lib/candleIntervalPreference'
@@ -22,10 +37,8 @@ import {
   mapHoldings,
   mapOrders,
   resolveLiveProfitLoss,
-  sortHoldingsByMarketValue,
 } from '../lib/mapPortfolio'
 import {
-  getPortfolioCache,
   setPortfolioHoldings as savePortfolioHoldings,
   setPortfolioOpenOrders as savePortfolioOpenOrders,
   upsertPortfolioHolding,
@@ -56,28 +69,6 @@ import type {
   OrderSubmitOptions,
   OrderSubmitResult,
 } from '../types'
-
-const MARKET_POLL_MS = 250
-const MARKET_CALENDAR_POLL_MS = 60_000
-const COMMISSIONS_POLL_MS = 300_000
-const CLOSED_ORDERS_POLL_MS = 60_000
-const CANDLE_POLL_MS = 500
-const TRADE_POLL_MS = 15000
-const HOLDINGS_POLL_MS = 5000
-const MARKET_INITIAL_DELAY_MS = 0
-const CANDLE_INITIAL_DELAY_MS = 500
-const TRADE_INITIAL_DELAY_MS = 1000
-const PORTFOLIO_INITIAL_DELAY_MS = 1000
-
-function getCachedHoldings(accountSeq?: string) {
-  if (!accountSeq) return []
-  return sortHoldingsByMarketValue(getPortfolioCache(accountSeq)?.holdings ?? [])
-}
-
-function getCachedOpenOrders(accountSeq?: string) {
-  if (!accountSeq) return []
-  return getPortfolioCache(accountSeq)?.openOrders ?? []
-}
 
 export function StockPage() {
   const { symbol: routeSymbol } = useParams<{ symbol?: string }>()
