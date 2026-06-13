@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { MarketPanel } from '../../widgets/MarketPanel';
 import { OrderForm } from '../../widgets/OrderForm';
 import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
 
 import { useAppContext } from '../../app/providers/AppContext';
-import { HOLDINGS_POLL_MS, useTrading } from '../../features/trade';
+import { HOLDINGS_POLL_MS, useTrading, useFocusOnSymbol } from '../../features/trade';
 
 export function StockPage() {
   // 1. 상태(state) or hook
@@ -31,16 +31,7 @@ export function StockPage() {
     setTotalMarketValue,
   });
 
-  // 4. useEffect (side effect 로직은 return 직전)
-  // (focus 관련은 UI 관심사로 page에 남겨둠)
-
-  useEffect(() => {
-    const searchInput = document.getElementById('symbol-search');
-    if (searchInput instanceof HTMLElement) {
-      searchInput.blur();
-    }
-    layoutRef.current?.focus({ preventScroll: true });
-  }, [symbol]);
+  useFocusOnSymbol(symbol, layoutRef);
 
   return (
     <>
