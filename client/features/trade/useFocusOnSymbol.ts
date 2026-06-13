@@ -1,6 +1,10 @@
-import { useEffect, RefObject } from 'react';
+import { useEffect } from 'react';
+import type { RefObject } from 'react';
 
-export function useFocusOnSymbol(symbol: string | undefined, layoutRef: RefObject<HTMLElement>) {
+export function useFocusOnSymbol(
+  symbol: string | undefined,
+  layoutRef: RefObject<HTMLElement | null>
+) {
   useEffect(() => {
     const searchInput = document.getElementById('symbol-search');
     if (searchInput instanceof HTMLElement) {

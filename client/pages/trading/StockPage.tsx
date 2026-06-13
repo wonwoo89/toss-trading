@@ -14,7 +14,7 @@ export function StockPage() {
   const hasSymbol = Boolean(symbol);
   const { selectedAccountSeq, setBuyingPower, setTotalMarketValue, buyingPower } = useAppContext();
 
-  const layoutRef = useRef<HTMLElement>(null);
+  const layoutRef = useRef<HTMLElement | null>(null);
 
   const {
     portfolioHoldings,
@@ -43,9 +43,9 @@ export function StockPage() {
         <div className="trading-layout__main">
           {hasSymbol && symbol ? (
             <>
-              <MarketPanel {...marketPanelProps} />
+              <MarketPanel {...marketPanelProps} symbol={symbol} />
               <section className="order-column">
-                <OrderForm {...orderFormProps} onSubmit={createOrder} />
+                <OrderForm {...orderFormProps} symbol={symbol} onSubmit={createOrder} />
               </section>
             </>
           ) : (
