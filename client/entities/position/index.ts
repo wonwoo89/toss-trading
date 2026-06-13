@@ -51,4 +51,16 @@ export interface Position {
   formattedValue: string;
 }
 
-// TODO: more from mapPortfolio, formatHoldings etc.
+// Basic portfolio summary using entity logic (for feature to use)
+export function computePortfolioSummary(holdings: HoldingItem[]) {
+  const summary = formatPositionSummary(holdings);
+  const totalProfitLoss = holdings.reduce((sum, h) => sum + (h.profitLoss ?? 0), 0);
+  const totalProfitLossRate = summary.totalValue > 0 ? totalProfitLoss / summary.totalValue : undefined;
+  return {
+    ...summary,
+    totalProfitLoss,
+    totalProfitLossRate,
+  };
+}
+
+// TODO: more from mapPortfolio, formatHoldings etc. (e.g., full mapPortfolio logic)

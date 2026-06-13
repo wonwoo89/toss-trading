@@ -13,7 +13,14 @@ export { useFocusOnSymbol } from './useFocusOnSymbol';
 // Feature constants (core hook에서 제공)
 export { HOLDINGS_POLL_MS } from './useSymbolTrading';
 
-// Position entity selectors (entities/position 과 협력)
-export { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
+// Position entity selectors and formatters (entities/position 과 협력)
+export {
+  selectHoldingBySymbol,
+  selectOpenOrdersBySymbol,
+  formatHoldingValue,
+  formatPositionSummary,
+  computePortfolioSummary,
+  type Position,
+} from '../../entities/position';
 
 // TODO: 추가 feature 훅 (useOrderSubmission 등) 및 로직 이동
