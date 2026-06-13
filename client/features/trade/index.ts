@@ -15,5 +15,5 @@ export { HOLDINGS_POLL_MS } from './useSymbolTrading';
 // Position entity selectors (entities/position 과 협력)
 export { selectHoldingBySymbol, selectOpenOrdersBySymbol } from '../../entities/position';
 
- // TODO: useOrderSubmission 등 추가 feature 훅 이동
+// TODO: useOrderSubmission 등 추가 feature 훅 이동
 // TODO: useSymbolTrading 자체를 이 feature로 이동 고려 중

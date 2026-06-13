@@ -87,8 +87,6 @@ export function useSymbolTrading(
     setBuyingPower?: (value?: number) => void;
     setTotalMarketValue?: (value?: number) => void;
     currentPrice?: number;
-    effectiveAccountPollingEnabled?: boolean;
-    effectiveMarketPollingEnabled?: boolean;
   } = {}
 ) {
   const { symbol, accountSeq, setBuyingPower, setTotalMarketValue, currentPrice } = options;
