@@ -5,7 +5,7 @@ import { OrderForm } from '../../widgets/OrderForm';
 import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
 
 import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
-import { HOLDINGS_POLL_MS, useSymbolTrading } from '../../features/trade';
+import { HOLDINGS_POLL_MS, useTrading } from '../../features/trade';
 
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
@@ -28,7 +28,7 @@ export function StockPage() {
     portfolioTotals,
     marketPanelProps,
     orderFormProps,
-  } = useSymbolTrading({
+  } = useTrading({
     symbol,
     accountSeq: selectedAccountSeq,
     setBuyingPower,
