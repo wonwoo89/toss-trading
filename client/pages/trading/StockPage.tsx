@@ -35,7 +35,6 @@ export function StockPage() {
     refreshBuyingPower,
     holdingSummary,
     portfolioTotals,
-    takeProfitRatePercent,
     handleTakeProfitRateChange,
     refreshMarketNow,
     refreshCandlesNow,
@@ -133,12 +132,11 @@ export function StockPage() {
                   holdingMarketValue={holdingSummary?.marketValue}
                   holdingProfitLoss={holdingSummary?.profitLoss}
                   holdingProfitLossRate={holdingSummary?.profitLossRate}
-                  takeProfitRatePercent={takeProfitRatePercent}
+                  takeProfitRatePercent={marketPanelProps.targetProfitRatePercent}
                   onTakeProfitRateChange={handleTakeProfitRateChange}
                   commissionRatePercent={commissionRatePercent}
                   candles={marketPanelProps.candles}
                   candleInterval={marketPanelProps.candleInterval}
-                  onCandleIntervalChange={marketPanelProps.onCandleIntervalChange}
                   bids={marketPanelProps.bids}
                   asks={marketPanelProps.asks}
                   trades={marketPanelProps.trades}
