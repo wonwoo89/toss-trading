@@ -4,7 +4,7 @@ import { MarketPanel } from '../../widgets/MarketPanel';
 import { OrderForm } from '../../widgets/OrderForm';
 import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
 
-import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
+import { useAppContext } from '../../app/providers/AppContext';
 import { HOLDINGS_POLL_MS, useTrading } from '../../features/trade';
 
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
@@ -16,7 +16,6 @@ export function StockPage() {
   const hasSymbol = Boolean(symbol);
   const { isReady, selectedAccountSeq, setBuyingPower, setTotalMarketValue, buyingPower } =
     useAppContext();
-  const requireAccountSeq = useRequireAccountSeq();
 
   const layoutRef = useRef<HTMLElement>(null);
 
