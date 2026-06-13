@@ -49,12 +49,24 @@ export interface SymbolTradingOptions {
   accountSeq?: string;
 }
 
-export function useSymbolTrading(options: SymbolTradingOptions = {}) {
-  const { symbol, accountSeq } = options;
+export function useSymbolTrading(
+  options: SymbolTradingOptions & {
+    setBuyingPower?: (value?: number) => void;
+  } = {}
+) {
+  const { symbol, accountSeq, setBuyingPower } = options;
 
   const [sellableQuantity, setSellableQuantity] = useState<number>();
   const [holding, setHolding] = useState<HoldingItem>();
   const [openOrders, setOpenOrders] = useState<Order[]>([]);
+
+  // 포트폴리오 전체 상태 (사이드바용)도 훅이 소유
+  const [portfolioHoldings, setPortfolioHoldings] = useState<HoldingItem[]>(() =>
+    getCachedHoldings(accountSeq)
+  );
+  const [portfolioOpenOrders, setPortfolioOpenOrders] = useState<Order[]>(() =>
+    getCachedOpenOrders(accountSeq)
+  );
 
   const tradeRefreshSeqRef = useRef(0);
 
@@ -250,6 +262,42 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     [accountSeq]
   );
 
+  // 포트폴리오 리프레시 함수들 (이제 훅 내부에서 set* 호출)
+  const refreshPortfolioHoldings = useCallback(async () => {
+    if (!accountSeq) return;
+
+    const snapshot = unwrapResult(await api.getPortfolioSnapshot(accountSeq));
+    const mapped = mapHoldings(snapshot.holdings);
+
+    if (setBuyingPower) setBuyingPower(toNumber(snapshot.buyingPower.cashBuyingPower));
+    setPortfolioHoldings(mapped);
+    // savePortfolioHoldings(accountSeq, mapped); // 필요시 외부에서
+  }, [accountSeq, setBuyingPower]);
+
+  const refreshPortfolioOpenOrders = useCallback(
+    async (accSeq?: string) => {
+      const target = accSeq ?? accountSeq;
+      if (!target) return;
+
+      const orders = unwrapResult(await api.getAllOpenOrders(target));
+      const mapped = mapOrders(orders);
+
+      setPortfolioOpenOrders(mapped);
+      // savePortfolioOpenOrders(target, mapped);
+    },
+    [accountSeq]
+  );
+
+  const refreshBuyingPower = useCallback(
+    async (accSeq: string) => {
+      const buyingPowerRes = await api.getBuyingPower(accSeq).catch(() => null);
+      if (buyingPowerRes && setBuyingPower) {
+        setBuyingPower(toNumber(unwrapResult(buyingPowerRes).cashBuyingPower));
+      }
+    },
+    [setBuyingPower]
+  );
+
   // 전체 주문 제출 (create + trade refresh + optional take profit)
   // 3개 이상 side effect 콜백은 object payload로 (컨벤션)
   const submitOrder = useCallback(
@@ -339,6 +387,8 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     sellableQuantity,
     holding,
     openOrders,
+    portfolioHoldings,
+    portfolioOpenOrders,
     getCachedHoldings: () => getCachedHoldings(accountSeq),
     getCachedOpenOrders: () => getCachedOpenOrders(accountSeq),
     refreshTrade,
@@ -349,5 +399,8 @@ export function useSymbolTrading(options: SymbolTradingOptions = {}) {
     refreshTradeAfterOrder,
     cancelOrder,
     submitOrder,
+    refreshPortfolioHoldings,
+    refreshPortfolioOpenOrders,
+    refreshBuyingPower,
   };
 }
