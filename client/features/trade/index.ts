@@ -1,7 +1,10 @@
-// trade feature barrel
-// 향후 order submission, take-profit 로직 등을 이곳으로 이동 예정
+// trade feature barrel (FSD)
+// 향후 order submission, take-profit, trade actions 등을 이 슬라이스로 이동
 
-export {} from // 현재는 훅이 대부분 소유하고 있음. 이후 슬라이스 내부로 점진 이동
-'../../shared/hooks/useSymbolTrading';
+export {
+  useSymbolTrading,
+  HOLDINGS_POLL_MS,
+  // 기타 trading 관련 constants / hooks 는 여기서 re-export
+} from '../../shared/hooks/useSymbolTrading';
 
-// 예시: 추후 이곳에 useOrderSubmission 같은 훅 추가 가능
+// TODO: 이곳에 useOrderSubmission, useCancelOrder 등 feature hook 추가 예정

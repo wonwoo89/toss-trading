@@ -5,7 +5,7 @@ import { OrderForm } from '../../widgets/OrderForm';
 import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
 
 import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
-import { HOLDINGS_POLL_MS, useSymbolTrading } from '../../shared/hooks/useSymbolTrading';
+import { HOLDINGS_POLL_MS, useSymbolTrading } from '../../features/trade';
 
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../../shared/types';
 
@@ -29,8 +29,6 @@ export function StockPage() {
     refreshPortfolioOpenOrders,
     refreshBuyingPower,
     portfolioTotals,
-    refreshMarketNow,
-    refreshCandlesNow,
     marketPanelProps,
     orderFormProps,
   } = useSymbolTrading({
@@ -49,8 +47,6 @@ export function StockPage() {
     requireAccountSeq(); // 계좌 선택 확인 (훅 내부에서 에러 throw)
 
     const result = await submitOrder(payload, options, {
-      refreshMarketNow,
-      refreshCandlesNow,
       refreshBuyingPower,
       refreshPortfolioHoldings,
       refreshPortfolioOpenOrders,
