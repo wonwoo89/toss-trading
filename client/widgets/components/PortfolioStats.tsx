@@ -1,4 +1,4 @@
-import { formatProfitLoss, formatUsd, getKrProfitLossClass } from '../lib/formatHoldings';
+import { formatProfitLoss, formatUsd, getKrProfitLossClass } from "../shared/lib/formatHoldings';
 
 interface PortfolioStatsProps {
   buyingPower?: number;

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { formatKrw, formatUsd } from '../lib/formatHoldings';
+import { formatKrw, formatUsd } from "../shared/lib/formatHoldings';
 
 export function HeaderAccountBalance() {
   const { isReady, buyingPower, totalMarketValue, exchangeRate } = useAppContext();

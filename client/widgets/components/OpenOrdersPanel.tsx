@@ -5,7 +5,7 @@ import {
   formatOrderDateLabel,
   formatOrderPriceLabel,
   sortOrdersByDate,
-} from '../lib/formatOrders';
+} from "../shared/lib/formatOrders';
 import type { Order } from '../types';
 
 interface OpenOrdersPanelProps {

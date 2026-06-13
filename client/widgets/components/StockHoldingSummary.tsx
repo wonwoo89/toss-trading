@@ -3,7 +3,7 @@ import {
   formatQuantity,
   formatUsd,
   getKrProfitLossClass,
-} from '../lib/formatHoldings';
+} from "../shared/lib/formatHoldings';
 
 interface StockHoldingSummaryProps {
   quantity?: number;

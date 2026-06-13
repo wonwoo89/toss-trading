@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../shared/api/client';
-import { getPortfolioCache, upsertPortfolioHolding } from '../lib/portfolioCache';
-import { sortHoldingsByMarketValue } from '../lib/mapPortfolio';
-import { fetchTradeSnapshotState } from '../lib/tradeSnapshot';
+import { getPortfolioCache, upsertPortfolioHolding } from '../shared/lib/portfolioCache';
+import { sortHoldingsByMarketValue } from '../shared/lib/mapPortfolio';
+import { fetchTradeSnapshotState } from '../shared/lib/tradeSnapshot';
 import {
   calculateTakeProfitSellPrice,
   getTakeProfitCostContext,
   resolveTakeProfitSellQuantity,
   waitForTakeProfitSnapshot,
-} from '../lib/takeProfitSell';
-import { unwrapResult } from '../lib/parse';
+} from '../shared/lib/takeProfitSell';
+import { unwrapResult } from '../shared/lib/parse';
 import type {
   CreateOrderPayload,
   HoldingItem,

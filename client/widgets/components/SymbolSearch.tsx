@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../shared/api/client';
-import { setLastSelectedSymbol } from '../lib/lastSymbolPreference';
+import { setLastSelectedSymbol } from "../shared/lib/lastSymbolPreference';
 import type { StockInfo } from '../types';
 
 function looksLikeTicker(value: string) {

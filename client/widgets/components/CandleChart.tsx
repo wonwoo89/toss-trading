@@ -12,15 +12,15 @@ import {
   type LogicalRange,
   type UTCTimestamp,
 } from 'lightweight-charts';
-import { calculateBollingerBandSeries } from '../lib/bollingerBands';
-import { BollingerBandFillPrimitive } from '../lib/bollingerBandFillPrimitive';
+import { calculateBollingerBandSeries } from "../shared/lib/bollingerBands';
+import { BollingerBandFillPrimitive } from "../shared/lib/bollingerBandFillPrimitive';
 import { useTheme } from '../context/ThemeContext';
 import {
   getStoredChartViewport,
   setStoredChartViewport,
   type ChartViewport,
-} from '../lib/chartViewportPreference';
-import { getChartThemeColors } from '../lib/chartTheme';
+} from "../shared/lib/chartViewportPreference';
+import { getChartThemeColors } from "../shared/lib/chartTheme';
 import type { ChartCandle } from '../types';
 
 interface CandleChartProps {
