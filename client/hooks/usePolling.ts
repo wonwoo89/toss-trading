@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ApiRequestError } from '../api/client';
+import { ApiRequestError } from '../../shared/api/client';
 
 interface UsePollingOptions {
   initialDelayMs?: number;

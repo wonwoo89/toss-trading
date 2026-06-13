@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { api } from '../api/client';
+import { api } from '../../shared/api/client';
 import { getPortfolioCache, upsertPortfolioHolding } from '../lib/portfolioCache';
 import { sortHoldingsByMarketValue } from '../lib/mapPortfolio';
 import { fetchTradeSnapshotState } from '../lib/tradeSnapshot';
