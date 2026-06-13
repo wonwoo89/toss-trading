@@ -24,6 +24,9 @@ import {
   getCachedOpenOrders,
 } from '../hooks/useSymbolTrading'
 import {
+  shouldEnableRecurringMarketPolling,
+} from '../lib/usMarketCalendar'
+import {
   getStoredCandleInterval,
   setStoredCandleInterval,
 } from '../lib/candleIntervalPreference'
@@ -172,7 +175,7 @@ export function StockPage() {
     hasMoreHistory,
     loadOlder: loadOlderCandles,
     refreshNow: refreshCandlesNow,
-  } = useChartCandles(symbol ?? '', candleInterval, isReady && hasSymbol, {
+  } = useChartCandles(symbol ?? '', candleInterval, marketPollingEnabled, {
     pollIntervalMs: CANDLE_POLL_MS,
     initialDelayMs: CANDLE_INITIAL_DELAY_MS,
   })
@@ -267,7 +270,7 @@ export function StockPage() {
   const { refreshNow: refreshTradeNow } = usePolling(
     refreshTrade,
     TRADE_POLL_MS,
-    isReady && Boolean(selectedAccountSeq) && hasSymbol,
+    marketPollingEnabled && Boolean(selectedAccountSeq),
     `${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
     { initialDelayMs: TRADE_INITIAL_DELAY_MS },
   )
@@ -275,7 +278,7 @@ export function StockPage() {
   const { refreshing: portfolioHoldingsRefreshing } = usePolling(
     refreshPortfolioHoldings,
     HOLDINGS_POLL_MS,
-    isReady && Boolean(selectedAccountSeq),
+    marketPollingEnabled && Boolean(selectedAccountSeq),
     `holdings:${selectedAccountSeq ?? ''}`,
     { initialDelayMs: PORTFOLIO_INITIAL_DELAY_MS },
   )
@@ -337,7 +340,7 @@ export function StockPage() {
   const { data: marketData, refreshNow: refreshMarketNow } = usePolling(
     marketFetcher,
     MARKET_POLL_MS,
-    isReady && hasSymbol,
+    marketPollingEnabled,
     symbol ?? '',
     { initialDelayMs: MARKET_INITIAL_DELAY_MS },
   )
@@ -352,6 +355,14 @@ export function StockPage() {
     loading: usMarketCalendarLoading,
   } = usePolling(calendarFetcher, MARKET_CALENDAR_POLL_MS, isReady, 'us-market-calendar')
 
+  // 주말/휴장 시 과도한 폴링 방지
+  // - 캘린더가 로드되기 전에는 초기 데이터 요청을 허용 (랜딩 시)
+  // - 주말 또는 holiday로 확인되면 recurring polling 중단
+  const marketPollingEnabled = useMemo(() => {
+    if (!isReady || !hasSymbol) return false
+    return shouldEnableRecurringMarketPolling(usMarketCalendar?.today)
+  }, [isReady, hasSymbol, usMarketCalendar?.today])
+
   const commissionsFetcher = useCallback(async () => {
     if (!selectedAccountSeq) return []
     return unwrapResult(await api.getCommissions(selectedAccountSeq))
@@ -360,7 +371,7 @@ export function StockPage() {
   const { data: commissions } = usePolling(
     commissionsFetcher,
     COMMISSIONS_POLL_MS,
-    isReady && Boolean(selectedAccountSeq),
+    marketPollingEnabled && Boolean(selectedAccountSeq),
     `commissions:${selectedAccountSeq ?? ''}`,
   )
 
@@ -382,7 +393,7 @@ export function StockPage() {
   const { data: closedOrdersState } = usePolling(
     closedOrdersFetcher,
     CLOSED_ORDERS_POLL_MS,
-    isReady && Boolean(selectedAccountSeq) && hasSymbol,
+    marketPollingEnabled && Boolean(selectedAccountSeq) && hasSymbol,
     `closed-orders:${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
   )
 
