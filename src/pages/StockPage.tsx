@@ -454,7 +454,7 @@ export function StockPage() {
 
       if (takeProfitSell?.placed) {
         const openOrdersBeforeTakeProfit = getOpenOrdersSignature(
-          getPortfolioOpenOrders(accountSeq),
+          getCachedOpenOrders(accountSeq),
         )
 
         await refreshTrade()
