@@ -586,30 +586,8 @@ export function useSymbolTrading(
     [accountSeq, symbol, applyTradeSnapshot]
   );
 
-  const cancelOrder = useCallback(
-    async (orderId: string) => {
-      if (!accountSeq) return;
-      await api.cancelOrder(orderId, accountSeq);
-
-      // cancel 후 포트폴리오/트레이드 동기화 (이전 StockPage handleCancel 로직 이동)
-      await refreshPortfolioOpenOrders(accountSeq);
-      await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
-
-      if (symbol) {
-        await refreshTrade();
-      }
-    },
-    [
-      accountSeq,
-      symbol,
-      refreshPortfolioOpenOrders,
-      refreshBuyingPower,
-      refreshPortfolioHoldings,
-      refreshTrade,
-    ]
-  );
-
   // 포트폴리오 리프레시 함수들 (이제 훅 내부에서 set* 호출)
+  // 이 블록을 앞으로 이동시켜 TDZ 방지 (cancelOrder, submitOrder 등이 의존)
   const refreshPortfolioHoldings = useCallback(async () => {
     if (!accountSeq) return;
 
@@ -680,6 +658,29 @@ export function useSymbolTrading(
       }
     },
     [setBuyingPower]
+  );
+
+  const cancelOrder = useCallback(
+    async (orderId: string) => {
+      if (!accountSeq) return;
+      await api.cancelOrder(orderId, accountSeq);
+
+      // cancel 후 포트폴리오/트레이드 동기화 (이전 StockPage handleCancel 로직 이동)
+      await refreshPortfolioOpenOrders(accountSeq);
+      await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
+
+      if (symbol) {
+        await refreshTrade();
+      }
+    },
+    [
+      accountSeq,
+      symbol,
+      refreshPortfolioOpenOrders,
+      refreshBuyingPower,
+      refreshPortfolioHoldings,
+      refreshTrade,
+    ]
   );
 
   // 전체 주문 제출 (create + trade refresh + optional take profit)
