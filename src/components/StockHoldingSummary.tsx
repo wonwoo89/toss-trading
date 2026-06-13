@@ -3,15 +3,15 @@ import {
   formatQuantity,
   formatUsd,
   getKrProfitLossClass,
-} from '../lib/formatHoldings'
+} from '../lib/formatHoldings';
 
 interface StockHoldingSummaryProps {
-  quantity?: number
-  averagePrice?: number
-  marketValue?: number
-  profitLoss?: number
-  profitLossRate?: number
-  variant?: 'inline' | 'order'
+  quantity?: number;
+  averagePrice?: number;
+  marketValue?: number;
+  profitLoss?: number;
+  profitLossRate?: number;
+  variant?: 'inline' | 'order';
 }
 
 export function StockHoldingSummary({
@@ -22,7 +22,7 @@ export function StockHoldingSummary({
   profitLossRate,
   variant = 'inline',
 }: StockHoldingSummaryProps) {
-  if (!quantity || quantity <= 0) return null
+  if (!quantity || quantity <= 0) return null;
 
   return (
     <div className={`stock-holding-summary stock-holding-summary--${variant}`}>
@@ -44,5 +44,5 @@ export function StockHoldingSummary({
         </span>
       </div>
     </div>
-  )
+  );
 }

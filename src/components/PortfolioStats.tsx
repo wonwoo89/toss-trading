@@ -1,10 +1,10 @@
-import { formatProfitLoss, formatUsd, getKrProfitLossClass } from '../lib/formatHoldings'
+import { formatProfitLoss, formatUsd, getKrProfitLossClass } from '../lib/formatHoldings';
 
 interface PortfolioStatsProps {
-  buyingPower?: number
-  totalMarketValue?: number
-  totalProfitLoss?: number
-  totalProfitLossRate?: number
+  buyingPower?: number;
+  totalMarketValue?: number;
+  totalProfitLoss?: number;
+  totalProfitLossRate?: number;
 }
 
 export function PortfolioStats({
@@ -13,9 +13,8 @@ export function PortfolioStats({
   totalProfitLoss,
   totalProfitLossRate,
 }: PortfolioStatsProps) {
-  const profitLossClass = getKrProfitLossClass(totalProfitLoss)
-  const hasProfitLoss =
-    totalProfitLoss !== undefined || totalProfitLossRate !== undefined
+  const profitLossClass = getKrProfitLossClass(totalProfitLoss);
+  const hasProfitLoss = totalProfitLoss !== undefined || totalProfitLossRate !== undefined;
 
   return (
     <div className="portfolio-stats portfolio-stats--sidebar">
@@ -38,5 +37,5 @@ export function PortfolioStats({
         </div>
       </div>
     </div>
-  )
+  );
 }

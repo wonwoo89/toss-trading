@@ -1,28 +1,25 @@
-import { formatSignedPercent, formatUsd } from './formatHoldings'
-import {
-  calculateTakeProfitSellPrice,
-  getTakeProfitCostContext,
-} from './takeProfitSell'
-import type { HoldingItem } from '../types'
+import { formatSignedPercent, formatUsd } from './formatHoldings';
+import { calculateTakeProfitSellPrice, getTakeProfitCostContext } from './takeProfitSell';
+import type { HoldingItem } from '../types';
 
 export interface HoldingPositionSnapshot {
-  visible: boolean
-  averagePrice?: number
-  profitLossRate?: number
-  profitLossRateLabel: string
-  targetPrice?: number
-  targetProfitRatePercent: number
-  distanceToTargetPercent?: number
-  distanceToTargetLabel: string
+  visible: boolean;
+  averagePrice?: number;
+  profitLossRate?: number;
+  profitLossRateLabel: string;
+  targetPrice?: number;
+  targetProfitRatePercent: number;
+  distanceToTargetPercent?: number;
+  distanceToTargetLabel: string;
 }
 
 export function buildHoldingPositionSnapshot(params: {
-  holding?: HoldingItem
-  currentPrice?: number
-  profitLossRate?: number
-  targetProfitRatePercent: number
+  holding?: HoldingItem;
+  currentPrice?: number;
+  profitLossRate?: number;
+  targetProfitRatePercent: number;
 }): HoldingPositionSnapshot {
-  const { holding, currentPrice, profitLossRate, targetProfitRatePercent } = params
+  const { holding, currentPrice, profitLossRate, targetProfitRatePercent } = params;
 
   if (!holding || holding.quantity <= 0) {
     return {
@@ -30,32 +27,32 @@ export function buildHoldingPositionSnapshot(params: {
       targetProfitRatePercent,
       profitLossRateLabel: '—',
       distanceToTargetLabel: '—',
-    }
+    };
   }
 
-  const averagePrice = holding.averagePrice
-  let targetPrice: number | undefined
+  const averagePrice = holding.averagePrice;
+  let targetPrice: number | undefined;
 
   if (averagePrice && averagePrice > 0) {
     targetPrice = calculateTakeProfitSellPrice(
       averagePrice,
       holding.quantity,
       targetProfitRatePercent,
-      getTakeProfitCostContext(holding),
-    )
+      getTakeProfitCostContext(holding)
+    );
   }
 
-  let distanceToTargetPercent: number | undefined
+  let distanceToTargetPercent: number | undefined;
   if (currentPrice !== undefined && targetPrice !== undefined && currentPrice > 0) {
-    distanceToTargetPercent = ((targetPrice - currentPrice) / currentPrice) * 100
+    distanceToTargetPercent = ((targetPrice - currentPrice) / currentPrice) * 100;
   }
 
-  let distanceToTargetLabel = '—'
+  let distanceToTargetLabel = '—';
   if (distanceToTargetPercent !== undefined && targetPrice !== undefined) {
     if (distanceToTargetPercent <= 0) {
-      distanceToTargetLabel = `목표 도달 (실수익 ${targetProfitRatePercent}%)`
+      distanceToTargetLabel = `목표 도달 (실수익 ${targetProfitRatePercent}%)`;
     } else {
-      distanceToTargetLabel = `목표까지 +${distanceToTargetPercent.toFixed(2)}% (${formatUsd(targetPrice)})`
+      distanceToTargetLabel = `목표까지 +${distanceToTargetPercent.toFixed(2)}% (${formatUsd(targetPrice)})`;
     }
   }
 
@@ -68,5 +65,5 @@ export function buildHoldingPositionSnapshot(params: {
     targetProfitRatePercent,
     distanceToTargetPercent,
     distanceToTargetLabel,
-  }
+  };
 }

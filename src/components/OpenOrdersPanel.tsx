@@ -1,17 +1,17 @@
-import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   formatOpenOrderStatus,
   formatOrderDateLabel,
   formatOrderPriceLabel,
   sortOrdersByDate,
-} from '../lib/formatOrders'
-import type { Order } from '../types'
+} from '../lib/formatOrders';
+import type { Order } from '../types';
 
 interface OpenOrdersPanelProps {
-  openOrders: Order[]
-  onCancel: (orderId: string) => Promise<void>
-  hideSymbol?: boolean
+  openOrders: Order[];
+  onCancel: (orderId: string) => Promise<void>;
+  hideSymbol?: boolean;
 }
 
 export function OpenOrdersPanel({
@@ -19,18 +19,18 @@ export function OpenOrdersPanel({
   onCancel,
   hideSymbol = false,
 }: OpenOrdersPanelProps) {
-  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null)
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
 
   const handleCancel = async (orderId: string) => {
-    setCancellingOrderId(orderId)
+    setCancellingOrderId(orderId);
     try {
-      await onCancel(orderId)
+      await onCancel(orderId);
     } finally {
-      setCancellingOrderId(null)
+      setCancellingOrderId(null);
     }
-  }
+  };
 
-  const sortedOrders = sortOrdersByDate(openOrders)
+  const sortedOrders = sortOrdersByDate(openOrders);
 
   return (
     <section className="panel open-orders-panel">
@@ -44,9 +44,9 @@ export function OpenOrdersPanel({
         ) : (
           <ul className="order-history-list">
             {sortedOrders.map((order) => {
-              const dateLabel = formatOrderDateLabel(order.orderedAt)
-              const leftLabel = hideSymbol ? dateLabel : `${dateLabel} ${order.symbol}`
-              const isCancelling = cancellingOrderId === order.orderId
+              const dateLabel = formatOrderDateLabel(order.orderedAt);
+              const leftLabel = hideSymbol ? dateLabel : `${dateLabel} ${order.symbol}`;
+              const isCancelling = cancellingOrderId === order.orderId;
 
               return (
                 <li key={order.orderId} className="order-history-item">
@@ -84,11 +84,11 @@ export function OpenOrdersPanel({
                     </div>
                   </div>
                 </li>
-              )
+              );
             })}
           </ul>
         )}
       </div>
     </section>
-  )
+  );
 }

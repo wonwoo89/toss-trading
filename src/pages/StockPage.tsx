@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { api } from '../api/client'
-import { MarketPanel } from '../components/MarketPanel'
-import { OrderForm } from '../components/OrderForm'
-import { PortfolioSidebar } from '../components/PortfolioSidebar'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { api } from '../api/client';
+import { MarketPanel } from '../components/MarketPanel';
+import { OrderForm } from '../components/OrderForm';
+import { PortfolioSidebar } from '../components/PortfolioSidebar';
 
-import { useAppContext, useRequireAccountSeq } from '../context/AppContext'
-import { useChartCandles } from '../hooks/useChartCandles'
-import { usePolling } from '../hooks/usePolling'
+import { useAppContext, useRequireAccountSeq } from '../context/AppContext';
+import { useChartCandles } from '../hooks/useChartCandles';
+import { usePolling } from '../hooks/usePolling';
 import {
   MARKET_POLL_MS,
   MARKET_CALENDAR_POLL_MS,
@@ -23,48 +23,36 @@ import {
   getCachedHoldings,
   getCachedOpenOrders,
   useSymbolTrading,
-} from '../hooks/useSymbolTrading'
-import {
-  shouldEnableRecurringMarketPolling,
-} from '../lib/usMarketCalendar'
-import {
-  getStoredCandleInterval,
-  setStoredCandleInterval,
-} from '../lib/candleIntervalPreference'
-import {
-  getStoredTakeProfitRate,
-  setStoredTakeProfitRate,
-} from '../lib/takeProfitRatePreference'
+} from '../hooks/useSymbolTrading';
+import { shouldEnableRecurringMarketPolling } from '../lib/usMarketCalendar';
+import { getStoredCandleInterval, setStoredCandleInterval } from '../lib/candleIntervalPreference';
+import { getStoredTakeProfitRate, setStoredTakeProfitRate } from '../lib/takeProfitRatePreference';
 
-import { setLastSelectedSymbol } from '../lib/lastSymbolPreference'
-import {
-  mapHoldings,
-  mapOrders,
-  resolveLiveProfitLoss,
-} from '../lib/mapPortfolio'
+import { setLastSelectedSymbol } from '../lib/lastSymbolPreference';
+import { mapHoldings, mapOrders, resolveLiveProfitLoss } from '../lib/mapPortfolio';
 import {
   setPortfolioHoldings as savePortfolioHoldings,
   setPortfolioOpenOrders as savePortfolioOpenOrders,
   upsertPortfolioHolding,
-} from '../lib/portfolioCache'
+} from '../lib/portfolioCache';
 import {
   getOpenOrdersSignature,
   refreshOpenOrdersAfterCancel,
   refreshOpenOrdersAfterCreate,
-} from '../lib/refreshOpenOrders'
+} from '../lib/refreshOpenOrders';
 import {
   fetchTradeSnapshotState,
   fetchTradeSnapshotWithRetry,
   type TradeSnapshotState,
-} from '../lib/tradeSnapshot'
-import { resolveUsCommissionRatePercent } from '../lib/commissionBreakEven'
+} from '../lib/tradeSnapshot';
+import { resolveUsCommissionRatePercent } from '../lib/commissionBreakEven';
 import {
   calculateTakeProfitSellPrice,
   getTakeProfitCostContext,
   resolveTakeProfitSellQuantity,
   waitForTakeProfitSnapshot,
-} from '../lib/takeProfitSell'
-import { toNumber, unwrapResult } from '../lib/parse'
+} from '../lib/takeProfitSell';
+import { toNumber, unwrapResult } from '../lib/parse';
 import type {
   CandleInterval,
   CreateOrderPayload,
@@ -72,32 +60,27 @@ import type {
   Order,
   OrderSubmitOptions,
   OrderSubmitResult,
-} from '../types'
+} from '../types';
 
 export function StockPage() {
-  const { symbol: routeSymbol } = useParams<{ symbol?: string }>()
-  const symbol = routeSymbol?.toUpperCase()
-  const hasSymbol = Boolean(symbol)
-  const {
-    isReady,
-    selectedAccountSeq,
-    setBuyingPower,
-    setTotalMarketValue,
-    buyingPower,
-  } = useAppContext()
-  const requireAccountSeq = useRequireAccountSeq()
+  const { symbol: routeSymbol } = useParams<{ symbol?: string }>();
+  const symbol = routeSymbol?.toUpperCase();
+  const hasSymbol = Boolean(symbol);
+  const { isReady, selectedAccountSeq, setBuyingPower, setTotalMarketValue, buyingPower } =
+    useAppContext();
+  const requireAccountSeq = useRequireAccountSeq();
 
-  const [stockName, setStockName] = useState<string>()
-  const [warnings, setWarnings] = useState<string[]>([])
-  const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval)
-  const [takeProfitRatePercent, setTakeProfitRatePercent] = useState(getStoredTakeProfitRate)
+  const [stockName, setStockName] = useState<string>();
+  const [warnings, setWarnings] = useState<string[]>([]);
+  const [candleInterval, setCandleInterval] = useState<CandleInterval>(getStoredCandleInterval);
+  const [takeProfitRatePercent, setTakeProfitRatePercent] = useState(getStoredTakeProfitRate);
   const [portfolioHoldings, setPortfolioHoldings] = useState<HoldingItem[]>(() =>
-    getCachedHoldings(selectedAccountSeq),
-  )
+    getCachedHoldings(selectedAccountSeq)
+  );
   const [portfolioOpenOrders, setPortfolioOpenOrders] = useState<Order[]>(() =>
-    getCachedOpenOrders(selectedAccountSeq),
-  )
-  const layoutRef = useRef<HTMLElement>(null)
+    getCachedOpenOrders(selectedAccountSeq)
+  );
+  const layoutRef = useRef<HTMLElement>(null);
 
   // trade snapshot 상태(holding, openOrders, sellableQuantity)와 refresh/apply 로직은 훅이 소유
   const {
@@ -112,96 +95,101 @@ export function StockPage() {
   } = useSymbolTrading({
     symbol,
     accountSeq: selectedAccountSeq,
-  })
+  });
 
   // 주말/휴장 폴링 가드를 일찍 선언 (useChartCandles 등에서 사용하기 때문에 선언 순서 중요)
   const calendarFetcher = useCallback(async () => {
-    return unwrapResult(await api.getUsMarketCalendar())
-  }, [])
+    return unwrapResult(await api.getUsMarketCalendar());
+  }, []);
 
   const {
     data: usMarketCalendar,
     error: usMarketCalendarError,
     loading: usMarketCalendarLoading,
-  } = usePolling(calendarFetcher, MARKET_CALENDAR_POLL_MS, isReady, 'us-market-calendar')
+  } = usePolling({
+    fetcher: calendarFetcher,
+    intervalMs: MARKET_CALENDAR_POLL_MS,
+    enabled: isReady,
+    resetKey: 'us-market-calendar',
+  });
 
   // 최초 랜딩/새로고침 시점에는 1회 데이터 fetch를 강제 (주말/휴장 가드와 무관)
   // 일정 시간 후에는 recurring polling 가드만 적용
-  const [initialLoadPhase, setInitialLoadPhase] = useState(true)
+  const [initialLoadPhase, setInitialLoadPhase] = useState(true);
   useEffect(() => {
-    const timer = setTimeout(() => setInitialLoadPhase(false), 8000)
-    return () => clearTimeout(timer)
-  }, [])
+    const timer = setTimeout(() => setInitialLoadPhase(false), 8000);
+    return () => clearTimeout(timer);
+  }, []);
 
   // market 폴링 enabled: initial phase 동안은 무조건 1회 허용, 이후 closed 가드
   const effectiveMarketPollingEnabled = useMemo(() => {
-    if (!isReady || !hasSymbol) return false
-    if (initialLoadPhase) return true
-    return shouldEnableRecurringMarketPolling(usMarketCalendar?.today)
-  }, [isReady, hasSymbol, usMarketCalendar?.today, initialLoadPhase])
+    if (!isReady || !hasSymbol) return false;
+    if (initialLoadPhase) return true;
+    return shouldEnableRecurringMarketPolling(usMarketCalendar?.today);
+  }, [isReady, hasSymbol, usMarketCalendar?.today, initialLoadPhase]);
 
   // account/snapshot 폴링 enabled: initial phase 동안 1회 허용, 이후 closed 가드
   const effectiveAccountPollingEnabled = useMemo(() => {
-    if (!isReady || !selectedAccountSeq) return false
-    if (initialLoadPhase) return true
-    return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today)
-  }, [isReady, selectedAccountSeq, usMarketCalendar?.today, initialLoadPhase])
+    if (!isReady || !selectedAccountSeq) return false;
+    if (initialLoadPhase) return true;
+    return !usMarketCalendar?.today || shouldEnableRecurringMarketPolling(usMarketCalendar.today);
+  }, [isReady, selectedAccountSeq, usMarketCalendar?.today, initialLoadPhase]);
 
   useEffect(() => {
-    if (!symbol) return
-    setLastSelectedSymbol(symbol)
-  }, [symbol])
+    if (!symbol) return;
+    setLastSelectedSymbol(symbol);
+  }, [symbol]);
 
   useEffect(() => {
     if (!selectedAccountSeq) {
-      setPortfolioHoldings([])
-      setPortfolioOpenOrders([])
-      setTotalMarketValue(undefined)
-      return
+      setPortfolioHoldings([]);
+      setPortfolioOpenOrders([]);
+      setTotalMarketValue(undefined);
+      return;
     }
 
-    setPortfolioHoldings(getCachedHoldings(selectedAccountSeq))
-    setPortfolioOpenOrders(getCachedOpenOrders(selectedAccountSeq))
-  }, [selectedAccountSeq, setTotalMarketValue])
+    setPortfolioHoldings(getCachedHoldings(selectedAccountSeq));
+    setPortfolioOpenOrders(getCachedOpenOrders(selectedAccountSeq));
+  }, [selectedAccountSeq, setTotalMarketValue]);
 
   useEffect(() => {
-    const total = portfolioHoldings.reduce((sum, item) => sum + (item.marketValue ?? 0), 0)
-    setTotalMarketValue(total)
-  }, [portfolioHoldings, setTotalMarketValue])
+    const total = portfolioHoldings.reduce((sum, item) => sum + (item.marketValue ?? 0), 0);
+    setTotalMarketValue(total);
+  }, [portfolioHoldings, setTotalMarketValue]);
 
   useEffect(() => {
-    if (!isReady || !symbol) return
+    if (!isReady || !symbol) return;
 
-    let cancelled = false
+    let cancelled = false;
 
     const loadStockMeta = async () => {
       try {
-        const stockRes = await api.getStock(symbol)
-        if (cancelled) return
+        const stockRes = await api.getStock(symbol);
+        if (cancelled) return;
 
-        const stock = unwrapResult(stockRes)[0]
-        setStockName(stock?.englishName ?? stock?.name)
+        const stock = unwrapResult(stockRes)[0];
+        setStockName(stock?.englishName ?? stock?.name);
 
-        const warningsRes = await api.getWarnings(symbol).catch(
-          () => ({ result: [] as { warningType: string }[] }),
-        )
-        if (cancelled) return
+        const warningsRes = await api
+          .getWarnings(symbol)
+          .catch(() => ({ result: [] as { warningType: string }[] }));
+        if (cancelled) return;
 
-        setWarnings(unwrapResult(warningsRes).map((warning) => warning.warningType))
+        setWarnings(unwrapResult(warningsRes).map((warning) => warning.warningType));
       } catch {
         if (!cancelled) {
-          setStockName(undefined)
-          setWarnings([])
+          setStockName(undefined);
+          setWarnings([]);
         }
       }
-    }
+    };
 
-    void loadStockMeta()
+    void loadStockMeta();
 
     return () => {
-      cancelled = true
-    }
-  }, [isReady, symbol])
+      cancelled = true;
+    };
+  }, [isReady, symbol]);
 
   const {
     candles,
@@ -214,112 +202,115 @@ export function StockPage() {
   } = useChartCandles(symbol ?? '', candleInterval, effectiveMarketPollingEnabled, {
     pollIntervalMs: CANDLE_POLL_MS,
     initialDelayMs: CANDLE_INITIAL_DELAY_MS,
-  })
-
-
+  });
 
   const refreshPortfolioHoldings = useCallback(async () => {
-    if (!selectedAccountSeq) return
+    if (!selectedAccountSeq) return;
 
-    const snapshot = unwrapResult(await api.getPortfolioSnapshot(selectedAccountSeq))
-    const mapped = mapHoldings(snapshot.holdings)
+    const snapshot = unwrapResult(await api.getPortfolioSnapshot(selectedAccountSeq));
+    const mapped = mapHoldings(snapshot.holdings);
 
-    setBuyingPower(toNumber(snapshot.buyingPower.cashBuyingPower))
-    setPortfolioHoldings(mapped)
-    savePortfolioHoldings(selectedAccountSeq, mapped)
-  }, [selectedAccountSeq, setBuyingPower])
+    setBuyingPower(toNumber(snapshot.buyingPower.cashBuyingPower));
+    setPortfolioHoldings(mapped);
+    savePortfolioHoldings(selectedAccountSeq, mapped);
+  }, [selectedAccountSeq, setBuyingPower]);
 
-  const refreshPortfolioOpenOrders = useCallback(async (accountSeq?: string) => {
-    const targetAccountSeq = accountSeq ?? selectedAccountSeq
-    if (!targetAccountSeq) return
+  const refreshPortfolioOpenOrders = useCallback(
+    async (accountSeq?: string) => {
+      const targetAccountSeq = accountSeq ?? selectedAccountSeq;
+      if (!targetAccountSeq) return;
 
-    const orders = unwrapResult(await api.getAllOpenOrders(targetAccountSeq))
-    const mapped = mapOrders(orders)
+      const orders = unwrapResult(await api.getAllOpenOrders(targetAccountSeq));
+      const mapped = mapOrders(orders);
 
-    setPortfolioOpenOrders(mapped)
-    savePortfolioOpenOrders(targetAccountSeq, mapped)
-  }, [selectedAccountSeq])
+      setPortfolioOpenOrders(mapped);
+      savePortfolioOpenOrders(targetAccountSeq, mapped);
+    },
+    [selectedAccountSeq]
+  );
 
   const refreshOpenOrdersAfterCreateForAccount = useCallback(
-    async (
-      accountSeq: string,
-      baselineSignature: string,
-      createdOrderId?: string,
-      orderType: 'LIMIT' | 'MARKET' = 'LIMIT',
-    ) => {
+    async (params: {
+      accountSeq: string;
+      baselineSignature: string;
+      createdOrderId?: string;
+      orderType?: 'LIMIT' | 'MARKET';
+    }) => {
+      const { accountSeq, baselineSignature, createdOrderId, orderType = 'LIMIT' } = params;
       await refreshOpenOrdersAfterCreate(
         () => refreshPortfolioOpenOrders(accountSeq),
         () => getCachedOpenOrders(accountSeq),
         baselineSignature,
         createdOrderId,
-        orderType,
-      )
+        orderType
+      );
     },
-    [refreshPortfolioOpenOrders],
-  )
+    [refreshPortfolioOpenOrders]
+  );
 
   const refreshOpenOrdersAfterCancelForAccount = useCallback(
-    async (accountSeq: string, cancelledOrderId: string) => {
+    async (params: { accountSeq: string; cancelledOrderId: string }) => {
+      const { accountSeq, cancelledOrderId } = params;
       await refreshOpenOrdersAfterCancel(
         () => refreshPortfolioOpenOrders(accountSeq),
         () => getCachedOpenOrders(accountSeq),
-        cancelledOrderId,
-      )
+        cancelledOrderId
+      );
     },
-    [refreshPortfolioOpenOrders],
-  )
+    [refreshPortfolioOpenOrders]
+  );
 
-  const { refreshNow: refreshTradeNow } = usePolling(
-    refreshTrade,
-    TRADE_POLL_MS,
-    effectiveMarketPollingEnabled && Boolean(selectedAccountSeq),
-    `${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
-    { initialDelayMs: TRADE_INITIAL_DELAY_MS },
-  )
+  const { refreshNow: refreshTradeNow } = usePolling({
+    fetcher: refreshTrade,
+    intervalMs: TRADE_POLL_MS,
+    enabled: effectiveMarketPollingEnabled && Boolean(selectedAccountSeq),
+    resetKey: `${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
+    options: { initialDelayMs: TRADE_INITIAL_DELAY_MS },
+  });
 
-  const { refreshing: portfolioHoldingsRefreshing } = usePolling(
-    refreshPortfolioHoldings,
-    HOLDINGS_POLL_MS,
-    effectiveAccountPollingEnabled,
-    `holdings:${selectedAccountSeq ?? ''}`,
-    { initialDelayMs: PORTFOLIO_INITIAL_DELAY_MS },
-  )
+  const { refreshing: portfolioHoldingsRefreshing } = usePolling({
+    fetcher: refreshPortfolioHoldings,
+    intervalMs: HOLDINGS_POLL_MS,
+    enabled: effectiveAccountPollingEnabled,
+    resetKey: `holdings:${selectedAccountSeq ?? ''}`,
+    options: { initialDelayMs: PORTFOLIO_INITIAL_DELAY_MS },
+  });
 
   useEffect(() => {
-    if (!isReady || !selectedAccountSeq) return
+    if (!isReady || !selectedAccountSeq) return;
 
     const timer = setTimeout(() => {
-      void refreshPortfolioOpenOrders()
-    }, PORTFOLIO_INITIAL_DELAY_MS)
+      void refreshPortfolioOpenOrders();
+    }, PORTFOLIO_INITIAL_DELAY_MS);
 
-    return () => clearTimeout(timer)
-  }, [isReady, selectedAccountSeq, refreshPortfolioOpenOrders])
+    return () => clearTimeout(timer);
+  }, [isReady, selectedAccountSeq, refreshPortfolioOpenOrders]);
 
   const refreshBuyingPower = useCallback(
     async (accountSeq: string) => {
-      const buyingPowerRes = await api.getBuyingPower(accountSeq).catch(() => null)
+      const buyingPowerRes = await api.getBuyingPower(accountSeq).catch(() => null);
       if (buyingPowerRes) {
-        setBuyingPower(toNumber(unwrapResult(buyingPowerRes).cashBuyingPower))
+        setBuyingPower(toNumber(unwrapResult(buyingPowerRes).cashBuyingPower));
       }
     },
-    [setBuyingPower],
-  )
+    [setBuyingPower]
+  );
 
   useEffect(() => {
-    const searchInput = document.getElementById('symbol-search')
+    const searchInput = document.getElementById('symbol-search');
     if (searchInput instanceof HTMLElement) {
-      searchInput.blur()
+      searchInput.blur();
     }
-    layoutRef.current?.focus({ preventScroll: true })
-  }, [symbol])
+    layoutRef.current?.focus({ preventScroll: true });
+  }, [symbol]);
 
   const marketFetcher = useCallback(async () => {
-    if (!symbol) throw new Error('종목이 선택되지 않았습니다.')
+    if (!symbol) throw new Error('종목이 선택되지 않았습니다.');
 
-    const snapshot = unwrapResult(await api.getMarketSnapshot(symbol))
-    const price = snapshot.price[0]
-    const orderbook = snapshot.orderbook
-    const trades = snapshot.trades
+    const snapshot = unwrapResult(await api.getMarketSnapshot(symbol));
+    const price = snapshot.price[0];
+    const orderbook = snapshot.orderbook;
+    const trades = snapshot.trades;
 
     return {
       price: toNumber(price?.lastPrice),
@@ -336,66 +327,64 @@ export function StockPage() {
         quantity: toNumber(trade.volume) ?? 0,
         timestamp: trade.timestamp,
       })),
-    }
-  }, [symbol])
+    };
+  }, [symbol]);
 
-  const { data: marketData, refreshNow: refreshMarketNow } = usePolling(
-    marketFetcher,
-    MARKET_POLL_MS,
-    effectiveMarketPollingEnabled,
-    symbol ?? '',
-    { initialDelayMs: MARKET_INITIAL_DELAY_MS },
-  )
+  const { data: marketData, refreshNow: refreshMarketNow } = usePolling({
+    fetcher: marketFetcher,
+    intervalMs: MARKET_POLL_MS,
+    enabled: effectiveMarketPollingEnabled,
+    resetKey: symbol ?? '',
+    options: { initialDelayMs: MARKET_INITIAL_DELAY_MS },
+  });
 
   const commissionsFetcher = useCallback(async () => {
-    if (!selectedAccountSeq) return []
-    return unwrapResult(await api.getCommissions(selectedAccountSeq))
-  }, [selectedAccountSeq])
+    if (!selectedAccountSeq) return [];
+    return unwrapResult(await api.getCommissions(selectedAccountSeq));
+  }, [selectedAccountSeq]);
 
-  const { data: commissions } = usePolling(
-    commissionsFetcher,
-    COMMISSIONS_POLL_MS,
-    effectiveAccountPollingEnabled,
-    `commissions:${selectedAccountSeq ?? ''}`,
-  )
+  const { data: commissions } = usePolling({
+    fetcher: commissionsFetcher,
+    intervalMs: COMMISSIONS_POLL_MS,
+    enabled: effectiveAccountPollingEnabled,
+    resetKey: `commissions:${selectedAccountSeq ?? ''}`,
+  });
 
   const closedOrdersFetcher = useCallback(async () => {
     if (!selectedAccountSeq || !symbol) {
-      return { orders: [] as Order[], unavailable: false }
+      return { orders: [] as Order[], unavailable: false };
     }
 
     try {
       const page = unwrapResult(
-        await api.getOrders({ status: 'CLOSED', symbol }, selectedAccountSeq),
-      )
-      return { orders: mapOrders(page), unavailable: false }
+        await api.getOrders({ status: 'CLOSED', symbol }, selectedAccountSeq)
+      );
+      return { orders: mapOrders(page), unavailable: false };
     } catch {
-      return { orders: [] as Order[], unavailable: true }
+      return { orders: [] as Order[], unavailable: true };
     }
-  }, [selectedAccountSeq, symbol])
+  }, [selectedAccountSeq, symbol]);
 
-  const { data: closedOrdersState } = usePolling(
-    closedOrdersFetcher,
-    CLOSED_ORDERS_POLL_MS,
-    effectiveAccountPollingEnabled && hasSymbol,
-    `closed-orders:${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
-  )
+  const { data: closedOrdersState } = usePolling({
+    fetcher: closedOrdersFetcher,
+    intervalMs: CLOSED_ORDERS_POLL_MS,
+    enabled: effectiveAccountPollingEnabled && hasSymbol,
+    resetKey: `closed-orders:${selectedAccountSeq ?? ''}:${symbol ?? ''}`,
+  });
 
   const handleTakeProfitRateChange = useCallback((rate: number) => {
-    setTakeProfitRatePercent(rate)
-    setStoredTakeProfitRate(rate)
-  }, [])
+    setTakeProfitRatePercent(rate);
+    setStoredTakeProfitRate(rate);
+  }, []);
 
   const holdingSummary = useMemo(() => {
-    if (!holding || holding.quantity <= 0) return undefined
+    if (!holding || holding.quantity <= 0) return undefined;
 
     const marketValue =
-      marketData?.price !== undefined
-        ? holding.quantity * marketData.price
-        : holding.marketValue
+      marketData?.price !== undefined ? holding.quantity * marketData.price : holding.marketValue;
     const purchaseAmount =
       holding.purchaseAmount ??
-      (holding.averagePrice !== undefined ? holding.quantity * holding.averagePrice : undefined)
+      (holding.averagePrice !== undefined ? holding.quantity * holding.averagePrice : undefined);
 
     if (marketValue === undefined || purchaseAmount === undefined) {
       return {
@@ -404,10 +393,10 @@ export function StockPage() {
         marketValue: holding.marketValue,
         profitLoss: holding.profitLoss,
         profitLossRate: holding.profitLossRate,
-      }
+      };
     }
 
-    const { profitLoss, profitLossRate } = resolveLiveProfitLoss(holding, marketValue)
+    const { profitLoss, profitLossRate } = resolveLiveProfitLoss(holding, marketValue);
 
     return {
       quantity: holding.quantity,
@@ -415,119 +404,116 @@ export function StockPage() {
       marketValue,
       profitLoss,
       profitLossRate,
-    }
-  }, [holding, marketData?.price])
+    };
+  }, [holding, marketData?.price]);
 
   const handleCandleIntervalChange = useCallback((interval: CandleInterval) => {
-    setCandleInterval(interval)
-    setStoredCandleInterval(interval)
-  }, [])
+    setCandleInterval(interval);
+    setStoredCandleInterval(interval);
+  }, []);
 
   const handleCreateOrder = async (
     payload: CreateOrderPayload,
-    options?: OrderSubmitOptions,
+    options?: OrderSubmitOptions
   ): Promise<OrderSubmitResult> => {
-    const accountSeq = requireAccountSeq()
-    const openOrdersBaselineSignature = getOpenOrdersSignature(portfolioOpenOrders)
-    const baselineQuantity = holding?.quantity ?? 0
-    const tradeBaseline = getCurrentTradeSnapshot()
+    const accountSeq = requireAccountSeq();
+    const openOrdersBaselineSignature = getOpenOrdersSignature(portfolioOpenOrders);
+    const baselineQuantity = holding?.quantity ?? 0;
+    const tradeBaseline = getCurrentTradeSnapshot();
 
-    const createdOrder = unwrapResult(await api.createOrder(payload, accountSeq))
-    await refreshOpenOrdersAfterCreateForAccount(
+    const createdOrder = unwrapResult(await api.createOrder(payload, accountSeq));
+    await refreshOpenOrdersAfterCreateForAccount({
       accountSeq,
-      openOrdersBaselineSignature,
-      createdOrder.orderId,
-      payload.orderType,
-    )
+      baselineSignature: openOrdersBaselineSignature,
+      createdOrderId: createdOrder.orderId,
+      orderType: payload.orderType,
+    });
 
-    refreshMarketNow()
-    refreshCandlesNow()
+    refreshMarketNow();
+    refreshCandlesNow();
 
-    let state = await fetchTradeSnapshotWithRetry(symbol, accountSeq, tradeBaseline)
-    applyTradeSnapshot(state)
-    refreshTradeNow()
-    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()])
+    let state = await fetchTradeSnapshotWithRetry(symbol, accountSeq, tradeBaseline);
+    applyTradeSnapshot(state);
+    refreshTradeNow();
+    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
 
-    let takeProfitSell: OrderSubmitResult['takeProfitSell']
+    let takeProfitSell: OrderSubmitResult['takeProfitSell'];
 
     if (payload.side === 'BUY' && options?.takeProfitSell) {
       takeProfitSell = await executePostBuyTakeProfit(
         options.takeProfitSell.profitRatePercent,
         payload.quantity,
         baselineQuantity,
-        state,
+        state
       ).catch((error: unknown) => ({
         placed: false,
         message:
           error instanceof Error
             ? `목표 수익률 매도 주문 실패: ${error.message}`
             : '목표 수익률 매도 주문에 실패했습니다.',
-      }))
+      }));
 
       if (takeProfitSell?.placed) {
-        const openOrdersBeforeTakeProfit = getOpenOrdersSignature(
-          getCachedOpenOrders(accountSeq),
-        )
+        const openOrdersBeforeTakeProfit = getOpenOrdersSignature(getCachedOpenOrders(accountSeq));
 
-        await refreshTrade()
-        refreshTradeNow()
-        await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()])
-        await refreshOpenOrdersAfterCreateForAccount(
+        await refreshTrade();
+        refreshTradeNow();
+        await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
+        await refreshOpenOrdersAfterCreateForAccount({
           accountSeq,
-          openOrdersBeforeTakeProfit,
-          takeProfitSell.orderId,
-          'LIMIT',
-        )
+          baselineSignature: openOrdersBeforeTakeProfit,
+          createdOrderId: takeProfitSell.orderId,
+          orderType: 'LIMIT',
+        });
       }
     }
 
-    await refreshPortfolioOpenOrders(accountSeq)
+    await refreshPortfolioOpenOrders(accountSeq);
 
-    return { takeProfitSell }
-  }
+    return { takeProfitSell };
+  };
 
   const handleCancelOrder = async (orderId: string) => {
-    const accountSeq = requireAccountSeq()
+    const accountSeq = requireAccountSeq();
 
-    await api.cancelOrder(orderId, accountSeq)
-    await refreshOpenOrdersAfterCancelForAccount(accountSeq, orderId)
-    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()])
+    await api.cancelOrder(orderId, accountSeq);
+    await refreshOpenOrdersAfterCancelForAccount({ accountSeq, cancelledOrderId: orderId });
+    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
 
-    if (!symbol) return
+    if (!symbol) return;
 
     // 훅의 refreshTrade가 fetch + apply를 담당
-    await refreshTrade()
-    refreshTradeNow()
-  }
+    await refreshTrade();
+    refreshTradeNow();
+  };
 
   const portfolioTotals = useMemo(() => {
     const totalMarketValue = portfolioHoldings.reduce(
       (sum, item) => sum + (item.marketValue ?? 0),
-      0,
-    )
+      0
+    );
     const totalPurchaseAmount = portfolioHoldings.reduce(
       (sum, item) => sum + (item.purchaseAmount ?? 0),
-      0,
-    )
+      0
+    );
     const totalProfitLoss =
       portfolioHoldings.length > 0
         ? portfolioHoldings.reduce((sum, item) => sum + (item.profitLoss ?? 0), 0)
-        : undefined
+        : undefined;
     const totalProfitLossRate =
       totalPurchaseAmount > 0 && totalProfitLoss !== undefined
         ? totalProfitLoss / totalPurchaseAmount
-        : undefined
+        : undefined;
 
-    return { totalMarketValue, totalProfitLoss, totalProfitLossRate }
-  }, [portfolioHoldings])
+    return { totalMarketValue, totalProfitLoss, totalProfitLossRate };
+  }, [portfolioHoldings]);
 
-  const averagePrice =
-    holding && holding.quantity > 0 ? holding.averagePrice : undefined
+  const averagePrice = holding && holding.quantity > 0 ? holding.averagePrice : undefined;
 
   const commissionRatePercent = useMemo(
     () => resolveUsCommissionRatePercent(commissions),
-    [commissions],
-  )
+    [commissions]
+  );
 
   const marketPanelProps = useMemo(
     () => ({
@@ -586,8 +572,8 @@ export function StockPage() {
       usMarketCalendarError,
       usMarketCalendarLoading,
       warnings,
-    ],
-  )
+    ]
+  );
 
   return (
     <>
@@ -629,8 +615,7 @@ export function StockPage() {
             <section className="trading-welcome panel">
               <h2>내 포트폴리오</h2>
               <p className="hint">
-                우측 보유 종목을 선택하거나 상단 검색으로 종목을 고르면 차트와 주문 화면이
-                열립니다.
+                우측 보유 종목을 선택하거나 상단 검색으로 종목을 고르면 차트와 주문 화면이 열립니다.
               </p>
             </section>
           )}
@@ -649,5 +634,5 @@ export function StockPage() {
         />
       </main>
     </>
-  )
+  );
 }

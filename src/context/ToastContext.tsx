@@ -8,71 +8,65 @@ import {
   useRef,
   useState,
   type ReactNode,
-} from 'react'
+} from 'react';
 
-export type ToastVariant = 'success' | 'error' | 'info'
+export type ToastVariant = 'success' | 'error' | 'info';
 
 interface ToastItem {
-  id: string
-  message: string
-  variant: ToastVariant
+  id: string;
+  message: string;
+  variant: ToastVariant;
 }
 
 interface ToastContextValue {
-  showToast: (message: string, variant?: ToastVariant) => void
+  showToast: (message: string, variant?: ToastVariant) => void;
 }
 
-const ToastContext = createContext<ToastContextValue | null>(null)
+const ToastContext = createContext<ToastContextValue | null>(null);
 
-const MAX_TOASTS = 3
-const TOAST_DURATION_MS = 4200
-const TOAST_EXIT_MS = 220
+const MAX_TOASTS = 3;
+const TOAST_DURATION_MS = 4200;
+const TOAST_EXIT_MS = 220;
 
 function ToastStack({
   toasts,
   exitingIds,
   onDismiss,
 }: {
-  toasts: ToastItem[]
-  exitingIds: Set<string>
-  onDismiss: (id: string) => void
+  toasts: ToastItem[];
+  exitingIds: Set<string>;
+  onDismiss: (id: string) => void;
 }) {
-  const stackRef = useRef<HTMLDivElement>(null)
-  const positionsRef = useRef(new Map<string, number>())
+  const stackRef = useRef<HTMLDivElement>(null);
+  const positionsRef = useRef(new Map<string, number>());
 
   useLayoutEffect(() => {
-    const stack = stackRef.current
-    if (!stack) return
+    const stack = stackRef.current;
+    if (!stack) return;
 
-    const nextPositions = new Map<string, number>()
-    const items = stack.querySelectorAll<HTMLElement>('[data-toast-id]')
+    const nextPositions = new Map<string, number>();
+    const items = stack.querySelectorAll<HTMLElement>('[data-toast-id]');
 
     items.forEach((element) => {
-      const id = element.dataset.toastId
-      if (!id) return
+      const id = element.dataset.toastId;
+      if (!id) return;
 
-      const nextTop = element.offsetTop
-      const previousTop = positionsRef.current.get(id)
+      const nextTop = element.offsetTop;
+      const previousTop = positionsRef.current.get(id);
 
       if (previousTop !== undefined && previousTop !== nextTop) {
-        const delta = previousTop - nextTop
-        element.animate(
-          [
-            { transform: `translateY(${delta}px)` },
-            { transform: 'translateY(0)' },
-          ],
-          {
-            duration: 280,
-            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-          },
-        )
+        const delta = previousTop - nextTop;
+        element.animate([{ transform: `translateY(${delta}px)` }, { transform: 'translateY(0)' }], {
+          duration: 280,
+          easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+        });
       }
 
-      nextPositions.set(id, nextTop)
-    })
+      nextPositions.set(id, nextTop);
+    });
 
-    positionsRef.current = nextPositions
-  }, [toasts])
+    positionsRef.current = nextPositions;
+  }, [toasts]);
 
   return (
     <div ref={stackRef} className="toast-stack" aria-live="polite" aria-relevant="additions">
@@ -95,62 +89,62 @@ function ToastStack({
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [toasts, setToasts] = useState<ToastItem[]>([])
-  const [exitingIds, setExitingIds] = useState<Set<string>>(() => new Set())
-  const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>())
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [exitingIds, setExitingIds] = useState<Set<string>>(() => new Set());
+  const timersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
 
   const dismissToast = useCallback((id: string) => {
-    const timer = timersRef.current.get(id)
+    const timer = timersRef.current.get(id);
     if (timer) {
-      clearTimeout(timer)
-      timersRef.current.delete(id)
+      clearTimeout(timer);
+      timersRef.current.delete(id);
     }
 
     setExitingIds((prev) => {
-      if (prev.has(id)) return prev
-      const next = new Set(prev)
-      next.add(id)
-      return next
-    })
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
 
     setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id))
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
       setExitingIds((prev) => {
-        if (!prev.has(id)) return prev
-        const next = new Set(prev)
-        next.delete(id)
-        return next
-      })
-    }, TOAST_EXIT_MS)
-  }, [])
+        if (!prev.has(id)) return prev;
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+    }, TOAST_EXIT_MS);
+  }, []);
 
   useEffect(() => {
-    const timers = timersRef.current
+    const timers = timersRef.current;
     return () => {
-      timers.forEach((timer) => clearTimeout(timer))
-      timers.clear()
-    }
-  }, [])
+      timers.forEach((timer) => clearTimeout(timer));
+      timers.clear();
+    };
+  }, []);
 
   const showToast = useCallback(
     (message: string, variant: ToastVariant = 'success') => {
-      const id = crypto.randomUUID()
+      const id = crypto.randomUUID();
 
-      setToasts((prev) => [{ id, message, variant }, ...prev].slice(0, MAX_TOASTS))
+      setToasts((prev) => [{ id, message, variant }, ...prev].slice(0, MAX_TOASTS));
 
       const timer = setTimeout(() => {
-        dismissToast(id)
-      }, TOAST_DURATION_MS)
-      timersRef.current.set(id, timer)
+        dismissToast(id);
+      }, TOAST_DURATION_MS);
+      timersRef.current.set(id, timer);
     },
-    [dismissToast],
-  )
+    [dismissToast]
+  );
 
-  const value = useMemo(() => ({ showToast }), [showToast])
+  const value = useMemo(() => ({ showToast }), [showToast]);
 
   return (
     <ToastContext.Provider value={value}>
@@ -159,13 +153,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         <ToastStack toasts={toasts} exitingIds={exitingIds} onDismiss={dismissToast} />
       </div>
     </ToastContext.Provider>
-  )
+  );
 }
 
 export function useToast() {
-  const context = useContext(ToastContext)
+  const context = useContext(ToastContext);
   if (!context) {
-    throw new Error('useToast must be used within ToastProvider')
+    throw new Error('useToast must be used within ToastProvider');
   }
-  return context
+  return context;
 }
