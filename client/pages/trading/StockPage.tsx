@@ -23,8 +23,8 @@ export function StockPage() {
   const {
     portfolioHoldings,
     portfolioOpenOrders,
+    createOrder,
     cancelOrder,
-    submitOrder,
     portfolioTotals,
     marketPanelProps,
     orderFormProps,
@@ -34,24 +34,6 @@ export function StockPage() {
     setBuyingPower,
     setTotalMarketValue,
   });
-
-  // 3. 함수 (메소드 & 핸들러) - get/set/on/handle 접두사로 목적 명확히
-
-  const handleCreateOrder = async (
-    payload: CreateOrderPayload,
-    options?: OrderSubmitOptions
-  ): Promise<OrderSubmitResult> => {
-    requireAccountSeq(); // 계좌 선택 확인 (훅 내부에서 에러 throw)
-
-    const result = await submitOrder(payload, options);
-
-    return result;
-  };
-
-  const handleCancelOrder = async (orderId: string) => {
-    requireAccountSeq(); // 계좌 확인 (에러 throw 목적)
-    await cancelOrder(orderId);
-  };
 
   // 4. useEffect (side effect 로직은 return 직전)
   // 포트폴리오 오픈오더 초기 로드는 훅 내부 또는 다른 곳에서 (initial phase 가드 적용됨)
@@ -76,7 +58,7 @@ export function StockPage() {
             <>
               <MarketPanel {...marketPanelProps} />
               <section className="order-column">
-                <OrderForm {...orderFormProps} onSubmit={handleCreateOrder} />
+                <OrderForm {...orderFormProps} onSubmit={createOrder} />
               </section>
             </>
           ) : (
@@ -98,7 +80,7 @@ export function StockPage() {
           activeSymbol={symbol}
           holdingsPollIntervalMs={HOLDINGS_POLL_MS}
           holdingsRefreshing={false}
-          onCancelOrder={handleCancelOrder}
+          onCancelOrder={cancelOrder}
         />
       </main>
     </>

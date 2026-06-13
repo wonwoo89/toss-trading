@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePolling } from './usePolling';
 import { useChartCandles } from './useChartCandles';
-import { useAppContext } from '../../app/providers/AppContext';
+import { useAppContext, useRequireAccountSeq } from '../../app/providers/AppContext';
 import { api } from '../api/client';
 import { getPortfolioCache, upsertPortfolioHolding } from '../lib/portfolioCache';
 import {
@@ -85,6 +85,7 @@ export function useSymbolTrading(
   const { symbol, accountSeq, setBuyingPower, setTotalMarketValue, currentPrice } = options;
 
   const { isReady: contextIsReady, buyingPower: contextBuyingPower } = useAppContext();
+  const requireAccountSeq = useRequireAccountSeq();
 
   // 주말/휴장 가드와 initial phase 를 훅 내부에서 완전 관리
   const calendarFetcher = useCallback(async () => {
@@ -752,6 +753,23 @@ export function useSymbolTrading(
     ]
   );
 
+  // thin actions with account require (page에서 로직 제거 목적)
+  const createOrder = useCallback(
+    async (payload: CreateOrderPayload, options?: OrderSubmitOptions): Promise<OrderSubmitResult> => {
+      requireAccountSeq();
+      return submitOrder(payload, options);
+    },
+    [requireAccountSeq, submitOrder]
+  );
+
+  const cancel = useCallback(
+    async (orderId: string) => {
+      requireAccountSeq();
+      await cancelOrder(orderId);
+    },
+    [requireAccountSeq, cancelOrder]
+  );
+
   // commission + marketPanelProps 는 이제 훅 내부에서 조립 (StockPage 경량화)
   const commissionRatePercent = useMemo(
     () => resolveUsCommissionRatePercent(commissionsPolling.data),
@@ -904,5 +922,7 @@ export function useSymbolTrading(
     marketPanelProps,
     commissionRatePercent,
     orderFormProps,
+    createOrder,
+    cancelOrder: cancel,
   };
 }
