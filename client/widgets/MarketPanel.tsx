@@ -98,6 +98,14 @@ export function MarketPanel({
   const [orderbookExpanded, setOrderbookExpanded] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
 
+  // On desktop (>1100px) always expand details; on mobile default collapsed for accordion
+  useEffect(() => {
+    const update = () => setDetailsExpanded(window.innerWidth > 1100);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+
   const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids]);
 
   // 가격 변동 flash (UI/UX) — best bid/ask 실시간 변화 하이라이트
@@ -155,12 +163,29 @@ export function MarketPanel({
           </div>
         </div>
 
+        <div className="chart-bleed">
+          <CandleChart
+            candles={candles}
+            averagePrice={averagePrice}
+            loading={candlesLoading}
+            loadingOlder={candlesLoadingOlder}
+            error={candlesError}
+            fitKey={`${symbol}:${candleInterval}`}
+            hasMoreHistory={hasMoreHistory}
+            onLoadOlder={onLoadOlderCandles}
+          />
+        </div>
+      </div>
+
+      {/* Indicators below the chart */}
+      <div className="market-indicators">
         <ChartSignalPanel
           candles={candles}
           bids={bids}
           asks={asks}
           warnings={warnings}
           loading={candlesLoading}
+          showMetrics={detailsExpanded}
         />
 
         <button
@@ -172,7 +197,7 @@ export function MarketPanel({
           {detailsExpanded ? '상세 접기 ▲' : '상세 지표 ▼'}
         </button>
 
-        {detailsExpanded && (
+        <div className={`market-details-content ${detailsExpanded ? 'is-expanded' : ''}`}>
           <ChartMarketContextPanel
             marketDay={usMarketDay}
             calendarError={usMarketCalendarError}
@@ -194,19 +219,11 @@ export function MarketPanel({
             commissions={commissions}
             warnings={warnings}
           />
-        )}
-
-        <CandleChart
-          candles={candles}
-          averagePrice={averagePrice}
-          loading={candlesLoading}
-          loadingOlder={candlesLoadingOlder}
-          error={candlesError}
-          fitKey={`${symbol}:${candleInterval}`}
-          hasMoreHistory={hasMoreHistory}
-          onLoadOlder={onLoadOlderCandles}
-        />
+        </div>
       </div>
+
+      {/* Divider separating indicators from orderbook */}
+      <div className="market-divider" />
 
       <div
         className={`market-panel__orderbook${orderbookExpanded ? ' market-panel__orderbook--expanded' : ''}`}
