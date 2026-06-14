@@ -170,6 +170,7 @@ export function OrderForm({
   const [useAmountOrder, setUseAmountOrder] = useState(false);
   const [useTakeProfitSell, setUseTakeProfitSell] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const { showToast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const limitPriceManualRef = useRef(false);
@@ -779,8 +780,38 @@ export function OrderForm({
     formRef.current?.requestSubmit();
   };
 
+  // Mobile: 핸들바로 주문폼 전체 펼치기/접기
+  const toggleMobileExpanded = () => setIsMobileExpanded((v) => !v);
+
+  useEffect(() => {
+    const column = document.querySelector('.order-column') as HTMLElement | null;
+    if (!column) return;
+    column.classList.toggle('order-column--mobile-expanded', isMobileExpanded);
+  }, [isMobileExpanded]);
+
   return (
-    <form ref={formRef} className="panel order-form" onSubmit={handleSubmit}>
+    <form
+      ref={formRef}
+      className={`panel order-form ${isMobileExpanded ? 'is-mobile-expanded' : ''}`}
+      onSubmit={handleSubmit}
+    >
+      {/* 모바일 플로팅 주문폼용 핸들바: 탭하면 전체 주문폼(입력/요약 등) 보였다/숨겼다 */}
+      <div
+        className="order-form__mobile-handlebar"
+        onClick={toggleMobileExpanded}
+        role="button"
+        tabIndex={0}
+        aria-label={isMobileExpanded ? '주문폼 접기' : '주문폼 펼치기'}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleMobileExpanded();
+          }
+        }}
+      >
+        <div className="order-form__mobile-handlebar-grip" />
+      </div>
+
       <div className="order-form__body">
         <StockHoldingSummary
           variant="order"
