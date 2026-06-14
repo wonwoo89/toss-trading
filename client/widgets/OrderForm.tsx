@@ -980,7 +980,7 @@ export function OrderForm({
           )}
         </div>
 
-        {/* 매수와 매도의 추천 정보(수량·가격)를 별도로 명확히 표시 */}
+        {/* 추천 매수/매도 카드를 좌우 배치, 라벨 아래에 정보 세로 나열 (클릭 영역은 카드 전체) */}
         <div className="order-rec-grid">
           <div
             className={`order-rec-row buy ${submitting ? 'is-disabled' : ''}`}
@@ -989,7 +989,7 @@ export function OrderForm({
             tabIndex={submitting ? -1 : 0}
           >
             <span className="rec-label">추천 매수</span>
-            <span className="rec-values">
+            <span className="rec-info">
               {buyQuantityRec.available && buyQuantityRec.quantity !== undefined
                 ? formatOrderQuantity(buyQuantityRec.quantity) + '주'
                 : '—'}{' '}
@@ -1000,7 +1000,6 @@ export function OrderForm({
                 ? buyLimitPriceRec.price.toFixed(2)
                 : '—'}
             </span>
-            <span className="rec-action">실행</span>
           </div>
 
           <div
@@ -1010,7 +1009,7 @@ export function OrderForm({
             tabIndex={submitting ? -1 : 0}
           >
             <span className="rec-label">추천 매도</span>
-            <span className="rec-values">
+            <span className="rec-info">
               {sellQuantityRec.available && sellQuantityRec.quantity !== undefined
                 ? formatOrderQuantity(sellQuantityRec.quantity) + '주'
                 : '—'}{' '}
@@ -1021,7 +1020,6 @@ export function OrderForm({
                 ? sellLimitPriceRec.price.toFixed(2)
                 : '—'}
             </span>
-            <span className="rec-action">실행</span>
           </div>
         </div>
 
