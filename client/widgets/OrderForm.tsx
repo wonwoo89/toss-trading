@@ -432,6 +432,16 @@ export function OrderForm({
       ? sellQuantityRec.quantity * sellLimitPriceRec.price
       : undefined;
 
+  const getDisplayedPrice = (limitRec, currPrice) => {
+    if (limitRec?.available && limitRec.price !== undefined && Number.isFinite(limitRec.price)) {
+      return limitRec.price.toFixed(2);
+    }
+    if (currPrice !== undefined) {
+      return currPrice.toFixed(2);
+    }
+    return null;
+  };
+
   const recommendedLimitPriceText =
     limitPriceRecommendation.available &&
     limitPriceRecommendation.price !== undefined &&
@@ -1072,7 +1082,7 @@ export function OrderForm({
             <span className="rec-label">추천 매수</span>
             <span className="rec-info">
               {buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined
-                ? `${formatOrderQuantity(buyQuantityRec.quantity)}주 @ $${buyLimitPriceRec.available && buyLimitPriceRec.price !== undefined && Number.isFinite(buyLimitPriceRec.price) ? buyLimitPriceRec.price.toFixed(2) : (currentPrice !== undefined ? currentPrice.toFixed(2) : '—')}`
+                ? `${formatOrderQuantity(buyQuantityRec.quantity)}주${getDisplayedPrice(buyLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(buyLimitPriceRec, currentPrice)}` : ''}`
                 : '—'}
             </span>
             {recommendedBuyAmount !== undefined && (
@@ -1089,7 +1099,7 @@ export function OrderForm({
             <span className="rec-label">추천 매도</span>
             <span className="rec-info">
               {sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined
-                ? `${formatOrderQuantity(sellQuantityRec.quantity)}주 @ $${sellLimitPriceRec.available && sellLimitPriceRec.price !== undefined && Number.isFinite(sellLimitPriceRec.price) ? sellLimitPriceRec.price.toFixed(2) : (currentPrice !== undefined ? currentPrice.toFixed(2) : '—')}`
+                ? `${formatOrderQuantity(sellQuantityRec.quantity)}${getDisplayedPrice(sellLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(sellLimitPriceRec, currentPrice)}` : ''}`
                 : '—'}
             </span>
             {recommendedSellAmount !== undefined && (
