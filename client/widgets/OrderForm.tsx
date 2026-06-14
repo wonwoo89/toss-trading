@@ -273,6 +273,119 @@ export function OrderForm({
     ]
   );
 
+  // BUY / SELL 각각의 추천 정보를 항상 계산 (하단에 둘 다 보여주기 위함)
+  const buyQuantityRec = useMemo(
+    () =>
+      buildOrderQuantityRecommendation({
+        side: 'BUY',
+        unitPrice: effectiveOrderPrice,
+        maxQuantity: maxOrderQuantity,
+        buyingPower,
+        candles,
+        bids,
+        asks,
+        trades,
+        holding,
+        openOrders,
+      }),
+    [
+      asks,
+      bids,
+      buyingPower,
+      candles,
+      effectiveOrderPrice,
+      holding,
+      maxOrderQuantity,
+      openOrders,
+      trades,
+    ]
+  );
+
+  const sellQuantityRec = useMemo(
+    () =>
+      buildOrderQuantityRecommendation({
+        side: 'SELL',
+        unitPrice: effectiveOrderPrice,
+        maxQuantity: maxOrderQuantity,
+        buyingPower,
+        candles,
+        bids,
+        asks,
+        trades,
+        holding,
+        openOrders,
+      }),
+    [
+      asks,
+      bids,
+      buyingPower,
+      candles,
+      effectiveOrderPrice,
+      holding,
+      maxOrderQuantity,
+      openOrders,
+      trades,
+    ]
+  );
+
+  const buyLimitPriceRec = useMemo(
+    () =>
+      buildLimitPriceRecommendation({
+        side: 'BUY',
+        currentPrice,
+        candles,
+        candleInterval,
+        bids,
+        asks,
+        trades,
+        holding,
+        targetProfitRatePercent: takeProfitRatePercent,
+        commissionRatePercent,
+        openOrders,
+      }),
+    [
+      asks,
+      bids,
+      candleInterval,
+      candles,
+      commissionRatePercent,
+      currentPrice,
+      holding,
+      openOrders,
+      takeProfitRatePercent,
+      trades,
+    ]
+  );
+
+  const sellLimitPriceRec = useMemo(
+    () =>
+      buildLimitPriceRecommendation({
+        side: 'SELL',
+        currentPrice,
+        candles,
+        candleInterval,
+        bids,
+        asks,
+        trades,
+        holding,
+        targetProfitRatePercent: takeProfitRatePercent,
+        commissionRatePercent,
+        openOrders,
+      }),
+    [
+      asks,
+      bids,
+      candleInterval,
+      candles,
+      commissionRatePercent,
+      currentPrice,
+      holding,
+      openOrders,
+      takeProfitRatePercent,
+      trades,
+    ]
+  );
+
   const recommendedLimitPriceText =
     limitPriceRecommendation.available &&
     limitPriceRecommendation.price !== undefined &&
@@ -288,34 +401,28 @@ export function OrderForm({
     setPrice(recommendedLimitPriceText);
   };
 
-  // 추천 정보로 간편 실행 (수량 + 지정가 추천 적용 후 제출)
-  // 하단 버튼에서 사용. 인풋에 보여주는 추천은 제거했으므로 여기서만 적용
+  // 추천 정보로 간편 실행 (해당 사이드의 추천 수량 + 지정가 자동 적용 후 제출)
   const executeWithRecommendation = (intendedSide: 'BUY' | 'SELL') => {
+    const isBuy = intendedSide === 'BUY';
+    const qtyRec = isBuy ? buyQuantityRec : sellQuantityRec;
+    const priceRec = isBuy ? buyLimitPriceRec : sellLimitPriceRec;
+
     setSide(intendedSide);
 
-    // state 업데이트 후 memos가 갱신되도록 약간 지연 후 적용 + 제출
     setTimeout(() => {
       // 추천 수량 적용
-      if (
-        quantityRecommendation.available &&
-        quantityRecommendation.recommended &&
-        quantityRecommendation.quantity !== undefined
-      ) {
-        setQuantity(formatOrderQuantity(quantityRecommendation.quantity));
-        if (quantityRecommendation.snapPercent) {
-          setSelectedQuantityPercent(quantityRecommendation.snapPercent);
+      if (qtyRec.available && qtyRec.recommended && qtyRec.quantity !== undefined) {
+        setQuantity(formatOrderQuantity(qtyRec.quantity));
+        if (qtyRec.snapPercent) {
+          setSelectedQuantityPercent(qtyRec.snapPercent);
         }
       }
 
       // 추천 지정가 적용
-      if (
-        limitPriceRecommendation.available &&
-        limitPriceRecommendation.price !== undefined &&
-        Number.isFinite(limitPriceRecommendation.price)
-      ) {
+      if (priceRec.available && priceRec.price !== undefined && Number.isFinite(priceRec.price)) {
         limitPriceManualRef.current = false;
         setPriceMode('limit');
-        setPrice(limitPriceRecommendation.price.toFixed(2));
+        setPrice(priceRec.price.toFixed(2));
       }
 
       // 제출
@@ -863,49 +970,53 @@ export function OrderForm({
           )}
         </div>
 
-        {/* 하단에 추천 수량 + 추천 지정가 종합 표시 + 추천 실행 버튼 */}
-        <div className="order-rec-summary">
-          <div className="order-rec-summary__label">추천 실행</div>
-          <div className="order-rec-summary__values">
-            <span>
-              수량{' '}
-              <strong>
-                {quantityRecommendation.available && quantityRecommendation.quantity !== undefined
-                  ? formatOrderQuantity(quantityRecommendation.quantity)
-                  : '—'}
-              </strong>
+        {/* 매수와 매도의 추천 정보(수량·가격)를 별도로 명확히 표시 */}
+        <div className="order-rec-grid">
+          <div className="order-rec-row buy">
+            <span className="rec-label">추천 매수</span>
+            <span className="rec-values">
+              {buyQuantityRec.available && buyQuantityRec.quantity !== undefined
+                ? formatOrderQuantity(buyQuantityRec.quantity) + '주'
+                : '—'}{' '}
+              @ $
+              {buyLimitPriceRec.available &&
+              buyLimitPriceRec.price !== undefined &&
+              Number.isFinite(buyLimitPriceRec.price)
+                ? buyLimitPriceRec.price.toFixed(2)
+                : '—'}
             </span>
-            <span className="divider">·</span>
-            <span>
-              지정가{' '}
-              <strong>
-                {limitPriceRecommendation.available &&
-                limitPriceRecommendation.price !== undefined &&
-                Number.isFinite(limitPriceRecommendation.price)
-                  ? limitPriceRecommendation.price.toFixed(2)
-                  : '—'}
-              </strong>
-            </span>
+            <button
+              type="button"
+              className="buy-btn rec-btn"
+              onClick={() => executeWithRecommendation('BUY')}
+              disabled={submitting}
+            >
+              실행
+            </button>
           </div>
-        </div>
 
-        <div className="order-execute-actions">
-          <button
-            type="button"
-            className="buy-btn"
-            onClick={() => executeWithRecommendation('BUY')}
-            disabled={submitting}
-          >
-            {submitting ? '제출 중…' : '추천 매수'}
-          </button>
-          <button
-            type="button"
-            className="sell-btn"
-            onClick={() => executeWithRecommendation('SELL')}
-            disabled={submitting}
-          >
-            {submitting ? '제출 중…' : '추천 매도'}
-          </button>
+          <div className="order-rec-row sell">
+            <span className="rec-label">추천 매도</span>
+            <span className="rec-values">
+              {sellQuantityRec.available && sellQuantityRec.quantity !== undefined
+                ? formatOrderQuantity(sellQuantityRec.quantity) + '주'
+                : '—'}{' '}
+              @ $
+              {sellLimitPriceRec.available &&
+              sellLimitPriceRec.price !== undefined &&
+              Number.isFinite(sellLimitPriceRec.price)
+                ? sellLimitPriceRec.price.toFixed(2)
+                : '—'}
+            </span>
+            <button
+              type="button"
+              className="sell-btn rec-btn"
+              onClick={() => executeWithRecommendation('SELL')}
+              disabled={submitting}
+            >
+              실행
+            </button>
+          </div>
         </div>
 
         <div className="order-manual-hint">
