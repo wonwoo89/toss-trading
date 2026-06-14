@@ -2491,7 +2491,7 @@ select:focus-visible {
   .market-divider {
     height: 1px;
     background: var(--border-subtle);
-    margin: 0.5rem 0;
+    margin: 1rem 0 !important;
   }
 
   /* 모바일 차트 full width (DOM bleed wrapper) */
