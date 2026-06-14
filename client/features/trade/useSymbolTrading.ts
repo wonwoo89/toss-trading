@@ -393,6 +393,7 @@ export function useSymbolTrading(
   const refreshTrade = useCallback(async () => {
     if (!accountSeq || !symbol) return;
 
+    console.log(`[client] refreshTrade called for symbol=${symbol}`);
     const seq = ++tradeRefreshSeqRef.current;
     const state = await fetchTradeSnapshotState(symbol, accountSeq);
     if (seq === tradeRefreshSeqRef.current) {
@@ -781,7 +782,7 @@ export function useSymbolTrading(
   const symbolHoldingFromPortfolio = selectHoldingBySymbol(portfolioHoldings, symbol);
   const effectiveHolding = holding ?? symbolHoldingFromPortfolio;
   const effectiveSellableQuantity =
-    sellableQuantity != null && sellableQuantity > 0
+    (sellableQuantity != null && sellableQuantity > 0)
       ? sellableQuantity
       : (effectiveHolding?.quantity ?? undefined);
 

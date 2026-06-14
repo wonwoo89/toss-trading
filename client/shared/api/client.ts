@@ -125,14 +125,16 @@ export const api = {
     >('/account/snapshot', { accountSeq }),
   getAllOpenOrders: (accountSeq?: string) =>
     request<ApiEnvelope<OrdersPageRaw>>('/orders?status=OPEN', { accountSeq }),
-  getTradeSnapshot: (symbol: string, accountSeq?: string) =>
-    request<
+  getTradeSnapshot: (symbol: string, accountSeq?: string) => {
+    console.log(`[client api] calling getTradeSnapshot for symbol=${symbol}`);
+    return request<
       ApiEnvelope<{
         orders: OrdersPageRaw;
         sellableQuantity: SellableQuantityRaw | null;
         holding: HoldingsItemRaw | null;
       }>
-    >(`/account/snapshot?symbol=${symbol}`, { accountSeq }),
+    >(`/account/snapshot?symbol=${symbol}`, { accountSeq });
+  },
   getOrders: (options?: { status?: string; symbol?: string }, accountSeq?: string) => {
     const params = new URLSearchParams();
     if (options?.status) params.set('status', options.status);
