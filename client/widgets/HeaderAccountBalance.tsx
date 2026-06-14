@@ -23,11 +23,13 @@ export function HeaderAccountBalance() {
         <span className="header-account-balance__label">총 계좌</span>
         <div className="header-account-balance__amounts">
           <div className="header-exchange-rate">
-            <span className="header-exchange-rate__label">환율</span>
             <span className="header-exchange-rate__value">
               {exchangeRate !== undefined ? `$1 = ${formatKrw(exchangeRate)}` : '—'}
             </span>
           </div>
+          <span className="header-finance__divider" aria-hidden="true">
+            ·
+          </span>
           {totalAccountValueKrw !== undefined && (
             <span className="header-account-balance__krw">{formatKrw(totalAccountValueKrw)}</span>
           )}
