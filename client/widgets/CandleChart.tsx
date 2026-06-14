@@ -687,6 +687,11 @@ export function CandleChart({
       applyChartViewportWhenReady(chart, viewport);
       pendingRestoreRef.current = null;
       viewportInitializedRef.current = true;
+      requestAnimationFrame(() => {
+        if (chart && lastBarIndex != null) {
+          enforceRealtimeRightMargin(chart, lastBarIndex);
+        }
+      });
     } else if (!viewportInitializedRef.current) {
       applyInitialViewport(chart, lastBarIndex);
       viewportInitializedRef.current = true;
