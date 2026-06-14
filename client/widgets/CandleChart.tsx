@@ -42,7 +42,7 @@ function getChartHeight(container: HTMLDivElement) {
 }
 const CANDLE_PANE_STRETCH = 0.72;
 const VOLUME_PANE_STRETCH = 0.28;
-const PRICE_TOP_HEADROOM_RATIO = 0.01;
+const PRICE_HEADROOM_RATIO = 0.05; // range-based symmetric headroom for consistent visual whitespace across charts
 const BAR_SPACING_DRIFT_THRESHOLD = 0.001;
 const RIGHT_OFFSET_DRIFT_THRESHOLD = 0.5;
 const CHART_MIN_BAR_SPACING = 0.0001;
@@ -82,16 +82,19 @@ function getCandlePriceScaleOptions() {
       if (!res?.priceRange) return res;
 
       const { minValue, maxValue } = res.priceRange;
+      const range = maxValue - minValue;
+      const headroom = range * PRICE_HEADROOM_RATIO;
+
       return {
         ...res,
         priceRange: {
-          minValue,
-          maxValue: maxValue * (1 + PRICE_TOP_HEADROOM_RATIO),
+          minValue: minValue - headroom,
+          maxValue: maxValue + headroom,
         },
       };
     },
     scaleMargins: {
-      top: 0,
+      top: 0.05,
       bottom: 0.05,
     },
   };
