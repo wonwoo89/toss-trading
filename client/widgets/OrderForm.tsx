@@ -859,7 +859,8 @@ export function OrderForm({
             </div>
 
             {side === 'BUY' && (
-              <>
+              <div className="order-form__section">
+                <div className="order-form__section-title">목표 실수익률 매도 (선택)</div>
                 <label className="checkbox">
                   <input
                     type="checkbox"
@@ -916,30 +917,32 @@ export function OrderForm({
                     </div>
                   </>
                 )}
-              </>
+              </div>
             )}
           </>
         )}
       </div>
 
       <div className="order-form__submit-block">
-        {side === 'BUY' && maxBuyQuantity !== undefined && (
-          <p className="hint order-form__footer-hint">
-            매수 가능: {formatOrderQuantity(maxBuyQuantity)}주
-          </p>
-        )}
+        <div className="order-form__hints">
+          {side === 'BUY' && maxBuyQuantity !== undefined && (
+            <p className="hint order-form__footer-hint">
+              매수 가능: {formatOrderQuantity(maxBuyQuantity)}주
+            </p>
+          )}
 
-        {buyBreakEvenHint && <p className="hint order-form__footer-hint">{buyBreakEvenHint}</p>}
+          {buyBreakEvenHint && <p className="hint order-form__footer-hint">{buyBreakEvenHint}</p>}
 
-        {side === 'SELL' && sellableQuantity !== undefined && (
-          <p className="hint order-form__footer-hint">매도 가능: {sellableQuantity}주</p>
-        )}
+          {side === 'SELL' && sellableQuantity !== undefined && (
+            <p className="hint order-form__footer-hint">매도 가능: {sellableQuantity}주</p>
+          )}
 
-        {estimatedBuyAmount !== undefined && (
-          <p className="order-estimated-amount">
-            예상 매수 금액 <strong>{formatUsd(estimatedBuyAmount)}</strong>
-          </p>
-        )}
+          {estimatedBuyAmount !== undefined && (
+            <p className="order-estimated-amount">
+              예상 매수 금액 <strong>{formatUsd(estimatedBuyAmount)}</strong>
+            </p>
+          )}
+        </div>
 
         <button
           type="submit"
