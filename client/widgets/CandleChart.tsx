@@ -520,6 +520,19 @@ export function CandleChart({
         width: entry.contentRect.width,
         height: Math.max(entry.contentRect.height, CHART_MIN_HEIGHT),
       });
+
+      // 리사이즈(특히 모바일 브레이크포인트 전환) 후 내부 캔들 차트가
+      // 새 컨테이너 크기에 맞게 제대로 채워지지 않고 잘리는 문제 대응.
+      // applyOptions 후 rAF로 내부 timeScale이 settle되길 기다린 뒤
+      // 1/3 오른쪽 여백 + 현재 스팬을 유지하는 위치 강제 재적용.
+      // (새로고침 시에는 생성 시점부터 올바른 크기로 초기화되기 때문에 정상)
+      if (lastBarIndexRef.current != null) {
+        requestAnimationFrame(() => {
+          if (chartRef.current) {
+            enforceRealtimeRightMargin(chartRef.current, lastBarIndexRef.current);
+          }
+        });
+      }
     });
 
     resizeObserver.observe(containerRef.current);
