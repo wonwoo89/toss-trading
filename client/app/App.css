@@ -2307,8 +2307,8 @@ select:focus-visible {
 
   /* 모바일 검색바: ID 직접 타겟으로 width/padding 적용 (폰트 건드리지 않음) */
   #symbol-search {
-    width: 120px;
-    padding: 0 4px;
+    width: 140px;
+    padding: 0 8px;
   }
 }
 
