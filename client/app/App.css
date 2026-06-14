@@ -2247,6 +2247,22 @@ select:focus-visible {
     border-radius: 18px 18px 0 0;
   }
 
+  /* 모바일 expanded 시 차트 시그널과 마켓 지표 사이 구분선 표시 */
+  .chart-signal-divider.is-visible {
+    height: 1px;
+    background: var(--border-subtle);
+    margin: 0.25rem 0;
+  }
+
+  /* 모바일에서 상세지표 토글 버튼을 차트 시그널 헤더 내 우측 정렬 (매도 점수 라인과 동일) */
+  .chart-signal .details-toggle {
+    width: auto;
+    margin: 0 0 0 auto;
+    padding: 0.1rem 0.3rem;
+    font-size: 0.7rem;
+    border-radius: 4px;
+  }
+
   .trading-layout__main {
     padding: 0;
     display: flex;
@@ -2431,6 +2447,10 @@ select:focus-visible {
       display: block;
     }
     .details-toggle {
+      display: none;
+    }
+
+    .chart-signal-divider {
       display: none;
     }
   }
