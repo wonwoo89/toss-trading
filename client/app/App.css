@@ -1803,6 +1803,49 @@ select:focus-visible {
   border-radius: 10px;
 }
 
+/* 추천 실행 요약 (하단 실행버튼 근처에 수량+지정가 종합 표시) */
+.order-rec-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  font-size: 0.78rem;
+  margin-bottom: 0.35rem;
+}
+
+.order-rec-summary__label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.order-rec-summary__values {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.order-rec-summary__values .divider {
+  color: var(--text-muted);
+}
+
+.order-manual-hint {
+  text-align: center;
+  margin-top: 0.25rem;
+}
+
+.order-manual-hint .hint {
+  font-size: 0.68rem;
+  opacity: 0.7;
+}
+
 .order-quick-actions {
   display: flex;
   flex-wrap: wrap;
