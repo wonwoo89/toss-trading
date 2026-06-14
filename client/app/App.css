@@ -2227,6 +2227,11 @@ select:focus-visible {
     max-width: none;
   }
 
+  /* 모바일에서 주문폼 오픈 시 .order-column 을 70vh 로 고정 */
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column.order-column--mobile-expanded {
+    height: 70vh;
+  }
+
   .trading-layout__main {
     padding: 0;
     display: flex;
@@ -2252,6 +2257,14 @@ select:focus-visible {
   /* 모바일 접힘 상태: order-form__body 전체를 숨겨서 추천 rec grid만 보이게 함 */
   .order-form:not(.is-mobile-expanded) .order-form__body {
     display: none;
+  }
+
+  /* 오픈된 상태에서 submit-block (추천 rec + 실행 영역)을 하단에 sticky 로 고정 */
+  .trading-layout:not(.trading-layout--portfolio-only) .order-form.is-mobile-expanded .order-form__submit-block {
+    position: sticky;
+    bottom: 0;
+    /* 배경은 base 스타일에서 var(--bg-panel) 로 이미 설정되어 있음 */
+    z-index: 1;
   }
 
   .order-form .order-rec-grid {
