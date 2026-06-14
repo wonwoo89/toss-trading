@@ -386,6 +386,25 @@ export function OrderForm({
     ]
   );
 
+  // 추천 카드용 예상 금액 (해당 추천의 수량 × 추천 지정가)
+  const recommendedBuyAmount =
+    buyQuantityRec.available &&
+    buyQuantityRec.quantity !== undefined &&
+    buyLimitPriceRec.available &&
+    buyLimitPriceRec.price !== undefined &&
+    Number.isFinite(buyLimitPriceRec.price)
+      ? buyQuantityRec.quantity * buyLimitPriceRec.price
+      : undefined;
+
+  const recommendedSellAmount =
+    sellQuantityRec.available &&
+    sellQuantityRec.quantity !== undefined &&
+    sellLimitPriceRec.available &&
+    sellLimitPriceRec.price !== undefined &&
+    Number.isFinite(sellLimitPriceRec.price)
+      ? sellQuantityRec.quantity * sellLimitPriceRec.price
+      : undefined;
+
   const recommendedLimitPriceText =
     limitPriceRecommendation.available &&
     limitPriceRecommendation.price !== undefined &&
@@ -1000,6 +1019,9 @@ export function OrderForm({
                 ? buyLimitPriceRec.price.toFixed(2)
                 : '—'}
             </span>
+            {recommendedBuyAmount !== undefined && (
+              <span className="rec-expected">예상 금액 {formatUsd(recommendedBuyAmount)}</span>
+            )}
           </div>
 
           <div
@@ -1020,6 +1042,9 @@ export function OrderForm({
                 ? sellLimitPriceRec.price.toFixed(2)
                 : '—'}
             </span>
+            {recommendedSellAmount !== undefined && (
+              <span className="rec-expected">예상 금액 {formatUsd(recommendedSellAmount)}</span>
+            )}
           </div>
         </div>
 
