@@ -175,6 +175,19 @@ export function OrderForm({
   const formRef = useRef<HTMLFormElement>(null);
   const limitPriceManualRef = useRef(false);
 
+  // Reset form state when symbol changes (for navigation without full reload)
+  // This ensures recommendations and inputs are fresh for the new symbol's data
+  useEffect(() => {
+    if (symbol) {
+      setQuantity('');
+      setSelectedQuantityPercent(undefined);
+      setPrice('');
+      setOrderAmount('');
+      limitPriceManualRef.current = false;
+      // Keep current side or reset to 'BUY' if preferred; current keeps user choice
+    }
+  }, [symbol]);
+
   const updateTakeProfitRate = (rate: number) => {
     if (!Number.isFinite(rate) || rate <= 0) return;
     onTakeProfitRateChange?.(rate);
@@ -278,6 +291,7 @@ export function OrderForm({
       maxOrderQuantity,
       openOrders,
       side,
+      symbol,
       trades,
     ]
   );
@@ -306,6 +320,7 @@ export function OrderForm({
       effectiveOrderPrice,
       holding,
       openOrders,
+      symbol,
       trades,
     ]
   );
@@ -333,6 +348,7 @@ export function OrderForm({
       holding,
       openOrders,
       sellMaxForRec,
+      symbol,
       trades,
     ]
   );
@@ -361,6 +377,7 @@ export function OrderForm({
       currentPrice,
       holding,
       openOrders,
+      symbol,
       takeProfitRatePercent,
       trades,
     ]
@@ -390,6 +407,7 @@ export function OrderForm({
       currentPrice,
       holding,
       openOrders,
+      symbol,
       takeProfitRatePercent,
       trades,
     ]
@@ -1061,7 +1079,7 @@ export function OrderForm({
               buyLimitPriceRec.price !== undefined &&
               Number.isFinite(buyLimitPriceRec.price)
                 ? buyLimitPriceRec.price.toFixed(2)
-                : '—'}
+                : (currentPrice !== undefined ? currentPrice.toFixed(2) : '—')}
             </span>
             {recommendedBuyAmount !== undefined && (
               <span className="rec-expected">예상 금액 {formatUsd(recommendedBuyAmount)}</span>
@@ -1084,7 +1102,7 @@ export function OrderForm({
               sellLimitPriceRec.price !== undefined &&
               Number.isFinite(sellLimitPriceRec.price)
                 ? sellLimitPriceRec.price.toFixed(2)
-                : '—'}
+                : (currentPrice !== undefined ? currentPrice.toFixed(2) : '—')}
             </span>
             {recommendedSellAmount !== undefined && (
               <span className="rec-expected">예상 금액 {formatUsd(recommendedSellAmount)}</span>
