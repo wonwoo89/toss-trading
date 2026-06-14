@@ -1846,6 +1846,63 @@ select:focus-visible {
   opacity: 0.7;
 }
 
+/* 매수/매도 추천 정보를 각각 보여주는 그리드 (수량·가격 차이 명확히) */
+.order-rec-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.25rem 0;
+}
+
+.order-rec-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+}
+
+.order-rec-row.buy {
+  border-left: 3px solid var(--color-up);
+}
+
+.order-rec-row.sell {
+  border-left: 3px solid var(--color-down);
+}
+
+.order-rec-row .rec-label {
+  font-weight: 600;
+  white-space: nowrap;
+  min-width: 4.2rem;
+}
+
+.order-rec-row.buy .rec-label {
+  color: var(--color-up);
+}
+
+.order-rec-row.sell .rec-label {
+  color: var(--color-down);
+}
+
+.order-rec-row .rec-values {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.order-rec-row .rec-btn {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border-radius: 6px;
+}
+
 .order-quick-actions {
   display: flex;
   flex-wrap: wrap;
