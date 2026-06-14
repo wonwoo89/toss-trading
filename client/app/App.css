@@ -2168,11 +2168,6 @@ select:focus-visible {
     flex: 1 0 auto;
   }
 
-  .chart-panel {
-    flex: 1 1 auto;
-    min-height: 400px;
-  }
-
   .trading-layout {
     flex-direction: column;
   }
@@ -2287,10 +2282,20 @@ select:focus-visible {
   }
 
   .trading-layout:not(.trading-layout--portfolio-only) .chart-panel {
-    flex: 1;
+    flex: 0 0 auto;
+    height: 380px;
+    min-height: 300px;
+    max-height: 48vh;
     display: flex;
     flex-direction: column;
+  }
+
+  /* 모바일에서 chart-bleed가 chart-panel 내부에서 차트 영역을 채우도록 (데스크톱은 별도 min-width 규칙) */
+  .trading-layout:not(.trading-layout--portfolio-only) .chart-panel .chart-bleed {
+    flex: 1 1 0;
     min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
 
   /* 모바일 접힘 상태: order-form__body 전체를 숨겨서 추천 rec grid만 보이게 함 */
