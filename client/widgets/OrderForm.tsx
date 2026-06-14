@@ -691,164 +691,171 @@ export function OrderForm({
           </label>
         ) : (
           <>
-            <label>
-              수량
-              <input
-                type="number"
-                min="0"
-                step="any"
-                value={quantity}
-                placeholder={
-                  quantityRecommendation.recommended &&
-                  quantityRecommendation.quantity !== undefined
-                    ? `미입력 시 추천 ${formatOrderQuantity(quantityRecommendation.quantity)}주`
-                    : '미입력 시 추천 수량'
-                }
-                onChange={(e) => {
-                  clearSelectedQuantityPercent();
-                  setQuantity(e.target.value);
-                }}
-              />
-            </label>
+            <div className="order-form__section">
+              <div className="order-form__section-title">수량</div>
+              <label>
+                <input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={quantity}
+                  placeholder={
+                    quantityRecommendation.recommended &&
+                    quantityRecommendation.quantity !== undefined
+                      ? `미입력 시 추천 ${formatOrderQuantity(quantityRecommendation.quantity)}주`
+                      : '미입력 시 추천 수량'
+                  }
+                  onChange={(e) => {
+                    clearSelectedQuantityPercent();
+                    setQuantity(e.target.value);
+                  }}
+                />
+              </label>
 
-            {showQuantityPercentButtons && (
-              <div className="order-quick-actions">
-                {QUANTITY_PERCENTAGES.map((percent) => (
-                  <button
-                    key={percent}
-                    type="button"
-                    className={
-                      selectedQuantityPercent === percent
-                        ? 'active'
-                        : quantityRecommendation.snapPercent === percent
-                          ? 'is-suggested'
-                          : ''
-                    }
-                    onClick={() => applyQuantityPercent(percent)}
-                    disabled={quantityPercentDisabled}
-                  >
-                    {percent}%
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <div className="order-insight order-insight--compact order-quantity-recommendation">
-              <span className="order-insight__title">추천 수량</span>
-              <strong className="order-insight__value">
-                {formatQuantityRecommendationValue(quantityRecommendation)}
-              </strong>
-              <button
-                type="button"
-                className="order-insight__apply"
-                onClick={applyRecommendedQuantity}
-                disabled={
-                  !quantityRecommendation.available ||
-                  !quantityRecommendation.recommended ||
-                  quantityRecommendation.quantity === undefined ||
-                  submitting
-                }
-              >
-                적용
-              </button>
-            </div>
-
-            <label>
-              지정가 (USD)
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={price}
-                placeholder={
-                  priceMode === 'market' ? '시장가' : currentPrice ? String(currentPrice) : '0.00'
-                }
-                onChange={(e) => {
-                  limitPriceManualRef.current = true;
-                  setPrice(e.target.value);
-                }}
-                disabled={isPriceInputDisabled}
-                required={priceMode === 'limit'}
-              />
-            </label>
-
-            <div className="order-quick-actions order-price-modes">
-              <button
-                type="button"
-                className={priceMode === 'limit' ? 'active' : ''}
-                onClick={() => handlePriceModeChange('limit')}
-              >
-                지정가
-              </button>
-              <button
-                type="button"
-                className={priceMode === 'current' ? 'active' : ''}
-                onClick={() => handlePriceModeChange('current')}
-                disabled={currentPrice === undefined}
-              >
-                현재가
-              </button>
-              <button
-                type="button"
-                className={priceMode === 'market' ? 'active' : ''}
-                onClick={() => handlePriceModeChange('market')}
-              >
-                시장가
-              </button>
-            </div>
-
-            <div className="order-insight order-insight--compact order-price-mode-recommendation">
-              <span className="order-insight__title">체결 방식</span>
-              <strong className="order-insight__value">{priceModeRecommendation.modeLabel}</strong>
-              <button
-                type="button"
-                className="order-insight__apply"
-                onClick={applyRecommendedPriceMode}
-                disabled={!priceModeRecommendation.available || submitting}
-              >
-                적용
-              </button>
-            </div>
-
-            <div className="order-insight order-limit-recommendation">
-              <div className="order-insight__header order-insight__header--collapsible">
-                <span className="order-insight__title">추천 지정가</span>
-                <div className="order-insight__header-actions">
-                  <strong className="order-insight__value">
-                    {limitPriceRecommendation.priceLabel}
-                  </strong>
-                  <button
-                    type="button"
-                    className="order-insight__toggle"
-                    aria-expanded={limitRecommendationExpanded}
-                    onClick={() => setLimitRecommendationExpanded((expanded) => !expanded)}
-                  >
-                    {limitRecommendationExpanded ? '접기' : '상세'}
-                  </button>
+              {showQuantityPercentButtons && (
+                <div className="order-quick-actions">
+                  {QUANTITY_PERCENTAGES.map((percent) => (
+                    <button
+                      key={percent}
+                      type="button"
+                      className={
+                        selectedQuantityPercent === percent
+                          ? 'active'
+                          : quantityRecommendation.snapPercent === percent
+                            ? 'is-suggested'
+                            : ''
+                      }
+                      onClick={() => applyQuantityPercent(percent)}
+                      disabled={quantityPercentDisabled}
+                    >
+                      {percent}%
+                    </button>
+                  ))}
                 </div>
-              </div>
-              {limitRecommendationExpanded && (
-                <>
-                  <p className="order-insight__summary">{limitPriceRecommendation.summary}</p>
-                  {limitPriceRecommendation.reasons.length > 0 && (
-                    <p className="order-insight__reasons">
-                      {limitPriceRecommendation.reasons.join(' · ')}
-                    </p>
-                  )}
-                  <button
-                    type="button"
-                    className="order-insight__apply"
-                    onClick={applyRecommendedLimitPrice}
-                    disabled={
-                      !limitPriceRecommendation.available ||
-                      limitPriceRecommendation.price === undefined ||
-                      submitting
-                    }
-                  >
-                    추천가 적용
-                  </button>
-                </>
               )}
+
+              <div className="order-insight order-insight--compact order-quantity-recommendation">
+                <span className="order-insight__title">추천 수량</span>
+                <strong className="order-insight__value">
+                  {formatQuantityRecommendationValue(quantityRecommendation)}
+                </strong>
+                <button
+                  type="button"
+                  className="order-insight__apply"
+                  onClick={applyRecommendedQuantity}
+                  disabled={
+                    !quantityRecommendation.available ||
+                    !quantityRecommendation.recommended ||
+                    quantityRecommendation.quantity === undefined ||
+                    submitting
+                  }
+                >
+                  적용
+                </button>
+              </div>
+            </div>
+
+            <div className="order-form__section">
+              <div className="order-form__section-title">가격</div>
+              <label>
+                지정가 (USD)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={price}
+                  placeholder={
+                    priceMode === 'market' ? '시장가' : currentPrice ? String(currentPrice) : '0.00'
+                  }
+                  onChange={(e) => {
+                    limitPriceManualRef.current = true;
+                    setPrice(e.target.value);
+                  }}
+                  disabled={isPriceInputDisabled}
+                  required={priceMode === 'limit'}
+                />
+              </label>
+
+              <div className="order-quick-actions order-price-modes">
+                <button
+                  type="button"
+                  className={priceMode === 'limit' ? 'active' : ''}
+                  onClick={() => handlePriceModeChange('limit')}
+                >
+                  지정가
+                </button>
+                <button
+                  type="button"
+                  className={priceMode === 'current' ? 'active' : ''}
+                  onClick={() => handlePriceModeChange('current')}
+                  disabled={currentPrice === undefined}
+                >
+                  현재가
+                </button>
+                <button
+                  type="button"
+                  className={priceMode === 'market' ? 'active' : ''}
+                  onClick={() => handlePriceModeChange('market')}
+                >
+                  시장가
+                </button>
+              </div>
+
+              <div className="order-insight order-insight--compact order-price-mode-recommendation">
+                <span className="order-insight__title">체결 방식</span>
+                <strong className="order-insight__value">
+                  {priceModeRecommendation.modeLabel}
+                </strong>
+                <button
+                  type="button"
+                  className="order-insight__apply"
+                  onClick={applyRecommendedPriceMode}
+                  disabled={!priceModeRecommendation.available || submitting}
+                >
+                  적용
+                </button>
+              </div>
+
+              <div className="order-insight order-limit-recommendation">
+                <div className="order-insight__header order-insight__header--collapsible">
+                  <span className="order-insight__title">추천 지정가</span>
+                  <div className="order-insight__header-actions">
+                    <strong className="order-insight__value">
+                      {limitPriceRecommendation.priceLabel}
+                    </strong>
+                    <button
+                      type="button"
+                      className="order-insight__toggle"
+                      aria-expanded={limitRecommendationExpanded}
+                      onClick={() => setLimitRecommendationExpanded((expanded) => !expanded)}
+                    >
+                      {limitRecommendationExpanded ? '접기' : '상세'}
+                    </button>
+                  </div>
+                </div>
+                {limitRecommendationExpanded && (
+                  <>
+                    <p className="order-insight__summary">{limitPriceRecommendation.summary}</p>
+                    {limitPriceRecommendation.reasons.length > 0 && (
+                      <p className="order-insight__reasons">
+                        {limitPriceRecommendation.reasons.join(' · ')}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      className="order-insight__apply"
+                      onClick={applyRecommendedLimitPrice}
+                      disabled={
+                        !limitPriceRecommendation.available ||
+                        limitPriceRecommendation.price === undefined ||
+                        submitting
+                      }
+                    >
+                      추천가 적용
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
             {side === 'BUY' && (
