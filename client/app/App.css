@@ -1939,6 +1939,20 @@ select:focus-visible {
   white-space: normal; /* 좁은 폭에서도 잘리지 않게 */
 }
 
+.order-rec-row .rec-expected {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 0.1rem;
+}
+
+.order-rec-row.buy .rec-expected {
+  color: var(--color-up);
+}
+
+.order-rec-row.sell .rec-expected {
+  color: var(--color-down);
+}
+
 .order-quick-actions {
   display: flex;
   flex-wrap: wrap;
