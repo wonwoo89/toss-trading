@@ -53,17 +53,26 @@ accountRouter.get('/snapshot', async (req, res, next) => {
     console.log(`[account/snapshot] HIT - symbol=${symbol || 'none'}, accountSeq present=${!!req.header('x-account-seq')}`);
 
     if (symbol) {
-      const [ordersRes, holdingsRes] = await Promise.all([
-        tossRequest({
-          path: '/api/v1/orders',
-          accountSeq,
-          query: { status: 'OPEN', symbol },
-        }),
-        tossRequest({
-          path: '/api/v1/holdings',
-          accountSeq,
-        }),
-      ]);
+      console.log(`[account/snapshot] symbol=${symbol} - entering symbol branch, starting orders + holdings fetch`);
+      let ordersRes, holdingsRes;
+      try {
+        [ordersRes, holdingsRes] = await Promise.all([
+          tossRequest({
+            path: '/api/v1/orders',
+            accountSeq,
+            query: { status: 'OPEN', symbol },
+          }),
+          tossRequest({
+            path: '/api/v1/holdings',
+            accountSeq,
+          }),
+        ]);
+        console.log(`[account/snapshot] symbol=${symbol} - orders + holdings fetch SUCCESS`);
+      } catch (fetchErr) {
+        console.error(`[account/snapshot] symbol=${symbol} - orders or holdings fetch FAILED:`, fetchErr?.message || fetchErr);
+        if (fetchErr?.stack) console.error(fetchErr.stack);
+        throw fetchErr;
+      }
 
       let sellableRes = null;
       console.log(`[sellable-quantity] symbol=${symbol} - ABOUT TO CALL /api/v1/sellable-quantity (accountSeq=${accountSeq ? 'yes' : 'no'})`);
@@ -123,6 +132,8 @@ accountRouter.get('/snapshot', async (req, res, next) => {
       },
     });
   } catch (error) {
+    console.error(`[account/snapshot] overall handler error (symbol=${symbol || 'none'}):`, error?.message || error);
+    if (error?.stack) console.error(error.stack);
     next(error);
   }
 });
