@@ -44,49 +44,6 @@
   flex-shrink: 0;
 }
 
-/* 모바일: 좌우 그룹이 각각 full width로 상하 스택.
-   브랜드 그룹(header-left) 내부: 앱이름 좌측, 검색+테마 우측 */
-@media (max-width: 480px) {
-  .header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0.5rem;
-  }
-
-  .header-left {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .header-left-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    flex-shrink: 0;
-  }
-
-  .header-right {
-    width: 100%;
-  }
-
-  .brand {
-    flex: 0 0 auto;
-  }
-
-  .symbol-search--header {
-    flex: 0 0 auto;
-    max-width: 110px;
-  }
-
-  .symbol-search--header input {
-    width: 100%;
-    font-size: 0.7rem;
-    padding: 0 0.35rem;
-  }
-}
-
 .brand {
   display: flex;
   gap: 0.5rem;
@@ -2121,12 +2078,6 @@ select:focus-visible {
   border: 1px solid var(--color-error-border);
 }
 
-@media (max-width: 1280px) {
-  .trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 320px);
-  }
-}
-
 @media (max-width: 1100px) {
   .app:has(main.trading-layout:not(.trading-layout--portfolio-only)) {
     height: auto;
@@ -2205,57 +2156,10 @@ select:focus-visible {
   .trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main {
     grid-template-columns: 1fr;
   }
-}
 
-@media (max-width: 960px) {
-  .market-grid,
-  .portfolio-grid,
-  .portfolio-sidebar {
-    grid-template-columns: 1fr;
-  }
+  /* === 통합 모바일 규칙 (1100px 이하) === */
 
-  .portfolio-grid {
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .order-column,
-  .portfolio-sidebar {
-    position: static;
-    max-height: none;
-    height: auto;
-    overflow: visible;
-  }
-
-  .trading-layout:not(.trading-layout--portfolio-only) .order-column .order-form {
-    height: auto;
-  }
-
-  .order-form__submit-block {
-    margin-top: 0;
-  }
-
-  .portfolio-sidebar .open-orders-panel {
-    flex: 0 1 auto;
-    max-height: none;
-    min-height: 220px;
-  }
-
-  .candle-chart {
-    min-height: 280px;
-    flex: 1 0 auto;
-  }
-
-  .chart-panel {
-    flex: 1 1 auto;
-    min-height: 420px; /* 모바일에서도 차트가 항상 렌더링되도록 공간 확보 */
-  }
-
-  .candle-chart {
-    flex: 1 1 320px;
-    min-height: 320px;
-  }
-
-  /* 하단 플로팅 주문폼: 추천 정보 우선, 스크롤 독립 노출 */
+  /* 하단 플로팅 주문폼 (추천 우선) */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
     position: fixed;
     bottom: 0;
@@ -2266,64 +2170,12 @@ select:focus-visible {
     border-top: 1px solid var(--border-subtle);
     box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
     padding: 0.35rem 0.5rem 0.6rem;
-    max-height: 138px;
-    overflow-y: auto;
-  }
-
-  .trading-layout__main {
-    padding-bottom: 145px; /* 플로팅 폼과의 겹침 방지 */
-  }
-
-  /* 주문폼 간략화: 입력 섹션 숨기고 추천 정보만 노출 */
-  .order-form .stock-holding-summary,
-  .order-form__section,
-  .order-form__hints {
-    display: none !important;
-  }
-
-  .order-form .order-rec-grid {
-    margin: 0;
-    gap: 0.3rem;
-  }
-
-  .order-rec-row {
-    padding: 0.3rem 0.4rem;
-    min-height: 38px;
-    font-size: 0.76rem;
-  }
-
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .header-left {
-    width: 100%;
-    margin-bottom: 0.25rem;
-  }
-
-  .header-right {
-    width: 100%;
-    justify-content: flex-end;
-  }
-
-  /* 모바일 플로팅 주문폼: 추천정보 우선 + 항상 하단 노출 */
-  .trading-layout:not(.trading-layout--portfolio-only) .order-column {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 200;
-    background: var(--bg-panel);
-    border-top: 1px solid var(--border-subtle);
-    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
-    padding: 0.25rem 0.5rem 0.5rem;
     max-height: 160px;
     overflow-y: auto;
   }
 
   .trading-layout__main {
-    padding-bottom: 170px; /* 플로팅 폼과 겹치지 않게 */
+    padding-bottom: 170px;
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -2344,7 +2196,7 @@ select:focus-visible {
     min-height: 0;
   }
 
-  /* 주문폼 간략화: 추천정보( rec grid )만 우선 노출 */
+  /* 주문폼 간략화: 추천 rec grid만 노출 */
   .order-form .stock-holding-summary,
   .order-form__section,
   .order-form__hints {
@@ -2362,7 +2214,7 @@ select:focus-visible {
     font-size: 0.76rem;
   }
 
-  /* 모바일 우선: 모든 카드 레이아웃 제거 (bg, border, radius, padding 제거) */
+  /* 카드 레이아웃 완전 제거 (모바일 flat) */
   .panel,
   .market-panel,
   .order-form,
@@ -2382,7 +2234,7 @@ select:focus-visible {
     padding: 0 !important;
   }
 
-  /* 모바일 콘텐츠에만 좌우 16px padding 부여 (최대 가로 활용) */
+  /* 좌우 16px padding + 차트 최대폭 */
   .trading-layout__main,
   .market-panel,
   .chart-panel,
@@ -2396,20 +2248,42 @@ select:focus-visible {
     padding-right: 16px;
   }
 
-  /* 차트는 추가로 가로 마진 제거로 최대폭 */
   .candle-chart {
     margin-left: -16px;
     margin-right: -16px;
     width: calc(100% + 32px);
   }
 
-  /* 플로팅 주문폼(추천 영역)은 패딩 유지하되 카드 스타일 제거 */
+  /* 플로팅 주문폼 바 스타일 유지 */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
     background: var(--bg-panel);
     border-top: 1px solid var(--border-subtle);
     box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  /* 헤더 모바일: 브랜드 그룹(좌측)에서 앱이름 좌 / 검색+테마 우 */
+  .header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .header-left {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .header-left-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .header-right {
+    width: 100%;
   }
 }
 
