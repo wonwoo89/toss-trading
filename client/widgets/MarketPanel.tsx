@@ -149,18 +149,17 @@ export function MarketPanel({
       <div className="chart-panel">
         <div className="chart-toolbar">
           <StockLabel symbol={symbol} name={stockName} as="heading" />
-          <div className="order-quick-actions chart-interval">
+          <select
+            className="chart-interval"
+            value={candleInterval}
+            onChange={(e) => onCandleIntervalChange(e.target.value as CandleInterval)}
+          >
             {CANDLE_INTERVALS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={candleInterval === option.value ? 'active' : ''}
-                onClick={() => onCandleIntervalChange(option.value)}
-              >
+              <option key={option.value} value={option.value}>
                 {option.label}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
         <div className="chart-bleed">
