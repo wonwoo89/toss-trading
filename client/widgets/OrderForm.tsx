@@ -982,7 +982,12 @@ export function OrderForm({
 
         {/* 매수와 매도의 추천 정보(수량·가격)를 별도로 명확히 표시 */}
         <div className="order-rec-grid">
-          <div className="order-rec-row buy">
+          <div
+            className={`order-rec-row buy ${submitting ? 'is-disabled' : ''}`}
+            onClick={() => !submitting && executeWithRecommendation('BUY')}
+            role="button"
+            tabIndex={submitting ? -1 : 0}
+          >
             <span className="rec-label">추천 매수</span>
             <span className="rec-values">
               {buyQuantityRec.available && buyQuantityRec.quantity !== undefined
@@ -995,17 +1000,15 @@ export function OrderForm({
                 ? buyLimitPriceRec.price.toFixed(2)
                 : '—'}
             </span>
-            <button
-              type="button"
-              className="buy-btn rec-btn"
-              onClick={() => executeWithRecommendation('BUY')}
-              disabled={submitting}
-            >
-              실행
-            </button>
+            <span className="rec-action">실행</span>
           </div>
 
-          <div className="order-rec-row sell">
+          <div
+            className={`order-rec-row sell ${submitting ? 'is-disabled' : ''}`}
+            onClick={() => !submitting && executeWithRecommendation('SELL')}
+            role="button"
+            tabIndex={submitting ? -1 : 0}
+          >
             <span className="rec-label">추천 매도</span>
             <span className="rec-values">
               {sellQuantityRec.available && sellQuantityRec.quantity !== undefined
@@ -1018,14 +1021,7 @@ export function OrderForm({
                 ? sellLimitPriceRec.price.toFixed(2)
                 : '—'}
             </span>
-            <button
-              type="button"
-              className="sell-btn rec-btn"
-              onClick={() => executeWithRecommendation('SELL')}
-              disabled={submitting}
-            >
-              실행
-            </button>
+            <span className="rec-action">실행</span>
           </div>
         </div>
 
