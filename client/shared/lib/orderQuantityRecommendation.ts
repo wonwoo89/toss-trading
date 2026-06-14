@@ -208,7 +208,7 @@ export function buildOrderQuantityRecommendation(
     reasons.push('체결 매수 우세');
   }
 
-  if (holding && holding.quantity > 0) {
+  if (side === 'BUY' && holding && holding.quantity > 0) {
     percent -= 15;
     reasons.push('기존 보유 → 분할');
   }
