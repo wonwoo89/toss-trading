@@ -2148,7 +2148,12 @@ select:focus-visible {
 
   .chart-panel {
     flex: 1 1 auto;
-    min-height: 380px;
+    min-height: 420px; /* 모바일에서도 차트가 항상 렌더링되도록 공간 확보 */
+  }
+
+  .candle-chart {
+    flex: 1 1 320px;
+    min-height: 320px;
   }
 
   /* 하단 플로팅 주문폼: 추천 정보 우선, 스크롤 독립 노출 */
@@ -2197,6 +2202,43 @@ select:focus-visible {
     margin-left: 0;
     width: 100%;
     justify-content: flex-end;
+  }
+
+  /* 모바일 플로팅 주문폼: 추천정보 우선 + 항상 하단 노출 */
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 200;
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border-subtle);
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
+    padding: 0.25rem 0.5rem 0.5rem;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+
+  .trading-layout__main {
+    padding-bottom: 170px; /* 플로팅 폼과 겹치지 않게 */
+  }
+
+  /* 주문폼 간략화: 추천정보( rec grid )만 우선 노출 */
+  .order-form .stock-holding-summary,
+  .order-form__section,
+  .order-form__hints {
+    display: none !important;
+  }
+
+  .order-form .order-rec-grid {
+    margin: 0;
+    gap: 0.25rem;
+  }
+
+  .order-rec-row {
+    padding: 0.3rem 0.4rem;
+    min-height: 40px;
+    font-size: 0.76rem;
   }
 }
 
