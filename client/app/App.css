@@ -2259,6 +2259,11 @@ select:focus-visible {
     display: none;
   }
 
+  /* 모바일에서 .order-form 이 펼쳐졌을 때 (.is-mobile-expanded) gap: 1rem 적용 */
+  .trading-layout:not(.trading-layout--portfolio-only) .order-form.is-mobile-expanded {
+    gap: 1rem;
+  }
+
   /* 오픈된 상태에서 submit-block (추천 rec + 실행 영역)을 하단에 sticky 로 고정 */
   .trading-layout:not(.trading-layout--portfolio-only) .order-form.is-mobile-expanded .order-form__submit-block {
     position: sticky;
