@@ -198,6 +198,12 @@ export function OrderForm({
     return Math.floor(sellableQuantity);
   }, [maxBuyQuantity, sellableQuantity, side]);
 
+  // BUY/SELL 추천 카드는 항상 양쪽을 보여주므로, 각 추천은 해당 사이드의 max를 독립적으로 사용해야 함.
+  // (maxOrderQuantity는 현재 side에 따라 달라지기 때문에 opposite side rec 계산에 오염됨)
+  const buyMaxForRec = maxBuyQuantity;
+  const sellMaxForRec =
+    sellableQuantity !== undefined && sellableQuantity > 0 ? Math.floor(sellableQuantity) : undefined;
+
   const buyBreakEvenHint = useMemo(() => {
     if (side !== 'BUY' || effectiveBuyPrice === undefined || effectiveBuyPrice <= 0) {
       return undefined;
@@ -280,7 +286,7 @@ export function OrderForm({
       buildOrderQuantityRecommendation({
         side: 'BUY',
         unitPrice: effectiveOrderPrice,
-        maxQuantity: maxOrderQuantity,
+        maxQuantity: buyMaxForRec,
         buyingPower,
         candles,
         bids,
@@ -292,11 +298,11 @@ export function OrderForm({
     [
       asks,
       bids,
+      buyMaxForRec,
       buyingPower,
       candles,
       effectiveOrderPrice,
       holding,
-      maxOrderQuantity,
       openOrders,
       trades,
     ]
@@ -307,7 +313,7 @@ export function OrderForm({
       buildOrderQuantityRecommendation({
         side: 'SELL',
         unitPrice: effectiveOrderPrice,
-        maxQuantity: maxOrderQuantity,
+        maxQuantity: sellMaxForRec,
         buyingPower,
         candles,
         bids,
@@ -323,8 +329,8 @@ export function OrderForm({
       candles,
       effectiveOrderPrice,
       holding,
-      maxOrderQuantity,
       openOrders,
+      sellMaxForRec,
       trades,
     ]
   );
