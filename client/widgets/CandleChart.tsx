@@ -516,16 +516,24 @@ export function CandleChart({
       const entry = entries[0];
       if (!entry || !chartRef.current) return;
       chartWidthRef.current = entry.contentRect.width;
-      chartRef.current.applyOptions({
-        width: entry.contentRect.width,
-        height: Math.max(entry.contentRect.height, CHART_MIN_HEIGHT),
-      });
+      const newWidth = entry.contentRect.width;
+      const newHeight = Math.max(entry.contentRect.height, CHART_MIN_HEIGHT);
 
-      // 리사이즈(특히 모바일 브레이크포인트 전환) 후 내부 캔들 차트가
-      // 새 컨테이너 크기에 맞게 제대로 채워지지 않고 잘리는 문제 대응.
-      // applyOptions 후 rAF로 내부 timeScale이 settle되길 기다린 뒤
-      // 1/3 오른쪽 여백 + 현재 스팬을 유지하는 위치 강제 재적용.
-      // (새로고침 시에는 생성 시점부터 올바른 크기로 초기화되기 때문에 정상)
+      // resize()를 사용해 크기를 즉시 반영 (applyOptions와 동일하지만 명확)
+      chartRef.current.resize(newWidth, newHeight);
+
+      // 높이 변경 시 가격 스케일(autoscale + headroom)과 pane stretch를 재적용해
+      // 새 높이에 맞춰 캔들/볼륨 영역이 제대로 재분배되도록 함.
+      if (seriesRef.current) {
+        seriesRef.current.applyOptions(getCandlePriceScaleOptions());
+      }
+      const panes = chartRef.current.panes();
+      if (panes.length >= 2) {
+        panes[0].setStretchFactor(CANDLE_PANE_STRETCH);
+        panes[1].setStretchFactor(VOLUME_PANE_STRETCH);
+      }
+
+      // 가로 크기 변화에 대해 1/3 오른쪽 여백 위치를 재강제 (rAF로 settle 대기)
       if (lastBarIndexRef.current != null) {
         requestAnimationFrame(() => {
           if (chartRef.current) {
