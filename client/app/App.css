@@ -1276,10 +1276,10 @@ select:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 3.4rem;
-  padding: 0.18rem 0.55rem;
+  min-width: 4rem;
+  padding: 0.25rem 0.6rem;
   border-radius: 999px;
-  font-size: 0.76rem;
+  font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: -0.01em;
 }
@@ -1313,9 +1313,9 @@ select:focus-visible {
 }
 
 .chart-signal__score {
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .chart-signal__summary {
