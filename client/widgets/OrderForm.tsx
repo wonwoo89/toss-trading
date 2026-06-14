@@ -3,15 +3,9 @@ import { StockHoldingSummary } from './StockHoldingSummary';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import { formatUsd } from '../shared/lib/formatHoldings';
-import { buildLimitPriceRecommendation } from '../shared/lib/limitPriceRecommendation';
-import { buildOrderPriceModeRecommendation } from '../shared/lib/orderPriceModeRecommendation';
-import {
-  buildOrderQuantityRecommendation,
-  formatQuantityRecommendationValue,
-  resolveOrderQuantity,
-} from '../shared/lib/orderQuantityRecommendation';
+import { resolveOrderQuantity } from '../shared/lib/orderQuantityRecommendation';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
-import { buildTakeProfitRateRecommendation } from '../shared/lib/takeProfitRateRecommendation';
+import { useOrderRecommendations } from '../shared/hooks/useRecommendations';
 import type { CandleInterval, ChartCandle, HoldingItem, Order } from '../shared/types';
 import { formatOrderSuccessMessage } from '../shared/lib/formatOrderToast';
 import { ORDER_SIDE_LABEL } from '../shared/lib/labels';
@@ -237,192 +231,58 @@ export function OrderForm({
     return buildBuyBreakEvenHint(effectiveBuyPrice, commissionRatePercent);
   }, [commissionRatePercent, effectiveBuyPrice, side]);
 
-  const limitPriceRecommendation = useMemo(
-    () =>
-      buildLimitPriceRecommendation({
-        side,
-        currentPrice,
-        candles,
-        candleInterval,
-        bids,
-        asks,
-        trades,
-        holding,
-        targetProfitRatePercent: takeProfitRatePercent,
-        commissionRatePercent,
-        openOrders,
-      }),
-    [
-      asks,
-      bids,
-      candleInterval,
-      candles,
-      commissionRatePercent,
+  // 7개 주문 추천의 입력을 한 객체로 모은다. useMemo 로 안정화해 실제 의존성이 바뀔 때만
+  // 워커에 새 계산을 요청한다.
+  const recommendationInput = useMemo(
+    () => ({
+      side,
       currentPrice,
-      holding,
-      openOrders,
-      side,
-      takeProfitRatePercent,
-      trades,
-    ]
-  );
-
-  const takeProfitRateRecommendation = useMemo(
-    () =>
-      buildTakeProfitRateRecommendation({
-        candles,
-        currentPrice,
-        bids,
-        asks,
-      }),
-    [asks, bids, candles, currentPrice]
-  );
-
-  const quantityRecommendation = useMemo(
-    () =>
-      buildOrderQuantityRecommendation({
-        side,
-        unitPrice: effectiveOrderPrice,
-        maxQuantity: maxOrderQuantity,
-        buyingPower,
-        candles,
-        bids,
-        asks,
-        trades,
-        holding,
-        openOrders,
-      }),
-    [
-      asks,
-      bids,
-      buyingPower,
       candles,
-      effectiveOrderPrice,
-      holding,
-      maxOrderQuantity,
-      openOrders,
-      side,
-      symbol,
+      candleInterval,
+      bids,
+      asks,
       trades,
-    ]
-  );
-
-  // BUY / SELL 각각의 추천 정보를 항상 계산 (하단에 둘 다 보여주기 위함)
-  const buyQuantityRec = useMemo(
-    () =>
-      buildOrderQuantityRecommendation({
-        side: 'BUY',
-        unitPrice: effectiveOrderPrice,
-        maxQuantity: buyMaxForRec,
-        buyingPower,
-        candles,
-        bids,
-        asks,
-        trades,
-        holding,
-        openOrders,
-      }),
+      holding,
+      takeProfitRatePercent,
+      commissionRatePercent,
+      openOrders,
+      effectiveOrderPrice,
+      maxOrderQuantity,
+      buyMaxForRec,
+      sellMaxForRec,
+      buyingPower,
+    }),
     [
       asks,
       bids,
       buyMaxForRec,
       buyingPower,
+      candleInterval,
       candles,
+      commissionRatePercent,
+      currentPrice,
       effectiveOrderPrice,
       holding,
-      openOrders,
-      symbol,
-      trades,
-    ]
-  );
-
-  const sellQuantityRec = useMemo(
-    () =>
-      buildOrderQuantityRecommendation({
-        side: 'SELL',
-        unitPrice: effectiveOrderPrice,
-        maxQuantity: sellMaxForRec,
-        buyingPower,
-        candles,
-        bids,
-        asks,
-        trades,
-        holding,
-        openOrders,
-      }),
-    [
-      asks,
-      bids,
-      buyingPower,
-      candles,
-      effectiveOrderPrice,
-      holding,
+      maxOrderQuantity,
       openOrders,
       sellMaxForRec,
-      symbol,
-      trades,
-    ]
-  );
-
-  const buyLimitPriceRec = useMemo(
-    () =>
-      buildLimitPriceRecommendation({
-        side: 'BUY',
-        currentPrice,
-        candles,
-        candleInterval,
-        bids,
-        asks,
-        trades,
-        holding,
-        targetProfitRatePercent: takeProfitRatePercent,
-        commissionRatePercent,
-        openOrders,
-      }),
-    [
-      asks,
-      bids,
-      candleInterval,
-      candles,
-      commissionRatePercent,
-      currentPrice,
-      holding,
-      openOrders,
-      symbol,
+      side,
       takeProfitRatePercent,
       trades,
     ]
   );
 
-  const sellLimitPriceRec = useMemo(
-    () =>
-      buildLimitPriceRecommendation({
-        side: 'SELL',
-        currentPrice,
-        candles,
-        candleInterval,
-        bids,
-        asks,
-        trades,
-        holding,
-        targetProfitRatePercent: takeProfitRatePercent,
-        commissionRatePercent,
-        openOrders,
-      }),
-    [
-      asks,
-      bids,
-      candleInterval,
-      candles,
-      commissionRatePercent,
-      currentPrice,
-      holding,
-      openOrders,
-      symbol,
-      takeProfitRatePercent,
-      trades,
-    ]
-  );
+  // 7개 추천(지정가·수량·익절률, BUY/SELL 각각)을 단일 Web Worker 왕복으로 계산해
+  // 메인 스레드를 계산에서 분리한다. 결과 도착 전까지는 직전 값을 유지(no-flicker)한다.
+  const {
+    limitPriceRecommendation,
+    takeProfitRateRecommendation,
+    quantityRecommendation,
+    buyQuantityRec,
+    sellQuantityRec,
+    buyLimitPriceRec,
+    sellLimitPriceRec,
+  } = useOrderRecommendations(recommendationInput);
 
   // 추천 카드용 예상 금액 (해당 추천의 수량 × 추천 지정가)
   const recommendedBuyAmount =
