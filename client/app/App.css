@@ -2216,7 +2216,10 @@ select:focus-visible {
     padding: 0.35rem 0.5rem calc(0.6rem + env(safe-area-inset-bottom));
     max-height: 160px;
     overflow-y: auto;
-    width: 100%;
+
+    /* 모바일에서 전체 폭 bleed (부모의 16px padding 무시) */
+    margin: 0 -1rem;
+    width: calc(100% + 2rem);
 
     /* 모바일에서 sticky bottom 바 (자연스러운 플로팅/스크롤 동작) */
     /* 데스크톱에서 오버라이드된 width/max-width 등 리셋 */
@@ -2332,10 +2335,7 @@ select:focus-visible {
     backdrop-filter: blur(8px) !important;
   }
 
-  /* 하단 플로팅 주문폼에 가려지지 않도록 .portfolio-sidebar 하단 여백 확보 (미체결 주문 영역이 마지막이므로) */
-  .trading-layout:not(.trading-layout--portfolio-only) .portfolio-sidebar {
-    padding-bottom: 180px !important;
-  }
+
 
   /* 플로팅 주문폼 바 스타일 유지 */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
@@ -2346,9 +2346,12 @@ select:focus-visible {
     padding-right: 16px;
     padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
 
-    /* 전체 폭 확보 (데스크톱 스타일 override) */
+    /* 전체 폭 bleed (부모의 16px padding 무시) */
+    margin: 0 -1rem;
+    width: calc(100% + 2rem);
+
+    /* 데스크톱에서 오버라이드된 width/max-width 등 리셋 */
     flex: none;
-    width: 100%;
     max-width: none;
   }
 
