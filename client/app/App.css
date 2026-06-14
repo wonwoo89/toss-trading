@@ -2499,12 +2499,6 @@ select:focus-visible {
     background: var(--border-subtle);
     margin: 1rem 0;
   }
-
-  /* 모바일 차트 full width (DOM bleed wrapper) */
-  .chart-bleed {
-    margin-left: -16px;
-    margin-right: -16px;
-  }
 }
 
 /* 데스크톱에서는 상세지표 토글 항상 숨김 */
