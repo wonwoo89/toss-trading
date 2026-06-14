@@ -241,6 +241,8 @@ export function useSymbolTrading(
       const p = snap.price?.[0];
       const ob = snap.orderbook;
       const priceInfo = p as { lastPrice?: string; price?: string } | undefined;
+      const computedPrice = toNumber(priceInfo?.lastPrice ?? priceInfo?.price);
+      console.log(`[client] marketFetcher SUCCESS for ${symbol}: computedPrice=`, computedPrice, 'rawPrice0=', p);
       return {
         bids: (ob?.bids ?? []).map((b: OrderbookEntryRaw) => ({
           price: toNumber(b.price) ?? 0,
@@ -255,9 +257,10 @@ export function useSymbolTrading(
           quantity: toNumber(t.volume) ?? 0,
           timestamp: t.timestamp,
         })),
-        price: toNumber(priceInfo?.lastPrice ?? priceInfo?.price),
+        price: computedPrice,
       };
-    } catch {
+    } catch (e) {
+      console.warn(`[client] marketFetcher FAILED for ${symbol}:`, e);
       return undefined;
     }
   }, [symbol, isClosed, closedMarketDone]);
@@ -678,9 +681,17 @@ export function useSymbolTrading(
 
   const refreshBuyingPower = useCallback(
     async (accSeq: string) => {
-      const buyingPowerRes = await api.getBuyingPower(accSeq).catch(() => null);
+      console.log(`[client] refreshBuyingPower called for accountSeq=${accSeq}`);
+      const buyingPowerRes = await api.getBuyingPower(accSeq).catch((e) => {
+        console.warn(`[client] refreshBuyingPower api error for ${accSeq}:`, e);
+        return null;
+      });
       if (buyingPowerRes && setBuyingPower) {
-        setBuyingPower(toNumber(unwrapResult(buyingPowerRes).cashBuyingPower));
+        const bp = toNumber(unwrapResult(buyingPowerRes).cashBuyingPower);
+        console.log(`[client] refreshBuyingPower SUCCESS, setting buyingPower=`, bp);
+        setBuyingPower(bp);
+      } else {
+        console.log(`[client] refreshBuyingPower no res or no setter`);
       }
     },
     [setBuyingPower]
