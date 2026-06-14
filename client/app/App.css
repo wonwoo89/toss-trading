@@ -2305,13 +2305,10 @@ select:focus-visible {
     width: 100%;
   }
 
-  /* 모바일 검색바 크기 제한 (이전 요청 복원) */
-  .symbol-search--header {
-    max-width: 120px;
-  }
-
-  .symbol-search--header input {
-    padding: 0 0.4rem;
+  /* 모바일 검색바: ID 직접 타겟으로 width/padding 적용 (폰트 건드리지 않음) */
+  #symbol-search {
+    width: 120px;
+    padding: 0 4px;
   }
 }
 
