@@ -2469,6 +2469,13 @@ select:focus-visible {
   }
 }
 
+/* 데스크톱에서는 상세지표 토글 항상 숨김 */
+@media (min-width: 1101px) {
+  .details-toggle {
+    display: none;
+  }
+}
+
 .toast-viewport {
   position: fixed;
   top: 1.25rem;
