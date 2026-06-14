@@ -50,6 +50,8 @@ accountRouter.get('/snapshot', async (req, res, next) => {
     const accountSeq = resolveAccountSeq(req.header('x-account-seq') ?? undefined);
     const symbol = req.query.symbol ? String(req.query.symbol).toUpperCase() : undefined;
 
+    console.log(`[account/snapshot] HIT - symbol=${symbol || 'none'}, accountSeq present=${!!req.header('x-account-seq')}`);
+
     if (symbol) {
       const [ordersRes, holdingsRes] = await Promise.all([
         tossRequest({
@@ -64,16 +66,20 @@ accountRouter.get('/snapshot', async (req, res, next) => {
       ]);
 
       let sellableRes = null;
-      console.log(`[sellable-quantity] symbol=${symbol} - calling /api/v1/sellable-quantity...`);
+      console.log(`[sellable-quantity] symbol=${symbol} - ABOUT TO CALL /api/v1/sellable-quantity (accountSeq=${accountSeq ? 'yes' : 'no'})`);
       try {
         sellableRes = await tossRequest({
           path: '/api/v1/sellable-quantity',
           accountSeq,
           query: { symbol },
         });
-        console.log(`[sellable-quantity] symbol=${symbol} - SUCCESS, has result:`, !!sellableRes?.result);
+        console.log(`[sellable-quantity] symbol=${symbol} - SUCCESS from /api/v1/sellable-quantity, has result:`, !!sellableRes?.result);
+        if (sellableRes?.result) {
+          console.log(`[sellable-quantity] symbol=${symbol} - sellable result:`, JSON.stringify(sellableRes.result).slice(0, 200));
+        }
       } catch (err) {
-        console.error(`[sellable-quantity] symbol=${symbol} - FAILED:`, err?.message || err);
+        console.error(`[sellable-quantity] symbol=${symbol} - ERROR calling /api/v1/sellable-quantity:`, err?.message || err);
+        if (err?.stack) console.error(err.stack);
         sellableRes = null;
       }
 
