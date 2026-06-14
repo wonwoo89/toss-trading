@@ -1211,14 +1211,19 @@ select:focus-visible {
 
 .chart-interval {
   flex: 0 0 auto;
-  flex-wrap: nowrap;
-  margin-top: 0;
-  overflow-x: auto;
-  width: auto;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  outline: none;
 }
 
-.chart-interval button {
-  border: 1px solid transparent;
+.chart-interval option {
+  background: var(--bg-panel);
+  color: var(--text-primary);
 }
 
 .chart-signal {
