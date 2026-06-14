@@ -1872,11 +1872,11 @@ select:focus-visible {
   opacity: 0.7;
 }
 
-/* 매수/매도 추천 정보를 각각 보여주는 그리드 (수량·가격 차이 명확히) */
+/* 추천 매수/매도 영역을 좌우 배치 + 높이 확대하여 클릭 타겟 크게 */
 .order-rec-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
   margin: 0.25rem 0;
 }
 
@@ -1884,8 +1884,9 @@ select:focus-visible {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0.55rem;
+  gap: 0.4rem;
+  padding: 0.55rem 0.5rem;
+  min-height: 52px;
   border-radius: 8px;
   font-size: 0.82rem;
   background: var(--bg-subtle);
