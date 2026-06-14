@@ -2275,6 +2275,11 @@ select:focus-visible {
     backdrop-filter: blur(8px) !important;
   }
 
+  /* 하단 플로팅 주문폼에 가려지지 않도록 .portfolio-sidebar 하단 여백 확보 (미체결 주문 영역이 마지막이므로) */
+  .trading-layout:not(.trading-layout--portfolio-only) .portfolio-sidebar {
+    padding-bottom: 180px !important;
+  }
+
   /* 플로팅 주문폼 바 스타일 유지 */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
     background: var(--bg-panel);
