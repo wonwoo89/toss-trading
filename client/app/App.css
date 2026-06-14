@@ -2216,6 +2216,7 @@ select:focus-visible {
     box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
     padding: 0.35rem 0.5rem calc(0.6rem + env(safe-area-inset-bottom));
     overflow-y: auto;
+    border-radius: 18px 18px 0 0;
 
     /* 모바일에서 전체 폭 bleed (부모의 16px padding 무시) */
     margin: 0 -1rem;
@@ -2230,6 +2231,7 @@ select:focus-visible {
   /* 모바일에서 주문폼 오픈 시 .order-column 을 70vh 로 고정 */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column.order-column--mobile-expanded {
     height: 70vh;
+    border-radius: 18px 18px 0 0;
   }
 
   .trading-layout__main {
@@ -2284,7 +2286,7 @@ select:focus-visible {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 12px 0 10px; /* 터치 영역 확대 (하단 체크박스와 간섭 방지) */
+    padding: 10px 0 10px; /* 터치 영역 확대 (하단 체크박스와 간섭 방지) */
     cursor: pointer;
     user-select: none;
   }
@@ -2358,6 +2360,7 @@ select:focus-visible {
     padding-left: 16px;
     padding-right: 16px;
     padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
 
     /* 전체 폭 bleed (부모의 16px padding 무시) */
     margin: 0 -1rem;
