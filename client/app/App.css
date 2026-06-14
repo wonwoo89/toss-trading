@@ -2205,6 +2205,14 @@ select:focus-visible {
     margin-top: 0;
   }
 
+  .order-form__section input {
+    margin-bottom: 8px;
+  }
+
+  .trading-layout:not(.trading-layout--portfolio-only) .order-form.is-mobile-expanded .order-insight {
+    margin-top: 8px;
+  }
+
   .trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main {
     grid-template-columns: 1fr;
   }
