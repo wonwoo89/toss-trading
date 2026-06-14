@@ -683,8 +683,10 @@ textarea {
 }
 
 .trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main {
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
-  height: 100%;
+  /* 주문폼(order-column)은 이제 DOM상 portfolio-sidebar 다음에 위치 (모바일 자연스러운 flow를 위해).
+     데스크톱에서는 flex order로 시각적 순서만 main | order | portfolio 로 복원 */
+  grid-template-columns: 1fr;
+  /* height:100% 는 내부 그리드 자식이 order-column 이었을 때 필요했음. 이제 단일 자식(MarketPanel) */
 }
 
 .trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main > * {
@@ -706,6 +708,13 @@ textarea {
   position: static;
   top: auto;
   overflow: hidden;
+
+  /* 이제 trading-layout flex row의 직접 자식.
+     이전 grid 트랙 minmax(300px,360px) 와 유사한 폭 부여.
+     order:2 로 visual 상 main 다음에 배치됨. */
+  flex: 0 0 320px;
+  width: 320px;
+  max-width: 360px;
 }
 
 .trading-layout:not(.trading-layout--portfolio-only) .order-column .order-form {
@@ -738,6 +747,20 @@ textarea {
   position: static;
   top: auto;
   overflow: hidden;
+}
+
+/* 데스크톱 flex row visual order 복원:
+   DOM 순서 = __main | portfolio-sidebar | order-column
+   하지만 시각적으로는 __main | order-column | portfolio-sidebar 가 되도록 order 지정.
+   (모바일 column 에서는 media query에서 order 초기화해서 DOM 순서 유지 → 자연스러운 sticky/flow) */
+.trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main {
+  order: 1;
+}
+.trading-layout:not(.trading-layout--portfolio-only) .order-column {
+  order: 2;
+}
+.trading-layout:not(.trading-layout--portfolio-only) .portfolio-sidebar {
+  order: 3;
 }
 
 .portfolio-sidebar__summary {
@@ -2154,6 +2177,14 @@ select:focus-visible {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
+  }
+
+  /* 모바일(column)에서는 order 초기화 → DOM 순서(main → portfolio-sidebar → order-column) 유지.
+     주문폼의 자연스러운 반응형 플로팅/ sticky 를 위해 분리된 위치를 활용. */
+  .trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main,
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column,
+  .trading-layout:not(.trading-layout--portfolio-only) .portfolio-sidebar {
+    order: 0;
   }
 
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
