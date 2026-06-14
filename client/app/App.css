@@ -2218,6 +2218,10 @@ select:focus-visible {
     padding: 0.35rem 0.5rem 0.6rem;
     max-height: 160px;
     overflow-y: auto;
+
+    /* 1100px 이하 플로팅 시 전체 가로 폭 꽉 채우기 (데스크톱 width/max-width 제한 해제) */
+    width: auto;
+    max-width: none;
   }
 
   .trading-layout__main {
@@ -2318,6 +2322,10 @@ select:focus-visible {
     box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
     padding-left: 16px;
     padding-right: 16px;
+
+    /* 전체 폭 확보 (데스크톱 스타일 override) */
+    width: auto;
+    max-width: none;
   }
 
   /* 헤더 모바일: 브랜드 그룹(좌측)에서 앱이름 좌 / 검색+테마 우 */
