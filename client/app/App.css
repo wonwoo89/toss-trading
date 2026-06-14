@@ -22,13 +22,28 @@
   --header-control-size: calc(0.4rem * 2 + 1.15rem + 2px);
   display: flex;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
   align-items: center;
   flex-wrap: wrap;
   margin-bottom: 1rem;
 }
 
-/* 모바일: 앱 이름과 검색을 같은 라인에, 검색 width 축소 */
+/* 좌우 분리 레이아웃 */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 모바일 최적화 */
 @media (max-width: 480px) {
   .header {
     flex-direction: row;
@@ -37,36 +52,44 @@
     gap: 0.5rem;
   }
 
+  .header-left {
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: 0.4rem;
+  }
+
+  .header-right {
+    flex-shrink: 0;
+  }
+
   .brand {
     flex: 0 0 auto;
-    min-width: 0;
   }
 
   .symbol-search--header {
     flex: 1 1 auto;
-    max-width: 130px;
-    margin-left: auto;
+    max-width: 110px;
   }
 
   .symbol-search--header input {
     width: 100%;
-    font-size: 0.72rem;
-    padding: 0 0.4rem;
+    font-size: 0.7rem;
+    padding: 0 0.35rem;
   }
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-left: auto;
 }
 
 .brand {
   display: flex;
-  gap: 0.55rem;
+  gap: 0.5rem;
   align-items: center;
   min-width: 0;
+  flex-shrink: 0;
+}
+
+.brand h1 {
+  font-size: 1.1rem;
+  margin: 0;
+  white-space: nowrap;
 }
 
 .brand h1,
@@ -2265,8 +2288,12 @@ select:focus-visible {
     align-items: flex-start;
   }
 
-  .header-actions {
-    margin-left: 0;
+  .header-left {
+    width: 100%;
+    margin-bottom: 0.25rem;
+  }
+
+  .header-right {
     width: 100%;
     justify-content: flex-end;
   }
