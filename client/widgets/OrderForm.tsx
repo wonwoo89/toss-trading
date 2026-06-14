@@ -1064,22 +1064,16 @@ export function OrderForm({
         {/* 추천 매수/매도 카드를 좌우 배치, 라벨 아래에 정보 세로 나열 (클릭 영역은 카드 전체) */}
         <div className="order-rec-grid">
           <div
-            className={`order-rec-row buy ${submitting ? 'is-disabled' : ''}`}
-            onClick={() => !submitting && executeWithRecommendation('BUY')}
+            className={`order-rec-row buy ${(submitting || !(buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined)) ? 'is-disabled' : ''}`}
+            onClick={() => !submitting && (buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined) && executeWithRecommendation('BUY')}
             role="button"
-            tabIndex={submitting ? -1 : 0}
+            tabIndex={(submitting || !(buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined)) ? -1 : 0}
           >
             <span className="rec-label">추천 매수</span>
             <span className="rec-info">
-              {buyQuantityRec.available && buyQuantityRec.quantity !== undefined
-                ? formatOrderQuantity(buyQuantityRec.quantity) + '주'
-                : '—'}{' '}
-              @ $
-              {buyLimitPriceRec.available &&
-              buyLimitPriceRec.price !== undefined &&
-              Number.isFinite(buyLimitPriceRec.price)
-                ? buyLimitPriceRec.price.toFixed(2)
-                : (currentPrice !== undefined ? currentPrice.toFixed(2) : '—')}
+              {buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined
+                ? `${formatOrderQuantity(buyQuantityRec.quantity)}주 @ $${buyLimitPriceRec.available && buyLimitPriceRec.price !== undefined && Number.isFinite(buyLimitPriceRec.price) ? buyLimitPriceRec.price.toFixed(2) : (currentPrice !== undefined ? currentPrice.toFixed(2) : '—')}`
+                : '—'}
             </span>
             {recommendedBuyAmount !== undefined && (
               <span className="rec-expected">예상 금액 {formatUsd(recommendedBuyAmount)}</span>
@@ -1087,22 +1081,16 @@ export function OrderForm({
           </div>
 
           <div
-            className={`order-rec-row sell ${submitting ? 'is-disabled' : ''}`}
-            onClick={() => !submitting && executeWithRecommendation('SELL')}
+            className={`order-rec-row sell ${(submitting || !(sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined)) ? 'is-disabled' : ''}`}
+            onClick={() => !submitting && (sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined) && executeWithRecommendation('SELL')}
             role="button"
-            tabIndex={submitting ? -1 : 0}
+            tabIndex={(submitting || !(sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined)) ? -1 : 0}
           >
             <span className="rec-label">추천 매도</span>
             <span className="rec-info">
-              {sellQuantityRec.available && sellQuantityRec.quantity !== undefined
-                ? formatOrderQuantity(sellQuantityRec.quantity) + '주'
-                : '—'}{' '}
-              @ $
-              {sellLimitPriceRec.available &&
-              sellLimitPriceRec.price !== undefined &&
-              Number.isFinite(sellLimitPriceRec.price)
-                ? sellLimitPriceRec.price.toFixed(2)
-                : (currentPrice !== undefined ? currentPrice.toFixed(2) : '—')}
+              {sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined
+                ? `${formatOrderQuantity(sellQuantityRec.quantity)}주 @ $${sellLimitPriceRec.available && sellLimitPriceRec.price !== undefined && Number.isFinite(sellLimitPriceRec.price) ? sellLimitPriceRec.price.toFixed(2) : (currentPrice !== undefined ? currentPrice.toFixed(2) : '—')}`
+                : '—'}
             </span>
             {recommendedSellAmount !== undefined && (
               <span className="rec-expected">예상 금액 {formatUsd(recommendedSellAmount)}</span>
