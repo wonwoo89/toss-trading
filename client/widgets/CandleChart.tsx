@@ -185,6 +185,23 @@ function applyViewportSpacing(
   return true;
 }
 
+function enforceRealtimeRightMargin(chart: IChartApi, lastBarIndex: number) {
+  const lr = chart.timeScale().getVisibleLogicalRange();
+  if (!lr) return;
+  const barSpacing = chart.timeScale().options().barSpacing;
+  if (!barSpacing || barSpacing <= 0) return;
+  const marginBars = getMarginBars(chart, barSpacing);
+  const span = lr.to - lr.from;
+  const desiredTo = lastBarIndex + marginBars;
+  const desiredFrom = Math.max(0, desiredTo - span);
+  const actualTo = desiredFrom + span;
+  chart.timeScale().setVisibleLogicalRange({ from: desiredFrom, to: actualTo });
+  chart.timeScale().applyOptions({
+    minBarSpacing: CHART_MIN_BAR_SPACING,
+    rightOffset: actualTo - lastBarIndex,
+  });
+}
+
 function applyChartViewportWhenReady(chart: IChartApi, viewport: ChartViewport, attempt = 0) {
   if (getTimeScaleWidth(chart) <= 0 && attempt < 8) {
     requestAnimationFrame(() => {
@@ -196,19 +213,13 @@ function applyChartViewportWhenReady(chart: IChartApi, viewport: ChartViewport, 
   applyViewportSpacing(chart, viewport);
 }
 
-function applyInitialViewport(chart: IChartApi) {
+function applyInitialViewport(chart: IChartApi, lastBarIndex: number) {
   chart.timeScale().applyOptions({
     minBarSpacing: CHART_MIN_BAR_SPACING,
   });
   chart.timeScale().fitContent();
-
-  const barSpacing = chart.timeScale().options().barSpacing;
-  if (!barSpacing || barSpacing <= 0) return;
-
-  chart.timeScale().applyOptions({
-    minBarSpacing: CHART_MIN_BAR_SPACING,
-    barSpacing,
-    rightOffset: getMarginBars(chart, barSpacing),
+  requestAnimationFrame(() => {
+    enforceRealtimeRightMargin(chart, lastBarIndex);
   });
 }
 
@@ -677,7 +688,7 @@ export function CandleChart({
       pendingRestoreRef.current = null;
       viewportInitializedRef.current = true;
     } else if (!viewportInitializedRef.current) {
-      applyInitialViewport(chart);
+      applyInitialViewport(chart, lastBarIndex);
       viewportInitializedRef.current = true;
     } else if (
       isStructuralChange &&
@@ -697,7 +708,7 @@ export function CandleChart({
       const wasNearRealtime = isNearRealtimeViewport(liveViewport, chart, barSpacingBeforeUpdate);
 
       if (dataLengthChanged && prependedCount === 0 && wasNearRealtime) {
-        applyViewportSpacing(chart, liveViewport, { forceRealtimeMargin: true });
+        enforceRealtimeRightMargin(chart, lastBarIndex);
       } else if (
         hasViewportSpacingDrift(
           barSpacingBeforeUpdate,
