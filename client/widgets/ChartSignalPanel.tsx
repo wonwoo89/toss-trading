@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   buildChartSignalSnapshot,
   type ChartSignalBias,
@@ -56,6 +56,8 @@ export function ChartSignalPanel({
     [asks, bids, candles, warnings]
   );
 
+  const [metricsExpanded, setMetricsExpanded] = useState(false);
+
   if (loading && candles.length === 0) {
     return (
       <div className="chart-signal" aria-live="polite">
@@ -79,17 +81,29 @@ export function ChartSignalPanel({
       </div>
 
       {snapshot.metrics.length > 0 && (
-        <div className="chart-signal__metrics">
-          {snapshot.metrics.map((metric) => (
-            <span
-              key={metric.id}
-              className={`chart-signal__metric ${getMetricClassName(metric.bias)}`}
-            >
-              <span className="chart-signal__metric-label">{metric.label}</span>
-              <span className="chart-signal__metric-value">{metric.value}</span>
-            </span>
-          ))}
-        </div>
+        <>
+          <button
+            type="button"
+            className="signal-metrics-toggle"
+            onClick={() => setMetricsExpanded(!metricsExpanded)}
+            aria-expanded={metricsExpanded}
+          >
+            {metricsExpanded ? '칩 접기 ▲' : '칩 정보 ▼'}
+          </button>
+          {metricsExpanded && (
+            <div className="chart-signal__metrics">
+              {snapshot.metrics.map((metric) => (
+                <span
+                  key={metric.id}
+                  className={`chart-signal__metric ${getMetricClassName(metric.bias)}`}
+                >
+                  <span className="chart-signal__metric-label">{metric.label}</span>
+                  <span className="chart-signal__metric-value">{metric.value}</span>
+                </span>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
