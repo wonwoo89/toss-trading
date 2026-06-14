@@ -458,11 +458,8 @@ export function OrderForm({
     [quantity, quantityRecommendation]
   );
 
-  const estimatedBuyAmount =
-    side === 'BUY' &&
-    !useAmountOrder &&
-    currentPrice !== undefined &&
-    effectiveQuantity !== undefined
+  const estimatedAmount =
+    !useAmountOrder && currentPrice !== undefined && effectiveQuantity !== undefined
       ? effectiveQuantity * currentPrice
       : undefined;
 
@@ -963,10 +960,15 @@ export function OrderForm({
             <p className="hint order-form__footer-hint">매도 가능: {sellableQuantity}주</p>
           )}
 
-          {estimatedBuyAmount !== undefined && (
-            <p className="order-estimated-amount">
-              예상 매수 금액 <strong>{formatUsd(estimatedBuyAmount)}</strong>
-            </p>
+          {estimatedAmount !== undefined && (
+            <>
+              <p className="order-estimated-amount">
+                예상 매수 금액 <strong>{formatUsd(estimatedAmount)}</strong>
+              </p>
+              <p className="order-estimated-amount sell">
+                예상 매도 금액 <strong>{formatUsd(estimatedAmount)}</strong>
+              </p>
+            </>
           )}
         </div>
 

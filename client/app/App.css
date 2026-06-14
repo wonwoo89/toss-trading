@@ -1579,7 +1579,8 @@ select:focus-visible {
   margin-left: -1rem;
   margin-right: -1rem;
   margin-bottom: -1rem;
-  padding: 0.6rem 1rem 1rem;
+  margin-top: 0.5rem; /* 인풋과 하단 버튼 영역 사이 간격 증가 */
+  padding: 0.9rem 1rem 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -1591,6 +1592,8 @@ select:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
+  text-align: left;
+  align-items: flex-start;
 }
 
 .order-form__footer-hint {
@@ -1605,13 +1608,20 @@ select:focus-visible {
   margin: 0;
   font-size: 0.82rem;
   color: var(--text-secondary);
-  color: var(--text-secondary);
-  text-align: center;
+  text-align: left;
+}
+
+.order-estimated-amount.sell {
+  color: var(--color-down);
 }
 
 .order-estimated-amount strong {
   color: var(--color-up);
   font-weight: 600;
+}
+
+.order-estimated-amount.sell strong {
+  color: var(--color-down);
 }
 
 .order-form button[type='submit'] {
