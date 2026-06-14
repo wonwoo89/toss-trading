@@ -948,13 +948,18 @@ export function OrderForm({
 
       <div className="order-form__submit-block">
         <div className="order-form__hints">
-          {side === 'BUY' && maxBuyQuantity !== undefined && (
-            <p className="hint order-form__footer-hint">
-              매수 가능: {formatOrderQuantity(maxBuyQuantity)}주
-            </p>
+          {side === 'BUY' && (maxBuyQuantity !== undefined || buyBreakEvenHint) && (
+            <div className="order-form__buy-hints-row">
+              {maxBuyQuantity !== undefined && (
+                <p className="hint order-form__footer-hint">
+                  매수 가능: {formatOrderQuantity(maxBuyQuantity)}주
+                </p>
+              )}
+              {buyBreakEvenHint && (
+                <p className="hint order-form__footer-hint">{buyBreakEvenHint}</p>
+              )}
+            </div>
           )}
-
-          {buyBreakEvenHint && <p className="hint order-form__footer-hint">{buyBreakEvenHint}</p>}
 
           {side === 'SELL' && sellableQuantity !== undefined && (
             <p className="hint order-form__footer-hint">매도 가능: {sellableQuantity}주</p>

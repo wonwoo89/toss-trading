@@ -1600,6 +1600,12 @@ select:focus-visible {
   align-items: flex-start;
 }
 
+.order-form__buy-hints-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+}
+
 .order-form__footer-hint {
   margin: 0;
   line-height: 1.4;
