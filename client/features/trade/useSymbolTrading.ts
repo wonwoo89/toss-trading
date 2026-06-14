@@ -421,12 +421,15 @@ export function useSymbolTrading(
   useEffect(() => {
     if (contextIsReady && symbol && symbol !== prevSymbolRef.current) {
       prevSymbolRef.current = symbol;
-      console.log(`[client] triggering initial refreshTrade + market refresh for symbol=${symbol} on load`);
+      console.log(`[client] triggering initial refreshTrade + market refresh + buyingPower for symbol=${symbol} on load`);
       void refreshTrade();
       marketPolling.refreshNow?.();
       candlesData.refreshNow?.();
+      if (accountSeq) {
+        void refreshBuyingPower(accountSeq);
+      }
     }
-  }, [contextIsReady, symbol, refreshTrade]);
+  }, [contextIsReady, symbol, refreshTrade, accountSeq]);
 
   // 마지막 선택 심볼 저장 (이전 StockPage useEffect 이동)
   useEffect(() => {
