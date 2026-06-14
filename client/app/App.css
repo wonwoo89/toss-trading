@@ -2307,11 +2307,10 @@ select:focus-visible {
 
   /* 모바일 검색바 크기 제한 (이전 요청 복원) */
   .symbol-search--header {
-    max-width: 130px;
+    max-width: 120px;
   }
 
   .symbol-search--header input {
-    font-size: 16px;
     padding: 0 0.4rem;
   }
 }
