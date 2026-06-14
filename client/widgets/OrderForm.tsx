@@ -645,6 +645,41 @@ export function OrderForm({
     formRef.current?.requestSubmit();
   };
 
+  // 추천 정보로 간편 실행 (수량 + 지정가 추천 적용 후 제출)
+  const executeWithRecommendation = (intendedSide: 'BUY' | 'SELL') => {
+    setSide(intendedSide);
+
+    // state 업데이트 후 memos가 갱신되도록 약간 지연 후 적용 + 제출
+    setTimeout(() => {
+      // 추천 수량 적용
+      if (
+        quantityRecommendation.available &&
+        quantityRecommendation.recommended &&
+        quantityRecommendation.quantity !== undefined
+      ) {
+        setQuantity(formatOrderQuantity(quantityRecommendation.quantity));
+        if (quantityRecommendation.snapPercent) {
+          setSelectedQuantityPercent(quantityRecommendation.snapPercent);
+        }
+      }
+
+      // 추천 지정가 적용
+      if (
+        limitPriceRecommendation.available &&
+        limitPriceRecommendation.price !== undefined &&
+        Number.isFinite(limitPriceRecommendation.price)
+      ) {
+        limitPriceManualRef.current = false;
+        setPriceMode('limit');
+        setPrice(limitPriceRecommendation.price.toFixed(2));
+      }
+
+      // 제출
+      pendingSideRef.current = intendedSide;
+      formRef.current?.requestSubmit();
+    }, 0);
+  };
+
   return (
     <form ref={formRef} className="panel order-form" onSubmit={handleSubmit}>
       <div className="order-form__body">
@@ -933,23 +968,53 @@ export function OrderForm({
           )}
         </div>
 
+        {/* 하단에 추천 수량 + 추천 지정가 종합 표시 + 추천 실행 버튼 */}
+        <div className="order-rec-summary">
+          <div className="order-rec-summary__label">추천 실행</div>
+          <div className="order-rec-summary__values">
+            <span>
+              수량{' '}
+              <strong>
+                {quantityRecommendation.available && quantityRecommendation.quantity !== undefined
+                  ? formatOrderQuantity(quantityRecommendation.quantity)
+                  : '—'}
+              </strong>
+            </span>
+            <span className="divider">·</span>
+            <span>
+              지정가{' '}
+              <strong>
+                {limitPriceRecommendation.available &&
+                limitPriceRecommendation.price !== undefined &&
+                Number.isFinite(limitPriceRecommendation.price)
+                  ? limitPriceRecommendation.price.toFixed(2)
+                  : '—'}
+              </strong>
+            </span>
+          </div>
+        </div>
+
         <div className="order-execute-actions">
           <button
             type="button"
             className="buy-btn"
-            onClick={() => submitWithSide('BUY')}
+            onClick={() => executeWithRecommendation('BUY')}
             disabled={submitting}
           >
-            {submitting ? '제출 중…' : `${symbol} 매수`}
+            {submitting ? '제출 중…' : '추천 매수'}
           </button>
           <button
             type="button"
             className="sell-btn"
-            onClick={() => submitWithSide('SELL')}
+            onClick={() => executeWithRecommendation('SELL')}
             disabled={submitting}
           >
-            {submitting ? '제출 중…' : `${symbol} 매도`}
+            {submitting ? '제출 중…' : '추천 매도'}
           </button>
+        </div>
+
+        <div className="order-manual-hint">
+          <span className="hint">수량/가격을 직접 조정한 후에는 Enter 키로 실행하세요.</span>
         </div>
       </div>
     </form>
