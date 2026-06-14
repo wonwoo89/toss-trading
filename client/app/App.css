@@ -2303,6 +2303,9 @@ select:focus-visible {
 
   .header-right {
     width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
   }
 
   /* 모바일 검색바: ID 직접 타겟으로 width/padding 적용 (폰트 건드리지 않음) */
