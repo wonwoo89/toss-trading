@@ -2259,11 +2259,9 @@ select:focus-visible {
     gap: 0.25rem;
   }
 
-  .order-rec-row {
-    padding: 0.3rem 0.4rem;
-    min-height: 40px;
-    font-size: 0.76rem;
-  }
+  /* 모바일에서도 .order-rec-row (추천 매수/매도 실행 버튼)은 데스크톱 스타일 그대로 적용
+     (크기, 패딩, 배경, 테두리, buy/sell 좌측 accent, hover/active 등) */
+
 
   /* 카드 레이아웃 완전 제거 (모바일 flat) */
   .panel,
@@ -2272,7 +2270,6 @@ select:focus-visible {
   .chart-signal,
   .market-context,
   .orderbook-summary,
-  .order-rec-row,
   .portfolio-sidebar,
   .chart-panel {
     background: transparent !important;
