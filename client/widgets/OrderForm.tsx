@@ -194,16 +194,17 @@ export function OrderForm({
 
   const maxOrderQuantity = useMemo(() => {
     if (side === 'BUY') return maxBuyQuantity;
-    if (sellableQuantity === undefined || sellableQuantity <= 0) return undefined;
-    return Math.floor(sellableQuantity);
-  }, [maxBuyQuantity, sellableQuantity, side]);
+    if (effectiveSellableQuantity === undefined || effectiveSellableQuantity <= 0) return undefined;
+    return Math.floor(effectiveSellableQuantity);
+  }, [maxBuyQuantity, effectiveSellableQuantity, side]);
 
   // BUY/SELL 추천 카드는 항상 양쪽을 보여주므로, 각 추천은 해당 사이드의 max를 독립적으로 사용해야 함.
   // (maxOrderQuantity는 현재 side에 따라 달라지기 때문에 opposite side rec 계산에 오염됨)
   const buyMaxForRec = maxBuyQuantity;
+  const effectiveSellableQuantity = sellableQuantity ?? holdingQuantity ?? undefined;
   const sellMaxForRec =
-    (sellableQuantity !== undefined && sellableQuantity > 0)
-      ? Math.floor(sellableQuantity)
+    (effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0)
+      ? Math.floor(effectiveSellableQuantity)
       : (holding && holding.quantity > 0 ? Math.floor(holding.quantity) : undefined);
 
   const buyBreakEvenHint = useMemo(() => {
@@ -1022,8 +1023,8 @@ export function OrderForm({
             </div>
           )}
 
-          {side === 'SELL' && sellableQuantity !== undefined && (
-            <p className="hint order-form__footer-hint">매도 가능: {sellableQuantity}주</p>
+          {side === 'SELL' && effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0 && (
+            <p className="hint order-form__footer-hint">매도 가능: {effectiveSellableQuantity}주</p>
           )}
 
           {estimatedAmount !== undefined && (
