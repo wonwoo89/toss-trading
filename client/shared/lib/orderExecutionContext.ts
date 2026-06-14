@@ -23,9 +23,10 @@ export function buildOrderExecutionMetrics(params: {
   openOrders: Order[];
   buyingPower?: number;
   sellableQuantity?: number;
+  holdingQuantity?: number;
   currentPrice?: number;
 }): MarketMetric[] {
-  const { openOrders, buyingPower, sellableQuantity, currentPrice } = params;
+  const { openOrders, buyingPower, sellableQuantity, holdingQuantity, currentPrice } = params;
   const symbolOrders = openOrders;
 
   const buyOrders = symbolOrders.filter((order) => order.side === 'BUY');
@@ -60,8 +61,9 @@ export function buildOrderExecutionMetrics(params: {
       ? `${maxBuyQuantity.toLocaleString()}주 (${formatUsd(buyingPower)})`
       : '—';
 
+  const effectiveSellable = sellableQuantity ?? holdingQuantity ?? undefined;
   const sellCapacity =
-    sellableQuantity !== undefined ? `${sellableQuantity.toLocaleString()}주` : '—';
+    effectiveSellable !== undefined ? `${effectiveSellable.toLocaleString()}주` : '—';
 
   return [
     {
@@ -80,7 +82,7 @@ export function buildOrderExecutionMetrics(params: {
       id: 'sell-capacity',
       label: '매도 가능',
       value: sellCapacity,
-      bias: sellableQuantity !== undefined && sellableQuantity > 0 ? 'bearish' : 'neutral',
+      bias: effectiveSellable !== undefined && effectiveSellable > 0 ? 'bearish' : 'neutral',
     },
   ];
 }

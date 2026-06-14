@@ -185,9 +185,10 @@ export function ChartMarketContextPanel({
         openOrders,
         buyingPower,
         sellableQuantity,
+        holdingQuantity: holding?.quantity,
         currentPrice,
       }),
-    [buyingPower, currentPrice, openOrders, sellableQuantity]
+    [buyingPower, currentPrice, holding?.quantity, openOrders, sellableQuantity]
   );
 
   const commissionMetrics = useMemo(

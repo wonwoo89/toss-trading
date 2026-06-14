@@ -464,6 +464,7 @@ export function OrderForm({
     side,
     quantity,
     sellableQuantity,
+    effectiveSellableQuantity,
     maxBuyQuantity,
     useAmountOrder,
     submitting,
@@ -475,6 +476,7 @@ export function OrderForm({
     side,
     quantity,
     sellableQuantity,
+    effectiveSellableQuantity,
     maxBuyQuantity,
     useAmountOrder,
     submitting,
@@ -576,12 +578,12 @@ export function OrderForm({
   };
 
   const showQuantityPercentButtons =
-    side === 'BUY' ? maxBuyQuantity !== undefined : sellableQuantity !== undefined;
+    side === 'BUY' ? maxBuyQuantity !== undefined : effectiveSellableQuantity !== undefined;
 
   const quantityPercentDisabled =
     side === 'BUY'
       ? maxBuyQuantity === undefined || maxBuyQuantity <= 0
-      : sellableQuantity === undefined || sellableQuantity <= 0;
+      : effectiveSellableQuantity === undefined || effectiveSellableQuantity <= 0;
 
   const adjustQuantity = (delta: number) => {
     const {
@@ -605,8 +607,11 @@ export function OrderForm({
       next = Math.min(next, maxBuy);
     }
 
-    if (currentSide === 'SELL' && sellable !== undefined) {
-      next = Math.min(next, Math.floor(sellable));
+    if (currentSide === 'SELL') {
+      const sellMax = shortcutStateRef.current.effectiveSellableQuantity ?? sellable;
+      if (sellMax !== undefined) {
+        next = Math.min(next, Math.floor(sellMax));
+      }
     }
 
     clearSelectedQuantityPercent();
@@ -634,7 +639,7 @@ export function OrderForm({
         const nextQuantity = quantityFromAvailablePercent(
           state.side,
           state.maxBuyQuantity,
-          state.sellableQuantity,
+          state.effectiveSellableQuantity ?? state.sellableQuantity,
           quantityPercent
         );
         if (nextQuantity === undefined) return;
@@ -662,7 +667,7 @@ export function OrderForm({
           const nextQuantity = quantityFromAvailablePercent(
             state.side,
             state.maxBuyQuantity,
-            state.sellableQuantity,
+            state.effectiveSellableQuantity ?? state.sellableQuantity,
             100
           );
           if (nextQuantity === undefined) return;
