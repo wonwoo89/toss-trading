@@ -955,6 +955,9 @@ export function OrderForm({
                   매수 가능: {formatOrderQuantity(maxBuyQuantity)}주
                 </p>
               )}
+              {maxBuyQuantity !== undefined && buyBreakEvenHint && (
+                <span className="order-form__hint-divider">·</span>
+              )}
               {buyBreakEvenHint && (
                 <p className="hint order-form__footer-hint">{buyBreakEvenHint}</p>
               )}
