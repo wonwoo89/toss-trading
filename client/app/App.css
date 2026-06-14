@@ -1787,6 +1787,22 @@ select:focus-visible {
   color: var(--color-down);
 }
 
+/* 새로운 실행 버튼 레이아웃 (탭 대신 버튼으로만 매수/매도 구분) */
+.order-execute-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.order-execute-actions .buy-btn,
+.order-execute-actions .sell-btn {
+  padding: 0.65rem 0.75rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  border-radius: 10px;
+}
+
 .order-quick-actions {
   display: flex;
   flex-wrap: wrap;

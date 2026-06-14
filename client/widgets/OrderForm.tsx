@@ -161,6 +161,7 @@ export function OrderForm({
   onSubmit,
 }: OrderFormProps) {
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
+  const pendingSideRef = useRef<'BUY' | 'SELL' | null>(null);
   const [priceMode, setPriceMode] = useState<PriceMode>('limit');
   const [quantity, setQuantity] = useState('');
   const [selectedQuantityPercent, setSelectedQuantityPercent] = useState<number>();
@@ -501,14 +502,8 @@ export function OrderForm({
       }
 
       switch (event.code) {
-        case 'KeyA':
-          event.preventDefault();
-          setSide('BUY');
-          return;
-        case 'KeyS':
-          event.preventDefault();
-          setSide('SELL');
-          return;
+        // A/S 키는 상단 탭이 제거되었으므로 매수/매도 모드 전환으로는 더 이상 사용하지 않음
+        // (실행 버튼으로 직접 결정)
         case 'Minus':
         case 'NumpadSubtract':
           event.preventDefault();
@@ -576,9 +571,13 @@ export function OrderForm({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
+    // 실행 버튼으로만 매수/매도 결정 (상단 탭 제거)
+    const effectiveSide = pendingSideRef.current ?? side;
+    pendingSideRef.current = null;
+
     const payload: CreateOrderPayload = {
       symbol: symbol.toUpperCase(),
-      side,
+      side: effectiveSide,
       orderType: 'LIMIT',
       clientOrderId: crypto.randomUUID(),
     };
@@ -607,7 +606,7 @@ export function OrderForm({
     }
 
     const submitOptions: OrderSubmitOptions | undefined =
-      side === 'BUY' && useTakeProfitSell && !useAmountOrder
+      effectiveSide === 'BUY' && useTakeProfitSell && !useAmountOrder
         ? { takeProfitSell: { profitRatePercent: takeProfitRatePercent } }
         : undefined;
 
@@ -639,6 +638,13 @@ export function OrderForm({
     }
   };
 
+  const submitWithSide = (intendedSide: 'BUY' | 'SELL') => {
+    pendingSideRef.current = intendedSide;
+    // side 상태를 업데이트해서 추천 계산 등이 최신화되도록 (선택)
+    setSide(intendedSide);
+    formRef.current?.requestSubmit();
+  };
+
   return (
     <form ref={formRef} className="panel order-form" onSubmit={handleSubmit}>
       <div className="order-form__body">
@@ -651,22 +657,7 @@ export function OrderForm({
           profitLossRate={holdingProfitLossRate}
         />
 
-        <div className="segmented">
-          <button
-            type="button"
-            className={side === 'BUY' ? 'active buy' : ''}
-            onClick={() => setSide('BUY')}
-          >
-            매수
-          </button>
-          <button
-            type="button"
-            className={side === 'SELL' ? 'active sell' : ''}
-            onClick={() => setSide('SELL')}
-          >
-            매도
-          </button>
-        </div>
+        {/* 매수/매도 구분은 상단 탭이 아닌 하단 실행 버튼으로만 결정 (UX 개선) */}
 
         <label className="checkbox">
           <input
@@ -858,67 +849,65 @@ export function OrderForm({
               </div>
             </div>
 
-            {side === 'BUY' && (
-              <div className="order-form__section">
-                <div className="order-form__section-title">목표 실수익률 매도 (선택)</div>
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={useTakeProfitSell}
-                    onChange={(e) => setUseTakeProfitSell(e.target.checked)}
-                  />
-                  매수 후 평단가 기준 목표 실수익률 매도
-                </label>
+            <div className="order-form__section">
+              <div className="order-form__section-title">목표 실수익률 매도 (선택)</div>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={useTakeProfitSell}
+                  onChange={(e) => setUseTakeProfitSell(e.target.checked)}
+                />
+                매수 후 평단가 기준 목표 실수익률 매도
+              </label>
 
-                {useTakeProfitSell && (
-                  <>
-                    <label>
-                      목표 실수익률 (세금·수수료 반영, %)
-                      <input
-                        type="number"
-                        min="0.1"
-                        step="0.1"
-                        value={takeProfitRatePercent}
-                        onChange={(e) => updateTakeProfitRate(Number(e.target.value))}
-                        required
-                      />
-                    </label>
-                    <div className="order-quick-actions">
-                      {TAKE_PROFIT_RATE_OPTIONS.map((rate) => (
-                        <button
-                          key={rate}
-                          type="button"
-                          className={
-                            takeProfitRatePercent === rate
-                              ? 'active'
-                              : takeProfitRateRecommendation.rate === rate
-                                ? 'is-suggested'
-                                : ''
-                          }
-                          onClick={() => updateTakeProfitRate(rate)}
-                        >
-                          {rate}%
-                        </button>
-                      ))}
-                    </div>
-                    <div className="order-insight order-insight--compact order-take-profit-recommendation">
-                      <span className="order-insight__title">추천 목표</span>
-                      <strong className="order-insight__value">
-                        {takeProfitRateRecommendation.rateLabel}
-                      </strong>
+              {useTakeProfitSell && (
+                <>
+                  <label>
+                    목표 실수익률 (세금·수수료 반영, %)
+                    <input
+                      type="number"
+                      min="0.1"
+                      step="0.1"
+                      value={takeProfitRatePercent}
+                      onChange={(e) => updateTakeProfitRate(Number(e.target.value))}
+                      required
+                    />
+                  </label>
+                  <div className="order-quick-actions">
+                    {TAKE_PROFIT_RATE_OPTIONS.map((rate) => (
                       <button
+                        key={rate}
                         type="button"
-                        className="order-insight__apply"
-                        onClick={applyRecommendedTakeProfitRate}
-                        disabled={!takeProfitRateRecommendation.available || submitting}
+                        className={
+                          takeProfitRatePercent === rate
+                            ? 'active'
+                            : takeProfitRateRecommendation.rate === rate
+                              ? 'is-suggested'
+                              : ''
+                        }
+                        onClick={() => updateTakeProfitRate(rate)}
                       >
-                        적용
+                        {rate}%
                       </button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
+                    ))}
+                  </div>
+                  <div className="order-insight order-insight--compact order-take-profit-recommendation">
+                    <span className="order-insight__title">추천 목표</span>
+                    <strong className="order-insight__value">
+                      {takeProfitRateRecommendation.rateLabel}
+                    </strong>
+                    <button
+                      type="button"
+                      className="order-insight__apply"
+                      onClick={applyRecommendedTakeProfitRate}
+                      disabled={!takeProfitRateRecommendation.available || submitting}
+                    >
+                      적용
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </>
         )}
       </div>
@@ -944,13 +933,24 @@ export function OrderForm({
           )}
         </div>
 
-        <button
-          type="submit"
-          className={side === 'BUY' ? 'buy-btn' : 'sell-btn'}
-          disabled={submitting}
-        >
-          {submitting ? '제출 중…' : `${symbol} ${ORDER_SIDE_LABEL[side]}`}
-        </button>
+        <div className="order-execute-actions">
+          <button
+            type="button"
+            className="buy-btn"
+            onClick={() => submitWithSide('BUY')}
+            disabled={submitting}
+          >
+            {submitting ? '제출 중…' : `${symbol} 매수`}
+          </button>
+          <button
+            type="button"
+            className="sell-btn"
+            onClick={() => submitWithSide('SELL')}
+            disabled={submitting}
+          >
+            {submitting ? '제출 중…' : `${symbol} 매도`}
+          </button>
+        </div>
       </div>
     </form>
   );
