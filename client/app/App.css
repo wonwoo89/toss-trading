@@ -1563,6 +1563,10 @@ select:focus-visible {
   letter-spacing: 0.03em;
 }
 
+.order-form__section input {
+  margin-bottom: 4px;
+}
+
 .order-form__body {
   flex: 1 1 auto;
   min-height: 0;
@@ -1609,6 +1613,10 @@ select:focus-visible {
   font-size: 0.82rem;
   color: var(--text-secondary);
   text-align: left;
+}
+
+.order-estimated-amount:not(.sell) {
+  margin-top: 4px; /* 매수 가능/손익분기와 예상 금액 그룹 사이 간격 */
 }
 
 .order-estimated-amount.sell {
@@ -1917,7 +1925,6 @@ select:focus-visible {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: -0.35rem;
 }
 
 .order-quick-actions button.is-suggested {
