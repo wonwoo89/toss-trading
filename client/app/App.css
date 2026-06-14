@@ -2326,21 +2326,54 @@ select:focus-visible {
     font-size: 0.76rem;
   }
 
-  /* 모바일 차트 가로 최대 활용: 과도한 카드 패딩 제거 */
+  /* 모바일 우선: 모든 카드 레이아웃 제거 (bg, border, radius, padding 제거) */
+  .panel,
   .market-panel,
-  .panel {
-    padding: 0.4rem 0.4rem;
+  .order-form,
+  .chart-signal,
+  .market-context,
+  .orderbook-summary,
+  .order-rec-row,
+  .portfolio-sidebar,
+  .portfolio-sidebar__summary,
+  .portfolio-sidebar__holdings,
+  .chart-panel {
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
   }
 
+  /* 모바일 콘텐츠에만 좌우 16px padding 부여 (최대 가로 활용) */
+  .trading-layout__main,
+  .market-panel,
+  .chart-panel,
   .chart-toolbar,
   .chart-signal,
-  .market-context {
-    padding: 0.2rem 0.3rem;
+  .market-context,
+  .orderbook-summary,
+  .candle-chart,
+  .order-rec-grid {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 
+  /* 차트는 추가로 가로 마진 제거로 최대폭 */
   .candle-chart {
-    margin-left: -0.1rem;
-    margin-right: -0.1rem;
+    margin-left: -16px;
+    margin-right: -16px;
+    width: calc(100% + 32px);
+  }
+
+  /* 플로팅 주문폼(추천 영역)은 패딩 유지하되 카드 스타일 제거 */
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column {
+    background: var(--bg-panel);
+    border-top: 1px solid var(--border-subtle);
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
+    padding-left: 16px;
+    padding-right: 16px;
   }
 }
 
