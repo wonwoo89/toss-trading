@@ -1297,6 +1297,27 @@ select:focus-visible {
   color: var(--color-down);
 }
 
+/* 모바일용 상세 토글: 매도 점수(시그널)만 항상 보이고 나머지는 접기 */
+.details-toggle {
+  width: 100%;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.1s ease;
+}
+
+.details-toggle:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
 .market-context {
   flex-shrink: 0;
   display: flex;
