@@ -1619,10 +1619,6 @@ select:focus-visible {
   margin-top: 4px; /* 매수 가능/손익분기와 예상 금액 그룹 사이 간격 */
 }
 
-.order-estimated-amount.sell {
-  color: var(--color-down);
-}
-
 .order-estimated-amount strong {
   color: var(--color-up);
   font-weight: 600;
