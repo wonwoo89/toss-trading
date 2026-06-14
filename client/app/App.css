@@ -38,7 +38,7 @@ textarea {
 .header-left {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 16px;
   flex: 1 1 auto;
   min-width: 0;
 }
