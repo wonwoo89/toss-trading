@@ -415,6 +415,14 @@ export function useSymbolTrading(
     }
   }, [symbol, resetTradeState]);
 
+  // symbol 선택 시 per-symbol trade snapshot (sellableQuantity 포함) 초기 로드
+  useEffect(() => {
+    if (contextIsReady && symbol) {
+      console.log(`[client] triggering initial refreshTrade for symbol=${symbol} on load`);
+      void refreshTrade();
+    }
+  }, [contextIsReady, symbol, refreshTrade]);
+
   // 마지막 선택 심볼 저장 (이전 StockPage useEffect 이동)
   useEffect(() => {
     if (!symbol) return;
