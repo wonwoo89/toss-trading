@@ -2194,7 +2194,7 @@ select:focus-visible {
   }
 
   .trading-layout__main {
-    padding-bottom: 170px;
+    padding: 0;
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -2253,8 +2253,7 @@ select:focus-visible {
     padding: 0 !important;
   }
 
-  /* 좌우 16px padding + 차트 최대폭 */
-  .trading-layout__main,
+  /* 좌우 16px padding + 차트 최대폭 (trading-layout__main 제외, padding:0 통합) */
   .market-panel,
   .chart-panel,
   .chart-toolbar,
