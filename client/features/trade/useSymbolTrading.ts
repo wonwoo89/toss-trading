@@ -415,13 +415,15 @@ export function useSymbolTrading(
     }
   }, [symbol, resetTradeState]);
 
-  // symbol 선택 시 per-symbol trade snapshot (sellableQuantity 포함) 초기 로드
+  // symbol 선택 시 per-symbol trade snapshot (sellableQuantity 포함) + market data refresh
   useEffect(() => {
     if (contextIsReady && symbol) {
-      console.log(`[client] triggering initial refreshTrade for symbol=${symbol} on load`);
+      console.log(`[client] triggering initial refreshTrade + market refresh for symbol=${symbol} on load`);
       void refreshTrade();
+      marketPolling.refreshNow?.();
+      candlesData.refreshNow?.();
     }
-  }, [contextIsReady, symbol, refreshTrade]);
+  }, [contextIsReady, symbol, refreshTrade, marketPolling, candlesData]);
 
   // 마지막 선택 심볼 저장 (이전 StockPage useEffect 이동)
   useEffect(() => {
