@@ -42,7 +42,7 @@ export function StockPage() {
       >
         <div className="trading-layout__main">
           {hasSymbol && symbol ? (
-            <MarketPanel {...marketPanelProps} symbol={symbol} />
+            <MarketPanel key={symbol} {...marketPanelProps} symbol={symbol} />
           ) : null}
         </div>
         <PortfolioSidebar
@@ -59,7 +59,7 @@ export function StockPage() {
         />
         {hasSymbol && symbol ? (
           <section className="order-column">
-            <OrderForm {...orderFormProps} symbol={symbol} onSubmit={createOrder} />
+            <OrderForm key={symbol} {...orderFormProps} symbol={symbol} onSubmit={createOrder} />
           </section>
         ) : null}
       </main>
