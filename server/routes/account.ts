@@ -64,13 +64,16 @@ accountRouter.get('/snapshot', async (req, res, next) => {
       ]);
 
       let sellableRes = null;
+      console.log(`[sellable-quantity] symbol=${symbol} - calling /api/v1/sellable-quantity...`);
       try {
         sellableRes = await tossRequest({
           path: '/api/v1/sellable-quantity',
           accountSeq,
           query: { symbol },
         });
-      } catch {
+        console.log(`[sellable-quantity] symbol=${symbol} - SUCCESS, has result:`, !!sellableRes?.result);
+      } catch (err) {
+        console.error(`[sellable-quantity] symbol=${symbol} - FAILED:`, err?.message || err);
         sellableRes = null;
       }
 
@@ -131,14 +134,18 @@ accountRouter.get('/commissions', async (req, res, next) => {
 });
 
 accountRouter.get('/sellable-quantity/:symbol', async (req, res, next) => {
+  const sym = req.params.symbol.toUpperCase();
+  console.log(`[sellable-quantity] (direct) symbol=${sym} - calling /api/v1/sellable-quantity...`);
   try {
     const data = await tossRequest({
       path: '/api/v1/sellable-quantity',
       accountSeq: resolveAccountSeq(req.header('x-account-seq') ?? undefined),
-      query: { symbol: req.params.symbol.toUpperCase() },
+      query: { symbol: sym },
     });
+    console.log(`[sellable-quantity] (direct) symbol=${sym} - SUCCESS, has result:`, !!data?.result);
     res.json(data);
   } catch (error) {
+    console.error(`[sellable-quantity] (direct) symbol=${sym} - FAILED:`, error?.message || error);
     next(error);
   }
 });
