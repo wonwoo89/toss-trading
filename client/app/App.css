@@ -2215,7 +2215,7 @@ select:focus-visible {
     background: var(--bg-panel);
     border-top: 1px solid var(--border-subtle);
     box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
-    padding: 0.35rem 0.5rem 0.6rem;
+    padding: 0.35rem 0.5rem calc(0.6rem + env(safe-area-inset-bottom));
     max-height: 160px;
     overflow-y: auto;
 
@@ -2320,6 +2320,7 @@ select:focus-visible {
     box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
     padding-left: 16px;
     padding-right: 16px;
+    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
 
     /* 전체 폭 확보 (데스크톱 스타일 override) */
     flex: none;
