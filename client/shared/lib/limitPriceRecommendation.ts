@@ -1,4 +1,5 @@
 import { getLatestBollingerBands } from './bollingerBands';
+import { getIndicatorBackend } from './indicatorBackend';
 import { buildChartSignalSnapshot } from './chartSignals';
 import {
   calculateRoundTripBreakEvenSellPrice,
@@ -130,6 +131,9 @@ function getSupportResistance(candles: ChartCandle[]) {
 }
 
 function calculateAtr(candles: ChartCandle[]) {
+  const accelerated = getIndicatorBackend().atrFromCandles?.(candles, ATR_PERIOD);
+  if (accelerated != null) return accelerated;
+
   if (candles.length < ATR_PERIOD + 1) return undefined;
 
   const sorted = candles.slice().sort((a, b) => a.time - b.time);
