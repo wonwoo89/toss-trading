@@ -1,9 +1,6 @@
-import { useMemo, useState } from 'react';
-import {
-  buildChartSignalSnapshot,
-  type ChartSignalBias,
-  type ChartSignalLevel,
-} from '../shared/lib/chartSignals';
+import { useMemo } from 'react';
+import { useChartSignal } from '../shared/hooks/useRecommendations';
+import type { ChartSignalBias, ChartSignalLevel } from '../shared/lib/chartSignals';
 import type { ChartCandle } from '../shared/types';
 
 interface OrderbookEntry {
@@ -57,10 +54,11 @@ export function ChartSignalPanel({
   detailsExpanded = false,
   onToggleDetails,
 }: ChartSignalPanelProps) {
-  const snapshot = useMemo(
-    () => buildChartSignalSnapshot({ candles, bids, asks, warnings }),
+  const signalInput = useMemo(
+    () => ({ candles, bids, asks, warnings }),
     [asks, bids, candles, warnings]
   );
+  const snapshot = useChartSignal(signalInput);
 
   if (loading && candles.length === 0) {
     return (
