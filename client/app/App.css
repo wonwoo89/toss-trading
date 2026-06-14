@@ -2261,20 +2261,17 @@ select:focus-visible {
   /* 좌우 16px padding + 차트 최대폭 (trading-layout__main 제외, padding:0 통합) */
   .market-panel,
   .chart-panel,
-  .chart-toolbar,
   .chart-signal,
   .market-context,
   .orderbook-summary,
-  .candle-chart,
   .order-rec-grid {
     padding-left: 16px;
     padding-right: 16px;
   }
 
-  .candle-chart {
-    margin-left: -16px;
-    margin-right: -16px;
-    width: calc(100% + 32px);
+  .chart-toolbar {
+    padding-left: 0;
+    padding-right: 0;
   }
 
   /* 플로팅 주문폼 바 스타일 유지 */
