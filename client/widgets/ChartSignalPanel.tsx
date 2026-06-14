@@ -16,6 +16,7 @@ interface ChartSignalPanelProps {
   asks?: OrderbookEntry[];
   warnings?: string[];
   loading?: boolean;
+  showMetrics?: boolean;
 }
 
 function getLevelClassName(level: ChartSignalLevel) {
@@ -50,13 +51,12 @@ export function ChartSignalPanel({
   asks = [],
   warnings = [],
   loading = false,
+  showMetrics = true,
 }: ChartSignalPanelProps) {
   const snapshot = useMemo(
     () => buildChartSignalSnapshot({ candles, bids, asks, warnings }),
     [asks, bids, candles, warnings]
   );
-
-  const [metricsExpanded, setMetricsExpanded] = useState(false);
 
   if (loading && candles.length === 0) {
     return (
@@ -80,30 +80,18 @@ export function ChartSignalPanel({
         <p className="chart-signal__summary">{snapshot.summary}</p>
       </div>
 
-      {snapshot.metrics.length > 0 && (
-        <>
-          <button
-            type="button"
-            className="signal-metrics-toggle"
-            onClick={() => setMetricsExpanded(!metricsExpanded)}
-            aria-expanded={metricsExpanded}
-          >
-            {metricsExpanded ? '칩 접기 ▲' : '칩 정보 ▼'}
-          </button>
-          {metricsExpanded && (
-            <div className="chart-signal__metrics">
-              {snapshot.metrics.map((metric) => (
-                <span
-                  key={metric.id}
-                  className={`chart-signal__metric ${getMetricClassName(metric.bias)}`}
-                >
-                  <span className="chart-signal__metric-label">{metric.label}</span>
-                  <span className="chart-signal__metric-value">{metric.value}</span>
-                </span>
-              ))}
-            </div>
-          )}
-        </>
+      {snapshot.metrics.length > 0 && showMetrics && (
+        <div className="chart-signal__metrics">
+          {snapshot.metrics.map((metric) => (
+            <span
+              key={metric.id}
+              className={`chart-signal__metric ${getMetricClassName(metric.bias)}`}
+            >
+              <span className="chart-signal__metric-label">{metric.label}</span>
+              <span className="chart-signal__metric-value">{metric.value}</span>
+            </span>
+          ))}
+        </div>
       )}
     </div>
   );
