@@ -10,6 +10,14 @@ export function useFocusOnSymbol(
     if (searchInput instanceof HTMLElement) {
       searchInput.blur();
     }
+
+    if (symbol) {
+      const isMobile = window.matchMedia('(max-width: 1100px)').matches;
+      if (isMobile) {
+        window.scrollTo({ top: 0, behavior: 'auto' });
+      }
+    }
+
     layoutRef.current?.focus({ preventScroll: true });
   }, [symbol]);
 }
