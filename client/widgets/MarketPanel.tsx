@@ -96,6 +96,7 @@ export function MarketPanel({
   commissions = [],
 }: MarketPanelProps) {
   const [orderbookExpanded, setOrderbookExpanded] = useState(false);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids]);
 
@@ -162,27 +163,38 @@ export function MarketPanel({
           loading={candlesLoading}
         />
 
-        <ChartMarketContextPanel
-          marketDay={usMarketDay}
-          calendarError={usMarketCalendarError}
-          calendarLoading={usMarketCalendarLoading}
-          bids={bids}
-          asks={asks}
-          trades={trades}
-          candles={candles}
-          candleInterval={candleInterval}
-          currentPrice={currentPrice}
-          holding={holding}
-          profitLossRate={holdingProfitLossRate}
-          targetProfitRatePercent={targetProfitRatePercent}
-          openOrders={openOrders}
-          closedOrders={closedOrders}
-          closedOrdersUnavailable={closedOrdersUnavailable}
-          buyingPower={buyingPower}
-          sellableQuantity={sellableQuantity}
-          commissions={commissions}
-          warnings={warnings}
-        />
+        <button
+          type="button"
+          className="details-toggle"
+          onClick={() => setDetailsExpanded(!detailsExpanded)}
+          aria-expanded={detailsExpanded}
+        >
+          {detailsExpanded ? '상세 접기 ▲' : '상세 지표 ▼'}
+        </button>
+
+        {detailsExpanded && (
+          <ChartMarketContextPanel
+            marketDay={usMarketDay}
+            calendarError={usMarketCalendarError}
+            calendarLoading={usMarketCalendarLoading}
+            bids={bids}
+            asks={asks}
+            trades={trades}
+            candles={candles}
+            candleInterval={candleInterval}
+            currentPrice={currentPrice}
+            holding={holding}
+            profitLossRate={holdingProfitLossRate}
+            targetProfitRatePercent={targetProfitRatePercent}
+            openOrders={openOrders}
+            closedOrders={closedOrders}
+            closedOrdersUnavailable={closedOrdersUnavailable}
+            buyingPower={buyingPower}
+            sellableQuantity={sellableQuantity}
+            commissions={commissions}
+            warnings={warnings}
+          />
+        )}
 
         <CandleChart
           candles={candles}
