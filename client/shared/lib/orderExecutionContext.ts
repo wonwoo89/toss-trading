@@ -29,6 +29,8 @@ export function buildOrderExecutionMetrics(params: {
   const { openOrders, buyingPower, sellableQuantity, holdingQuantity, currentPrice } = params;
   const symbolOrders = openOrders;
 
+  console.log(`[client] buildOrderExecutionMetrics: buyingPower=${buyingPower}, currentPrice=${currentPrice}, hasSell=${(sellableQuantity ?? holdingQuantity) != null}`);
+
   const buyOrders = symbolOrders.filter((order) => order.side === 'BUY');
   const sellOrders = symbolOrders.filter((order) => order.side === 'SELL');
 
@@ -51,19 +53,29 @@ export function buildOrderExecutionMetrics(params: {
     openOrderDetail = `${openOrderSummary} (${parts.join(' / ')})`;
   }
 
+  // "불러오는 중" 은 실제 async fetch가 진행 중일 때만.
+  // buyingPower(계좌 글로벌) 또는 currentPrice(종목별 market snapshot) 중 하나라도 도착하면
+  // loading 상태를 벗어나서, 계산 가능하면 숫자, 아니면 '—' 로 settle.
+  // 이렇게 해야 symbol 변경 후 "불러오는 중" 에서 영원히 안 넘어가는 문제를 피함.
+  const hasBuyInputs = buyingPower !== undefined && currentPrice !== undefined && currentPrice > 0;
   const maxBuyQuantity =
-    buyingPower !== undefined && currentPrice !== undefined && currentPrice > 0
-      ? getMaxBuyQuantity(buyingPower, currentPrice)
-      : undefined;
+    hasBuyInputs ? getMaxBuyQuantity(buyingPower, currentPrice) : undefined;
 
-  const buyCapacity =
-    maxBuyQuantity !== undefined
+  let buyCapacity: string;
+  if (hasBuyInputs) {
+    buyCapacity = maxBuyQuantity !== undefined
       ? `${maxBuyQuantity.toLocaleString()}주 (${formatUsd(buyingPower)})`
       : '—';
+  } else if (buyingPower !== undefined || currentPrice !== undefined) {
+    // 일부 데이터는 왔지만 price가 없거나 0이거나 buyingPower 아직 undefined → 가격 정보 부족
+    buyCapacity = '—';
+  } else {
+    buyCapacity = '불러오는 중';
+  }
 
   const effectiveSellable = sellableQuantity ?? holdingQuantity ?? undefined;
-  const sellCapacity =
-    effectiveSellable !== undefined ? `${effectiveSellable.toLocaleString()}주` : '—';
+  const hasSellInputs = effectiveSellable !== undefined;
+  const sellCapacity = hasSellInputs ? `${effectiveSellable.toLocaleString()}주` : '불러오는 중';
 
   return [
     {

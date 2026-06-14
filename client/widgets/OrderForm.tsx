@@ -219,6 +219,17 @@ export function OrderForm({
     return Math.floor(effectiveSellableQuantity);
   }, [maxBuyQuantity, effectiveSellableQuantity, side]);
 
+  // Readiness for capacities and recommendations.
+  // "불러오는 중" 은 데이터 도착 전 전용. 
+  // capacity (buyingPower+currentPrice 또는 sellable) 가 하나라도 오면 loading 벗어나서
+  // 실제 계산(또는 '—')을 표시. candles는 rec 품질에 도움되지만 blocking 하지 않음.
+  const buyCapacityReady = currentPrice !== undefined && currentPrice > 0 && buyingPower !== undefined;
+  const sellCapacityReady = effectiveSellableQuantity !== undefined;
+
+  // rec 카드: capacity(계산에 필요한 max/price) 가 준비되면 rec 로직 실행.
+  // (candles 없어도 build*Recommendation 은 기본 추천을 낼 수 있음. candles는 보정용.)
+  const recInputsReady = buyCapacityReady || sellCapacityReady;
+
   const buyBreakEvenHint = useMemo(() => {
     if (side !== 'BUY' || effectiveBuyPrice === undefined || effectiveBuyPrice <= 0) {
       return undefined;
@@ -1039,24 +1050,28 @@ export function OrderForm({
 
       <div className="order-form__submit-block">
         <div className="order-form__hints">
-          {side === 'BUY' && (maxBuyQuantity !== undefined || buyBreakEvenHint) && (
+          {side === 'BUY' && (
             <div className="order-form__buy-hints-row">
-              {maxBuyQuantity !== undefined && (
-                <p className="hint order-form__footer-hint">
-                  매수 가능: {formatOrderQuantity(maxBuyQuantity)}주
-                </p>
-              )}
-              {maxBuyQuantity !== undefined && buyBreakEvenHint && (
-                <span className="order-form__hint-divider">·</span>
-              )}
-              {buyBreakEvenHint && (
-                <p className="hint order-form__footer-hint">{buyBreakEvenHint}</p>
+              <p className="hint order-form__footer-hint">
+                매수 가능: {buyCapacityReady
+                  ? formatOrderQuantity(maxBuyQuantity ?? 0) + '주'
+                  : (buyingPower !== undefined || currentPrice !== undefined ? '—' : '불러오는 중...')}
+              </p>
+              {buyBreakEvenHint && buyCapacityReady && (
+                <>
+                  <span className="order-form__hint-divider">·</span>
+                  <p className="hint order-form__footer-hint">{buyBreakEvenHint}</p>
+                </>
               )}
             </div>
           )}
 
-          {side === 'SELL' && effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0 && (
-            <p className="hint order-form__footer-hint">매도 가능: {effectiveSellableQuantity}주</p>
+          {side === 'SELL' && (
+            <p className="hint order-form__footer-hint">
+              매도 가능: {sellCapacityReady && effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0
+                ? `${effectiveSellableQuantity}주`
+                : (sellCapacityReady ? '0주' : (effectiveSellableQuantity !== undefined ? '—' : '불러오는 중...'))}
+            </p>
           )}
 
           {estimatedAmount !== undefined && (
@@ -1072,37 +1087,43 @@ export function OrderForm({
         </div>
 
         {/* 추천 매수/매도 카드를 좌우 배치, 라벨 아래에 정보 세로 나열 (클릭 영역은 카드 전체) */}
+        {/* async 데이터(currentPrice, buyingPower, candles, bids/asks 등) 도착 전에는 '불러오는 중...' 표시.
+            데이터 도착 후에야 quantity/limit rec 계산이 유효한 입력으로 동작하고, 추천 또는 합당한 '—' 를 표시. */}
         <div className="order-rec-grid">
           <div
-            className={`order-rec-row buy ${(submitting || !(buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined)) ? 'is-disabled' : ''}`}
-            onClick={() => !submitting && (buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined) && executeWithRecommendation('BUY')}
+            className={`order-rec-row buy ${(submitting || !recInputsReady || !(buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined)) ? 'is-disabled' : ''}`}
+            onClick={() => !submitting && recInputsReady && (buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined) && executeWithRecommendation('BUY')}
             role="button"
-            tabIndex={(submitting || !(buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined)) ? -1 : 0}
+            tabIndex={(submitting || !recInputsReady || !(buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined)) ? -1 : 0}
           >
             <span className="rec-label">추천 매수</span>
             <span className="rec-info">
-              {buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined
-                ? `${formatOrderQuantity(buyQuantityRec.quantity)}주${getDisplayedPrice(buyLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(buyLimitPriceRec, currentPrice)}` : ''}`
-                : '—'}
+              {!recInputsReady
+                ? '불러오는 중...'
+                : (buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined
+                  ? `${formatOrderQuantity(buyQuantityRec.quantity)}주${getDisplayedPrice(buyLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(buyLimitPriceRec, currentPrice)}` : ''}`
+                  : '—')}
             </span>
-            {recommendedBuyAmount !== undefined && (
+            {recommendedBuyAmount !== undefined && recInputsReady && (
               <span className="rec-expected">예상 금액 {formatUsd(recommendedBuyAmount)}</span>
             )}
           </div>
 
           <div
-            className={`order-rec-row sell ${(submitting || !(sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined)) ? 'is-disabled' : ''}`}
-            onClick={() => !submitting && (sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined) && executeWithRecommendation('SELL')}
+            className={`order-rec-row sell ${(submitting || !recInputsReady || !(sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined)) ? 'is-disabled' : ''}`}
+            onClick={() => !submitting && recInputsReady && (sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined) && executeWithRecommendation('SELL')}
             role="button"
-            tabIndex={(submitting || !(sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined)) ? -1 : 0}
+            tabIndex={(submitting || !recInputsReady || !(sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined)) ? -1 : 0}
           >
             <span className="rec-label">추천 매도</span>
             <span className="rec-info">
-              {sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined
-                ? `${formatOrderQuantity(sellQuantityRec.quantity)}${getDisplayedPrice(sellLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(sellLimitPriceRec, currentPrice)}` : ''}`
-                : '—'}
+              {!recInputsReady
+                ? '불러오는 중...'
+                : (sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined
+                  ? `${formatOrderQuantity(sellQuantityRec.quantity)}${getDisplayedPrice(sellLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(sellLimitPriceRec, currentPrice)}` : ''}`
+                  : '—')}
             </span>
-            {recommendedSellAmount !== undefined && (
+            {recommendedSellAmount !== undefined && recInputsReady && (
               <span className="rec-expected">예상 금액 {formatUsd(recommendedSellAmount)}</span>
             )}
           </div>
