@@ -85,6 +85,8 @@ accountRouter.get('/snapshot', async (req, res, next) => {
         console.log(`[sellable-quantity] symbol=${symbol} - SUCCESS from /api/v1/sellable-quantity, has result:`, !!sellableRes?.result);
         if (sellableRes?.result) {
           console.log(`[sellable-quantity] symbol=${symbol} - sellable result:`, JSON.stringify(sellableRes.result).slice(0, 200));
+        } else {
+          console.log(`[sellable-quantity] symbol=${symbol} - SUCCESS but result is null/empty`);
         }
       } catch (err) {
         console.error(`[sellable-quantity] symbol=${symbol} - ERROR calling /api/v1/sellable-quantity:`, err?.message || err);
