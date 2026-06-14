@@ -2363,6 +2363,25 @@ select:focus-visible {
     padding-right: 16px;
   }
 
+  /* 모바일: market-context__row 에서 label 고정, metrics 부분만 가로 스크롤 */
+  .market-context__row {
+    flex-wrap: nowrap;
+  }
+
+  .market-context__row-label {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .market-context__metrics,
+  .market-context__row-content {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex: 1;
+    min-width: 0;
+  }
+
   .chart-toolbar {
     padding-left: 0;
     padding-right: 0;
