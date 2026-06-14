@@ -1,3 +1,4 @@
+import { getIndicatorBackend } from './indicatorBackend';
 import type { ChartCandle } from '../types';
 
 export const BOLLINGER_PERIOD = 20;
@@ -24,6 +25,25 @@ export function calculateBollingerBandSeries(
 ): BollingerBandPoint[] {
   const sorted = candles.slice().sort((a, b) => a.time - b.time);
   if (sorted.length < period) return [];
+
+  // WASM 백엔드(워커)가 있으면 window 계산을 가속하고, JS 는 time 매핑만 한다.
+  const accelerated = getIndicatorBackend().bollingerWindows?.(
+    sorted.map((candle) => candle.close),
+    period,
+    stdDevMultiplier
+  );
+  if (accelerated) {
+    const acceleratedPoints: BollingerBandPoint[] = [];
+    for (let pointIndex = 0; pointIndex * 3 < accelerated.length; pointIndex += 1) {
+      acceleratedPoints.push({
+        time: sorted[period - 1 + pointIndex].time,
+        upper: accelerated[pointIndex * 3],
+        middle: accelerated[pointIndex * 3 + 1],
+        lower: accelerated[pointIndex * 3 + 2],
+      });
+    }
+    return acceleratedPoints;
+  }
 
   const points: BollingerBandPoint[] = [];
 

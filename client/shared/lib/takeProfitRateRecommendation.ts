@@ -1,4 +1,5 @@
 import { buildChartSignalSnapshot, type ChartSignalLevel } from './chartSignals';
+import { getIndicatorBackend } from './indicatorBackend';
 import { TAKE_PROFIT_RATE_OPTIONS, type TakeProfitRateOption } from './takeProfitRatePreference';
 import type { ChartCandle } from '../types';
 
@@ -49,6 +50,9 @@ function getSupportResistance(candles: ChartCandle[]) {
 }
 
 function calculateAtr(candles: ChartCandle[]) {
+  const accelerated = getIndicatorBackend().atrFromCandles?.(candles, ATR_PERIOD);
+  if (accelerated != null) return accelerated;
+
   if (candles.length < ATR_PERIOD + 1) return undefined;
 
   const sorted = candles.slice().sort((a, b) => a.time - b.time);
