@@ -2247,10 +2247,10 @@ select:focus-visible {
     min-height: 0;
   }
 
-  /* 주문폼 간략화: 추천 rec grid만 노출 */
-  .order-form .stock-holding-summary,
-  .order-form__section,
-  .order-form__hints {
+  /* 주문폼 간략화: 추천 rec grid만 노출 (핸들바로 펼치면 전체 표시) */
+  .order-form:not(.is-mobile-expanded) .stock-holding-summary,
+  .order-form:not(.is-mobile-expanded) .order-form__section,
+  .order-form:not(.is-mobile-expanded) .order-form__hints {
     display: none !important;
   }
 
@@ -2258,6 +2258,31 @@ select:focus-visible {
     margin: 0;
     padding: 0;
     gap: 1rem;
+  }
+
+  /* 모바일 플로팅 주문폼 확장 상태 */
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column.order-column--mobile-expanded {
+    max-height: 55vh;
+  }
+
+  .order-form__mobile-handlebar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 0 2px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .order-form__mobile-handlebar-grip {
+    width: 36px;
+    height: 4px;
+    background: var(--border-subtle);
+    border-radius: 2px;
+  }
+
+  .order-form__mobile-handlebar:active {
+    opacity: 0.6;
   }
 
   /* 모바일에서도 .order-rec-row (추천 매수/매도 실행 버튼)은 데스크톱 스타일 그대로 적용
