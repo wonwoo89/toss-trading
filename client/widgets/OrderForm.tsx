@@ -202,7 +202,9 @@ export function OrderForm({
   // (maxOrderQuantity는 현재 side에 따라 달라지기 때문에 opposite side rec 계산에 오염됨)
   const buyMaxForRec = maxBuyQuantity;
   const sellMaxForRec =
-    sellableQuantity !== undefined && sellableQuantity > 0 ? Math.floor(sellableQuantity) : undefined;
+    (sellableQuantity !== undefined && sellableQuantity > 0)
+      ? Math.floor(sellableQuantity)
+      : (holding && holding.quantity > 0 ? Math.floor(holding.quantity) : undefined);
 
   const buyBreakEvenHint = useMemo(() => {
     if (side !== 'BUY' || effectiveBuyPrice === undefined || effectiveBuyPrice <= 0) {
