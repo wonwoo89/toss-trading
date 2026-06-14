@@ -178,15 +178,6 @@ export function MarketPanel({
 
       {/* Indicators below the chart */}
       <div className="market-indicators">
-        <ChartSignalPanel
-          candles={candles}
-          bids={bids}
-          asks={asks}
-          warnings={warnings}
-          loading={candlesLoading}
-          showMetrics={detailsExpanded}
-        />
-
         <button
           type="button"
           className="details-toggle"
@@ -195,6 +186,15 @@ export function MarketPanel({
         >
           {detailsExpanded ? '상세 접기 ▲' : '상세 지표 ▼'}
         </button>
+
+        <ChartSignalPanel
+          candles={candles}
+          bids={bids}
+          asks={asks}
+          warnings={warnings}
+          loading={candlesLoading}
+          showMetrics={detailsExpanded}
+        />
 
         <div className={`market-details-content ${detailsExpanded ? 'is-expanded' : ''}`}>
           <ChartMarketContextPanel
