@@ -2238,8 +2238,6 @@ select:focus-visible {
   .orderbook-summary,
   .order-rec-row,
   .portfolio-sidebar,
-  .portfolio-sidebar__summary,
-  .portfolio-sidebar__holdings,
   .chart-panel {
     background: transparent !important;
     border: none !important;
@@ -2263,6 +2261,18 @@ select:focus-visible {
   .chart-toolbar {
     padding-left: 0;
     padding-right: 0;
+  }
+
+  /* .portfolio-sidebar 내부 자식(요약/보유종목/미체결) 은 모바일에서도 카드 형태 복원 */
+  .portfolio-sidebar > .panel,
+  .portfolio-sidebar__summary,
+  .portfolio-sidebar__holdings,
+  .portfolio-sidebar .open-orders-panel {
+    background: var(--bg-panel) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 18px !important;
+    padding: 1rem !important;
+    backdrop-filter: blur(8px) !important;
   }
 
   /* 플로팅 주문폼 바 스타일 유지 */
