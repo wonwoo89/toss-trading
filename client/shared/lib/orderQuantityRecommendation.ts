@@ -1,4 +1,5 @@
 import { buildChartSignalSnapshot } from './chartSignals';
+import { getIndicatorBackend } from './indicatorBackend';
 import { formatUsd } from './formatHoldings';
 import { buildSpreadSnapshot, buildTradeFlowSnapshot } from './marketMicrostructure';
 import type { ChartCandle, HoldingItem, Order } from '../types';
@@ -46,6 +47,9 @@ function snapToNearestPercent(percent: number) {
 }
 
 function calculateAtr(candles: ChartCandle[]) {
+  const accelerated = getIndicatorBackend().atrFromCandles?.(candles, ATR_PERIOD);
+  if (accelerated != null) return accelerated;
+
   if (candles.length < ATR_PERIOD + 1) return undefined;
 
   const sorted = candles.slice().sort((a, b) => a.time - b.time);
