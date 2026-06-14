@@ -17,6 +17,8 @@ interface ChartSignalPanelProps {
   warnings?: string[];
   loading?: boolean;
   showMetrics?: boolean;
+  detailsExpanded?: boolean;
+  onToggleDetails?: () => void;
 }
 
 function getLevelClassName(level: ChartSignalLevel) {
@@ -52,6 +54,8 @@ export function ChartSignalPanel({
   warnings = [],
   loading = false,
   showMetrics = true,
+  detailsExpanded = false,
+  onToggleDetails,
 }: ChartSignalPanelProps) {
   const snapshot = useMemo(
     () => buildChartSignalSnapshot({ candles, bids, asks, warnings }),
@@ -76,6 +80,16 @@ export function ChartSignalPanel({
           <span className="chart-signal__score">
             점수 {snapshot.score > 0 ? `+${snapshot.score}` : snapshot.score}
           </span>
+        )}
+        {onToggleDetails && (
+          <button
+            type="button"
+            className="details-toggle"
+            onClick={onToggleDetails}
+            aria-expanded={detailsExpanded}
+          >
+            {detailsExpanded ? '상세 접기 ▲' : '상세 지표 ▼'}
+          </button>
         )}
         <p className="chart-signal__summary">{snapshot.summary}</p>
       </div>
