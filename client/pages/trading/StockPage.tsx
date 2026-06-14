@@ -48,14 +48,7 @@ export function StockPage() {
                 <OrderForm {...orderFormProps} symbol={symbol} onSubmit={createOrder} />
               </section>
             </>
-          ) : (
-            <section className="trading-welcome panel">
-              <h2>내 포트폴리오</h2>
-              <p className="hint">
-                우측 보유 종목을 선택하거나 상단 검색으로 종목을 고르면 차트와 주문 화면이 열립니다.
-              </p>
-            </section>
-          )}
+          ) : null}
         </div>
         <PortfolioSidebar
           buyingPower={buyingPower}
