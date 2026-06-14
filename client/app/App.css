@@ -2,7 +2,7 @@
   max-width: 2560px;
   min-height: 100vh;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 1rem;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -16,6 +16,12 @@
 .app > main.trading-layout {
   flex: 1 1 auto;
   min-height: 0;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px;
 }
 
 .header {
@@ -179,7 +185,7 @@
   height: var(--header-control-size);
   padding: 0 0.65rem;
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: 16px;
 }
 
 .portfolio-stats {
@@ -221,6 +227,7 @@
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   padding: 0.55rem 0.75rem;
+  font-size: 16px;
 }
 
 .order-form input:disabled {
@@ -2304,7 +2311,7 @@ select:focus-visible {
   }
 
   .symbol-search--header input {
-    font-size: 0.72rem;
+    font-size: 16px;
     padding: 0 0.4rem;
   }
 }
