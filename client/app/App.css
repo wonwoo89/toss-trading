@@ -2207,10 +2207,8 @@ select:focus-visible {
 
   /* 하단 플로팅 주문폼 (추천 우선) */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
-    position: fixed;
+    position: sticky;
     bottom: 0;
-    left: 0;
-    right: 0;
     z-index: 250;
     background: var(--bg-panel);
     border-top: 1px solid var(--border-subtle);
@@ -2218,10 +2216,11 @@ select:focus-visible {
     padding: 0.35rem 0.5rem calc(0.6rem + env(safe-area-inset-bottom));
     max-height: 160px;
     overflow-y: auto;
+    width: 100%;
 
-    /* 1100px 이하 플로팅 시 전체 가로 폭 꽉 채우기 (데스크톱 width/max-width/flex 제한 해제) */
+    /* 모바일에서 sticky bottom 바 (자연스러운 플로팅/스크롤 동작) */
+    /* 데스크톱에서 오버라이드된 width/max-width 등 리셋 */
     flex: none;
-    width: auto;
     max-width: none;
   }
 
@@ -2349,7 +2348,7 @@ select:focus-visible {
 
     /* 전체 폭 확보 (데스크톱 스타일 override) */
     flex: none;
-    width: auto;
+    width: 100%;
     max-width: none;
   }
 
