@@ -2198,6 +2198,11 @@ select:focus-visible {
 
   .order-form__submit-block {
     margin-top: 0;
+    margin-bottom: 0;
+  }
+
+  .order-manual-hint {
+    margin-top: 0;
   }
 
   .trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main {
@@ -2270,6 +2275,7 @@ select:focus-visible {
   .trading-layout:not(.trading-layout--portfolio-only) .order-form.is-mobile-expanded .order-form__submit-block {
     position: sticky;
     bottom: 0;
+    margin-bottom: 0;
     /* 배경은 base 스타일에서 var(--bg-panel) 로 이미 설정되어 있음 */
     z-index: 1;
   }
