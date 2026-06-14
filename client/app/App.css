@@ -2129,6 +2129,7 @@ select:focus-visible {
   .app:has(main.trading-layout:not(.trading-layout--portfolio-only)) {
     height: auto;
     overflow: visible;
+    padding-bottom: 0;
   }
 
   .trading-layout:not(.trading-layout--portfolio-only) {
