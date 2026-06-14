@@ -2394,6 +2394,13 @@ select:focus-visible {
     flex-shrink: 0;
   }
 
+  /* 모바일 차트/시그널/지표 영역 상단 여백 통일 (이전 추가 여백 설정의 들쭉날쭉 해결) */
+  .chart-panel,
+  .chart-signal,
+  .market-context {
+    padding-top: 0.5rem;
+  }
+
   .chart-toolbar {
     padding-left: 0;
     padding-right: 0;
