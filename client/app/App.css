@@ -2256,7 +2256,8 @@ select:focus-visible {
 
   .order-form .order-rec-grid {
     margin: 0;
-    gap: 0.25rem;
+    padding: 0;
+    gap: 1rem;
   }
 
   /* 모바일에서도 .order-rec-row (추천 매수/매도 실행 버튼)은 데스크톱 스타일 그대로 적용
@@ -2285,8 +2286,7 @@ select:focus-visible {
   .chart-panel,
   .chart-signal,
   .market-context,
-  .orderbook-summary,
-  .order-rec-grid {
+  .orderbook-summary {
     padding-left: 16px;
     padding-right: 16px;
   }
