@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CandleChart } from './CandleChart';
 import { ChartMarketContextPanel } from './ChartMarketContextPanel';
 import { ChartSignalPanel } from './ChartSignalPanel';
