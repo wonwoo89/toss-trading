@@ -2219,7 +2219,8 @@ select:focus-visible {
     max-height: 160px;
     overflow-y: auto;
 
-    /* 1100px 이하 플로팅 시 전체 가로 폭 꽉 채우기 (데스크톱 width/max-width 제한 해제) */
+    /* 1100px 이하 플로팅 시 전체 가로 폭 꽉 채우기 (데스크톱 width/max-width/flex 제한 해제) */
+    flex: none;
     width: auto;
     max-width: none;
   }
@@ -2324,6 +2325,7 @@ select:focus-visible {
     padding-right: 16px;
 
     /* 전체 폭 확보 (데스크톱 스타일 override) */
+    flex: none;
     width: auto;
     max-width: none;
   }
