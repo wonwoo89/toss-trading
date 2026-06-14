@@ -14,7 +14,7 @@ export function useFocusOnSymbol(
     if (symbol) {
       const isMobile = window.matchMedia('(max-width: 1100px)').matches;
       if (isMobile) {
-        window.scrollTo({ top: 0, behavior: 'auto' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }
 
