@@ -8,6 +8,7 @@ import {
   mapHoldings,
   mapOrders,
   resolveLiveProfitLoss,
+  selectHoldingBySymbol,
   sortHoldingsByMarketValue,
 } from '../../entities/position';
 import {
@@ -775,6 +776,15 @@ export function useSymbolTrading(
     [commissionsPolling.data]
   );
 
+  // per-symbol trade snapshot 이 sellableQuantity 를 주지 않더라도
+  // portfolio snapshot 의 holding.quantity 로 fallback 해서 "매도 가능" 이 항상 보이게 함
+  const symbolHoldingFromPortfolio = selectHoldingBySymbol(portfolioHoldings, symbol);
+  const effectiveHolding = holding ?? symbolHoldingFromPortfolio;
+  const effectiveSellableQuantity =
+    sellableQuantity != null && sellableQuantity > 0
+      ? sellableQuantity
+      : (effectiveHolding?.quantity ?? undefined);
+
   const marketPanelProps = useMemo(
     () => ({
       symbol,
@@ -785,7 +795,7 @@ export function useSymbolTrading(
       candles: candlesData.candles,
       averagePrice: holding && holding.quantity > 0 ? holding.averagePrice : undefined,
       currentPrice: marketPolling.data?.price,
-      holding: holding && holding.quantity > 0 ? holding : undefined,
+      holding: effectiveHolding && effectiveHolding.quantity > 0 ? effectiveHolding : undefined,
       holdingProfitLossRate: holdingSummary?.profitLossRate,
       targetProfitRatePercent: takeProfitRatePercent,
       usMarketDay: usMarketCalendar?.today,
@@ -795,7 +805,7 @@ export function useSymbolTrading(
       closedOrders: closedOrdersPolling.data?.orders,
       closedOrdersUnavailable: closedOrdersPolling.data?.unavailable,
       buyingPower: contextBuyingPower,
-      sellableQuantity,
+      sellableQuantity: effectiveSellableQuantity,
       commissions: commissionsPolling.data,
       candleInterval,
       onCandleIntervalChange: handleCandleIntervalChange,
@@ -820,7 +830,7 @@ export function useSymbolTrading(
       openOrders,
       closedOrdersPolling.data,
       contextBuyingPower,
-      sellableQuantity,
+      effectiveSellableQuantity,
       commissionsPolling.data,
       candleInterval,
       handleCandleIntervalChange,
@@ -830,6 +840,7 @@ export function useSymbolTrading(
       candlesData.hasMoreHistory,
       candlesData.loadOlder,
       warnings,
+      portfolioHoldings,
     ]
   );
 
@@ -839,8 +850,8 @@ export function useSymbolTrading(
       symbol,
       currentPrice: marketPolling.data?.price,
       buyingPower: contextBuyingPower,
-      sellableQuantity,
-      holdingQuantity: holdingSummary?.quantity,
+      sellableQuantity: effectiveSellableQuantity,
+      holdingQuantity: effectiveHolding?.quantity,
       holdingAveragePrice: holdingSummary?.averagePrice,
       holdingMarketValue: holdingSummary?.marketValue,
       holdingProfitLoss: holdingSummary?.profitLoss,
@@ -854,15 +865,15 @@ export function useSymbolTrading(
       bids: marketPolling.data?.bids,
       asks: marketPolling.data?.asks,
       trades: marketPolling.data?.trades,
-      holding: holding && holding.quantity > 0 ? holding : undefined,
+      holding: effectiveHolding && effectiveHolding.quantity > 0 ? effectiveHolding : undefined,
       openOrders,
     }),
     [
       symbol,
       marketPolling.data,
       contextBuyingPower,
-      sellableQuantity,
-      holdingSummary,
+      effectiveSellableQuantity,
+      effectiveHolding,
       takeProfitRatePercent,
       handleTakeProfitRateChange,
       commissionRatePercent,
@@ -872,8 +883,8 @@ export function useSymbolTrading(
       marketPolling.data?.bids,
       marketPolling.data?.asks,
       marketPolling.data?.trades,
-      holding,
       openOrders,
+      portfolioHoldings,
     ]
   );
 
