@@ -2251,7 +2251,6 @@ select:focus-visible {
   .chart-signal-divider.is-visible {
     height: 1px;
     background: var(--border-subtle);
-    margin: 0.25rem 0;
   }
 
   /* 모바일에서 상세지표 토글 버튼을 차트 시그널 헤더 내 우측 정렬 (매도 점수 라인과 동일) */
@@ -2491,7 +2490,7 @@ select:focus-visible {
   .market-divider {
     height: 1px;
     background: var(--border-subtle);
-    margin: 1rem 0 !important;
+    margin: 1rem 0;
   }
 
   /* 모바일 차트 full width (DOM bleed wrapper) */
