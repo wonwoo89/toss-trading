@@ -1881,11 +1881,10 @@ select:focus-visible {
 }
 
 .order-rec-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.55rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.6rem;
   min-height: 52px;
   border-radius: 8px;
   font-size: 0.82rem;
@@ -1923,7 +1922,6 @@ select:focus-visible {
 .order-rec-row .rec-label {
   font-weight: 600;
   white-space: nowrap;
-  min-width: 4.2rem;
 }
 
 .order-rec-row.buy .rec-label {
@@ -1934,27 +1932,11 @@ select:focus-visible {
   color: var(--color-down);
 }
 
-.order-rec-row .rec-values {
+.order-rec-row .rec-info {
   font-size: 0.85rem;
   color: var(--text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.order-rec-row .rec-action {
-  font-size: 0.72rem;
-  font-weight: 600;
-  padding: 0.2rem 0.5rem;
-  border-radius: 5px;
-  background: var(--bg-button);
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.order-rec-row:hover:not(.is-disabled) .rec-action {
-  background: var(--bg-active);
-  color: var(--text-primary);
+  line-height: 1.25;
+  white-space: normal; /* 좁은 폭에서도 잘리지 않게 */
 }
 
 .order-quick-actions {
