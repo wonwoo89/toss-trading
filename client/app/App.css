@@ -2151,10 +2151,9 @@ select:focus-visible {
     max-height: none;
     height: auto;
     overflow: visible;
-    display: grid;
-    grid-template-rows: none;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: stretch;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
   }
 
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
@@ -2167,14 +2166,6 @@ select:focus-visible {
 
   .order-form__submit-block {
     margin-top: 0;
-  }
-
-  .portfolio-sidebar__summary {
-    grid-column: 1 / -1;
-  }
-
-  .portfolio-sidebar .open-orders-panel {
-    min-height: 220px;
   }
 
   .trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main {
