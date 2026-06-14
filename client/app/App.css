@@ -113,9 +113,9 @@ textarea {
 
 .header-account-balance__amounts {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.1rem;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.5rem;
 }
 
 .header-exchange-rate {
