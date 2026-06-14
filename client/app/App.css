@@ -37,11 +37,23 @@
   min-width: 0;
 }
 
+.header-left-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .header-right {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
+}
+
+.header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .brand {
