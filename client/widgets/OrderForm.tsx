@@ -192,20 +192,19 @@ export function OrderForm({
     return getMaxBuyQuantity(buyingPower, effectiveBuyPrice);
   }, [buyingPower, effectiveBuyPrice]);
 
+  const effectiveSellableQuantity = sellableQuantity ?? holdingQuantity ?? undefined;
+
+  const buyMaxForRec = maxBuyQuantity;
+  const sellMaxForRec =
+    (effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0)
+      ? Math.floor(effectiveSellableQuantity)
+      : (holding && holding.quantity > 0 ? Math.floor(holding.quantity) : undefined);
+
   const maxOrderQuantity = useMemo(() => {
     if (side === 'BUY') return maxBuyQuantity;
     if (effectiveSellableQuantity === undefined || effectiveSellableQuantity <= 0) return undefined;
     return Math.floor(effectiveSellableQuantity);
   }, [maxBuyQuantity, effectiveSellableQuantity, side]);
-
-  // BUY/SELL 추천 카드는 항상 양쪽을 보여주므로, 각 추천은 해당 사이드의 max를 독립적으로 사용해야 함.
-  // (maxOrderQuantity는 현재 side에 따라 달라지기 때문에 opposite side rec 계산에 오염됨)
-  const buyMaxForRec = maxBuyQuantity;
-  const effectiveSellableQuantity = sellableQuantity ?? holdingQuantity ?? undefined;
-  const sellMaxForRec =
-    (effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0)
-      ? Math.floor(effectiveSellableQuantity)
-      : (holding && holding.quantity > 0 ? Math.floor(holding.quantity) : undefined);
 
   const buyBreakEvenHint = useMemo(() => {
     if (side !== 'BUY' || effectiveBuyPrice === undefined || effectiveBuyPrice <= 0) {
