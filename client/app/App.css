@@ -2215,7 +2215,6 @@ select:focus-visible {
     border-top: 1px solid var(--border-subtle);
     box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
     padding: 0.35rem 0.5rem calc(0.6rem + env(safe-area-inset-bottom));
-    max-height: 160px;
     overflow-y: auto;
 
     /* 모바일에서 전체 폭 bleed (부모의 16px padding 무시) */
@@ -2250,11 +2249,9 @@ select:focus-visible {
     min-height: 0;
   }
 
-  /* 주문폼 간략화: 추천 rec grid만 노출 (핸들바로 펼치면 전체 표시) */
-  .order-form:not(.is-mobile-expanded) .stock-holding-summary,
-  .order-form:not(.is-mobile-expanded) .order-form__section,
-  .order-form:not(.is-mobile-expanded) .order-form__hints {
-    display: none !important;
+  /* 모바일 접힘 상태: order-form__body 전체를 숨겨서 추천 rec grid만 보이게 함 */
+  .order-form:not(.is-mobile-expanded) .order-form__body {
+    display: none;
   }
 
   .order-form .order-rec-grid {
@@ -2263,10 +2260,7 @@ select:focus-visible {
     gap: 1rem;
   }
 
-  /* 모바일 플로팅 주문폼 확장 상태 - 화면 거의 전체 채우기 */
-  .trading-layout:not(.trading-layout--portfolio-only) .order-column.order-column--mobile-expanded {
-    max-height: calc(100vh - 2rem);
-  }
+
 
   .order-form__mobile-handlebar {
     display: flex;
