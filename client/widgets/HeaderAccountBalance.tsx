@@ -25,7 +25,7 @@ export function HeaderAccountBalance() {
           <div className="header-exchange-rate">
             <span className="header-exchange-rate__label">환율</span>
             <span className="header-exchange-rate__value">
-              {exchangeRate !== undefined ? `1 USD = ${formatKrw(exchangeRate)}` : '—'}
+              {exchangeRate !== undefined ? `$1 = ${formatKrw(exchangeRate)}` : '—'}
             </span>
           </div>
           {totalAccountValueKrw !== undefined && (
