@@ -2263,16 +2263,16 @@ select:focus-visible {
     gap: 1rem;
   }
 
-  /* 모바일 플로팅 주문폼 확장 상태 */
+  /* 모바일 플로팅 주문폼 확장 상태 - 화면 거의 전체 채우기 */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column.order-column--mobile-expanded {
-    max-height: 55vh;
+    max-height: calc(100vh - 2rem);
   }
 
   .order-form__mobile-handlebar {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 6px 0 2px;
+    padding: 12px 0 10px; /* 터치 영역 확대 (하단 체크박스와 간섭 방지) */
     cursor: pointer;
     user-select: none;
   }
