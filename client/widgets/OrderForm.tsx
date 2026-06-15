@@ -156,6 +156,8 @@ export function OrderForm({
 }: OrderFormProps) {
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
   const pendingSideRef = useRef<'BUY' | 'SELL' | null>(null);
+  // 추천 매수/매도 간편 실행 시에는 목표수익률 자동 매도를 건너뛴다(체크돼 있어도 미실행).
+  const skipTakeProfitRef = useRef(false);
   const [priceMode, setPriceMode] = useState<PriceMode>('limit');
   const [quantity, setQuantity] = useState('');
   const [selectedQuantityPercent, setSelectedQuantityPercent] = useState<number>();
@@ -347,8 +349,9 @@ export function OrderForm({
         setPrice(priceRec.price.toFixed(2));
       }
 
-      // 제출
+      // 제출 (추천 실행은 목표수익률 자동 매도 건너뜀)
       pendingSideRef.current = intendedSide;
+      skipTakeProfitRef.current = true;
       formRef.current?.requestSubmit();
     }, 0);
   };
@@ -603,6 +606,9 @@ export function OrderForm({
     // 실행 버튼으로만 매수/매도 결정 (상단 탭 제거)
     const effectiveSide = pendingSideRef.current ?? side;
     pendingSideRef.current = null;
+    // 추천 실행 여부를 읽고 즉시 리셋 (이후 일반 제출엔 영향 없게)
+    const skipTakeProfit = skipTakeProfitRef.current;
+    skipTakeProfitRef.current = false;
 
     const payload: CreateOrderPayload = {
       symbol: symbol.toUpperCase(),
@@ -635,7 +641,7 @@ export function OrderForm({
     }
 
     const submitOptions: OrderSubmitOptions | undefined =
-      effectiveSide === 'BUY' && useTakeProfitSell && !useAmountOrder
+      effectiveSide === 'BUY' && useTakeProfitSell && !useAmountOrder && !skipTakeProfit
         ? { takeProfitSell: { profitRatePercent: takeProfitRatePercent } }
         : undefined;
 
