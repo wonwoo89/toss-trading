@@ -12,6 +12,7 @@ export interface TradeTick {
 }
 
 export interface SpreadSnapshot {
+  id: string;
   bestBid?: number;
   bestAsk?: number;
   spread?: number;
@@ -22,6 +23,7 @@ export interface SpreadSnapshot {
 }
 
 export interface TradeFlowSnapshot {
+  id: string;
   buyVolume: number;
   sellVolume: number;
   buyRatio: number;

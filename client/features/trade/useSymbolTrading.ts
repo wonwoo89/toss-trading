@@ -420,7 +420,7 @@ export function useSymbolTrading(
 
   // symbol 선택 시 per-symbol trade snapshot (sellableQuantity 포함) + market data refresh
   // Use prevSymbolRef to trigger exactly once per actual symbol change (prevents over-calling on re-renders)
-  const prevSymbolRef = useRef(null);
+  const prevSymbolRef = useRef<string | null>(null);
   useEffect(() => {
     if (contextIsReady && symbol && symbol !== prevSymbolRef.current) {
       prevSymbolRef.current = symbol;
@@ -745,7 +745,7 @@ export function useSymbolTrading(
       marketPolling.refreshNow?.();
       candlesData.refreshNow?.();
 
-      let st = (await refreshTradeAfterOrder(tradeBase)) ?? tradeBase;
+      const st = (await refreshTradeAfterOrder(tradeBase)) ?? tradeBase;
       await refreshBuyingPower(acc);
       await refreshPortfolioHoldings();
 
@@ -834,7 +834,7 @@ export function useSymbolTrading(
       closedOrdersUnavailable: closedOrdersPolling.data?.unavailable,
       buyingPower: contextBuyingPower,
       sellableQuantity: effectiveSellableQuantity,
-      commissions: commissionsPolling.data,
+      commissions: commissionsPolling.data ?? undefined,
       candleInterval,
       onCandleIntervalChange: handleCandleIntervalChange,
       candlesLoading: candlesData.loading,
