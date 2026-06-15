@@ -18,11 +18,25 @@ export type WorkerRequest = {
   };
 }[RecommendationMethod];
 
-/** 워커 → 메인 응답. */
-export type WorkerResponse = {
+/** 워커 → 메인 성공 응답. */
+export type WorkerSuccessResponse = {
   [M in RecommendationMethod]: {
     id: number;
     method: M;
     result: RecommendationMethodMap[M]['result'];
   };
 }[RecommendationMethod];
+
+/** 워커 → 메인 에러 응답. compute 가 throw 해도 요청이 반드시 settle 되도록 id 와 함께 회신한다. */
+export interface WorkerErrorResponse {
+  id: number;
+  error: string;
+}
+
+/** 워커 → 메인 응답(성공 | 에러). 모든 요청은 둘 중 하나로 반드시 응답된다. */
+export type WorkerResponse = WorkerSuccessResponse | WorkerErrorResponse;
+
+/** 에러 응답 판별자. */
+export function isWorkerErrorResponse(response: WorkerResponse): response is WorkerErrorResponse {
+  return 'error' in response;
+}
