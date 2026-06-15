@@ -69,7 +69,7 @@ export const COMMISSIONS_POLL_MS = 300_000;
 export const CLOSED_ORDERS_POLL_MS = 60_000;
 export const CANDLE_POLL_MS = 500;
 export const TRADE_POLL_MS = 15000;
-export const HOLDINGS_POLL_MS = 5000;
+export const HOLDINGS_POLL_MS = 1000;
 
 export const MARKET_INITIAL_DELAY_MS = 0;
 export const CANDLE_INITIAL_DELAY_MS = 500;
