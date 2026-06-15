@@ -2485,11 +2485,23 @@ select:focus-visible {
     min-width: 0;
     padding-right: 4px; /* 마지막 칩이 잘리지 않게 */
     scrollbar-width: thin; /* Firefox */
+    scrollbar-color: var(--border-subtle) transparent; /* Firefox: 얇고 은은하게 */
   }
 
   .market-context__metrics::-webkit-scrollbar,
   .market-context__row-content::-webkit-scrollbar {
-    height: 3px;
+    height: 2px; /* 최대한 가늘게 */
+  }
+
+  .market-context__metrics::-webkit-scrollbar-track,
+  .market-context__row-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .market-context__metrics::-webkit-scrollbar-thumb,
+  .market-context__row-content::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 2px;
   }
 
   /* 매트릭 칩 내부 텍스트가 줄바꿈되지 않게 (label + value 일렬 유지) */
