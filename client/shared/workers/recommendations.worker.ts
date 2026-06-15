@@ -21,18 +21,27 @@ const ctx = self as unknown as DedicatedWorkerGlobalScope;
 ctx.addEventListener('message', (event: MessageEvent<WorkerRequest>) => {
   const request = event.data;
 
+  // compute 가 throw 해도 반드시 응답을 보내야 메인 스레드의 요청 promise 가 settle 된다.
+  // (응답을 빠뜨리면 useWorkerCompute 의 inFlightRef 가 stuck 되어 패널이 동결된다.)
   let response: WorkerResponse;
-  if (request.method === 'chartSignal') {
+  try {
+    if (request.method === 'chartSignal') {
+      response = {
+        id: request.id,
+        method: 'chartSignal',
+        result: computeChartSignal(request.payload),
+      };
+    } else {
+      response = {
+        id: request.id,
+        method: 'orderRecs',
+        result: computeOrderRecommendations(request.payload),
+      };
+    }
+  } catch (error) {
     response = {
       id: request.id,
-      method: 'chartSignal',
-      result: computeChartSignal(request.payload),
-    };
-  } else {
-    response = {
-      id: request.id,
-      method: 'orderRecs',
-      result: computeOrderRecommendations(request.payload),
+      error: error instanceof Error ? error.message : 'worker compute failed',
     };
   }
 

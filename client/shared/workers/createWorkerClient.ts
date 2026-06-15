@@ -1,8 +1,9 @@
-import type {
-  RecommendationMethod,
-  RecommendationMethodMap,
-  WorkerRequest,
-  WorkerResponse,
+import {
+  isWorkerErrorResponse,
+  type RecommendationMethod,
+  type RecommendationMethodMap,
+  type WorkerRequest,
+  type WorkerResponse,
 } from './recommendationMessages';
 
 interface PendingCall {
@@ -35,17 +36,27 @@ function getWorker(): Worker | null {
     });
 
     instance.addEventListener('message', (event: MessageEvent<WorkerResponse>) => {
-      const { id, result } = event.data;
-      const call = pending.get(id);
+      const response = event.data;
+      const call = pending.get(response.id);
       if (!call) return;
-      pending.delete(id);
-      call.resolve(result);
+      pending.delete(response.id);
+      // 에러 응답이면 reject → 호출 측(useWorkerCompute)이 동기 계산으로 폴백한다.
+      if (isWorkerErrorResponse(response)) {
+        call.reject(new Error(response.error));
+      } else {
+        call.resolve(response.result);
+      }
     });
 
     instance.addEventListener('error', () => {
       // 워커 자체 오류: 대기 중 호출을 reject 해 동기 폴백을 유도하고 워커를 재생성 가능 상태로.
       rejectAll(new Error('recommendation worker error'));
       worker = null;
+    });
+
+    instance.addEventListener('messageerror', () => {
+      // 구조화 복제(직렬화) 실패: id 를 알 수 없으므로 대기 호출을 모두 reject 해 폴백을 유도한다.
+      rejectAll(new Error('recommendation worker message deserialization failed'));
     });
 
     worker = instance;

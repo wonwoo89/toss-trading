@@ -188,12 +188,12 @@ function getSignalSummary(level: ChartSignalLevel) {
   }
 }
 
-export function buildChartSignalSnapshot({
-  candles,
-  bids = [],
-  asks = [],
-  warnings = [],
-}: ChartSignalInput): ChartSignalSnapshot {
+export function buildChartSignalSnapshot(input: ChartSignalInput): ChartSignalSnapshot {
+  // ?? [] 로 null/undefined 를 모두 방어한다. (destructuring 기본값은 undefined 만 막는다.)
+  const candles = input.candles ?? [];
+  const bids = input.bids ?? [];
+  const asks = input.asks ?? [];
+  const warnings = input.warnings ?? [];
   const sorted = candles.slice().sort((a, b) => a.time - b.time);
 
   if (sorted.length < MIN_CANDLES) {
