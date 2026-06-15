@@ -30,6 +30,10 @@ import {
   getStoredTakeProfitRate,
   setStoredTakeProfitRate,
 } from '../../shared/lib/takeProfitRatePreference';
+import {
+  getStoredRealtimePollingForced,
+  setStoredRealtimePollingForced,
+} from '../../shared/lib/realtimePollingPreference';
 import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
 import {
   getOpenOrdersSignature,
@@ -116,6 +120,16 @@ export function useSymbolTrading(
   const [closedCandlesDone, setClosedCandlesDone] = useState(false);
   const [closedAccountDone, setClosedAccountDone] = useState(false);
 
+  // 실시간 폴링 강제 토글. ON 이면 isClosed/세션 게이팅을 무시하고 시세·캔들을 상시 폴링한다.
+  const [realtimePollingForced, setRealtimePollingForced] = useState<boolean>(
+    getStoredRealtimePollingForced
+  );
+
+  const handleRealtimePollingForcedChange = useCallback((forced: boolean) => {
+    setRealtimePollingForced(forced);
+    setStoredRealtimePollingForced(forced);
+  }, []);
+
   useEffect(() => {
     // symbol 변경(새 랜딩)마다 초기 phase + closed flags 리셋
     // 폐장일: live market 1회, candles 1회, account 1회 각각 독립 보장
@@ -134,6 +148,8 @@ export function useSymbolTrading(
 
   const effectiveLiveMarketEnabled = useMemo(() => {
     if (!contextIsReady || !symbol) return false;
+    // 토글 ON: 세션/주말 게이팅 무시하고 상시 폴링 (데이/프리/애프터 모두 동작)
+    if (realtimePollingForced) return true;
     if (isClosed) {
       // 폐장일: live market (price/bids/asks for panels) 정확히 1회만
       return !closedMarketDone;
@@ -143,6 +159,7 @@ export function useSymbolTrading(
   }, [
     contextIsReady,
     symbol,
+    realtimePollingForced,
     isClosed,
     closedMarketDone,
     initialLoadPhase,
@@ -151,6 +168,8 @@ export function useSymbolTrading(
 
   const effectiveCandlesEnabled = useMemo(() => {
     if (!contextIsReady || !symbol) return false;
+    // 토글 ON: 세션/주말 게이팅 무시하고 상시 폴링
+    if (realtimePollingForced) return true;
     if (isClosed) {
       // 폐장일: candles (차트) 정확히 1회만 (독립 보장)
       return !closedCandlesDone;
@@ -160,6 +179,7 @@ export function useSymbolTrading(
   }, [
     contextIsReady,
     symbol,
+    realtimePollingForced,
     isClosed,
     closedCandlesDone,
     initialLoadPhase,
@@ -235,7 +255,8 @@ export function useSymbolTrading(
 
   const marketFetcher = useCallback(async () => {
     if (!symbol) return undefined;
-    if (isClosed && closedMarketDone) return undefined;
+    // 토글 ON 이면 폐장 1회 가드를 우회해 계속 시세를 받아온다.
+    if (isClosed && closedMarketDone && !realtimePollingForced) return undefined;
     try {
       const snap = unwrapResult(await api.getMarketSnapshot(symbol));
       const p = snap.price?.[0];
@@ -263,7 +284,7 @@ export function useSymbolTrading(
       console.warn(`[client] marketFetcher FAILED for ${symbol}:`, e);
       return undefined;
     }
-  }, [symbol, isClosed, closedMarketDone]);
+  }, [symbol, isClosed, closedMarketDone, realtimePollingForced]);
 
   const commissionsPolling = usePolling({
     fetcher: commissionsFetcher,
@@ -843,6 +864,8 @@ export function useSymbolTrading(
       hasMoreHistory: candlesData.hasMoreHistory,
       onLoadOlderCandles: candlesData.loadOlder,
       warnings,
+      realtimePollingForced,
+      onRealtimePollingForcedChange: handleRealtimePollingForcedChange,
     }),
     [
       symbol,
@@ -868,6 +891,8 @@ export function useSymbolTrading(
       candlesData.hasMoreHistory,
       candlesData.loadOlder,
       warnings,
+      realtimePollingForced,
+      handleRealtimePollingForcedChange,
       portfolioHoldings,
     ]
   );
@@ -943,6 +968,8 @@ export function useSymbolTrading(
     takeProfitRatePercent,
     handleCandleIntervalChange,
     handleTakeProfitRateChange,
+    realtimePollingForced,
+    handleRealtimePollingForcedChange,
     commissions: commissionsPolling.data,
     closedOrdersState: closedOrdersPolling.data,
     marketData: marketPolling.data,
