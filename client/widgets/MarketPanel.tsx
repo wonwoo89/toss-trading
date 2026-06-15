@@ -9,6 +9,10 @@ import {
   type MicrostructureBias,
 } from '../shared/lib/marketMicrostructure';
 import {
+  getStoredDetailsExpanded,
+  setStoredDetailsExpanded,
+} from '../shared/lib/detailsExpandedPreference';
+import {
   CANDLE_INTERVALS,
   type CandleInterval,
   type ChartCandle,
@@ -100,15 +104,30 @@ export function MarketPanel({
   onRealtimePollingForcedChange,
 }: MarketPanelProps) {
   const [orderbookExpanded, setOrderbookExpanded] = useState(false);
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
-  // On desktop (>1100px) always expand details; on mobile default collapsed for accordion
+  // 데스크톱(>1100px)은 항상 펼침. 모바일은 사용자가 토글한 펼침/접힘 상태를 localStorage 에
+  // 영속해, 종목이 바뀌어 MarketPanel 이 리마운트돼도 유지한다.
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth > 1100
+  );
+  const [mobileDetailsExpanded, setMobileDetailsExpanded] = useState(getStoredDetailsExpanded);
+
   useEffect(() => {
-    const update = () => setDetailsExpanded(window.innerWidth > 1100);
+    const update = () => setIsDesktop(window.innerWidth > 1100);
     update();
     window.addEventListener('resize', update);
     return () => window.removeEventListener('resize', update);
   }, []);
+
+  const detailsExpanded = isDesktop ? true : mobileDetailsExpanded;
+
+  const toggleDetails = () => {
+    setMobileDetailsExpanded((prev) => {
+      const next = !prev;
+      setStoredDetailsExpanded(next);
+      return next;
+    });
+  };
 
   const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids]);
 
@@ -205,7 +224,7 @@ export function MarketPanel({
           loading={candlesLoading}
           showMetrics={detailsExpanded}
           detailsExpanded={detailsExpanded}
-          onToggleDetails={() => setDetailsExpanded(!detailsExpanded)}
+          onToggleDetails={toggleDetails}
         />
 
         <div className={`market-divider chart-signal-divider ${detailsExpanded ? 'is-visible' : ''}`} />
