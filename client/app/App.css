@@ -1241,6 +1241,30 @@ select:focus-visible {
   font-size: 0.8rem;
 }
 
+.chart-toolbar__controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.realtime-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.realtime-toggle input {
+  cursor: pointer;
+  margin: 0;
+  accent-color: var(--accent, #3182f6);
+}
+
 .chart-interval {
   flex: 0 0 auto;
   background: var(--bg-input);
