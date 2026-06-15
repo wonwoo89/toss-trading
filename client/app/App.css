@@ -697,6 +697,8 @@ textarea {
   position: sticky;
   top: 1rem;
   align-self: start;
+  padding-top: 12px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
 }
 
 .trading-layout:not(.trading-layout--portfolio-only) .order-column {
@@ -2497,6 +2499,7 @@ select:focus-visible {
   .order-form__submit-block {
     margin-top: 0;
     margin-bottom: 0;
+    padding-bottom: 0;
   }
 
   .order-form__section input {
@@ -2521,7 +2524,8 @@ select:focus-visible {
     background: var(--bg-panel);
     border-top: 1px solid var(--border-subtle);
     box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
-    padding: 0.35rem 0.5rem calc(0.6rem + env(safe-area-inset-bottom));
+    /* 핸들바 영역을 자연스럽게: 모바일에서는 상단 패딩 0 */
+    padding: 0 0.5rem calc(12px + env(safe-area-inset-bottom));
     overflow-y: auto;
     border-radius: 18px 18px 0 0;
 
@@ -2593,6 +2597,13 @@ select:focus-visible {
     display: none;
   }
 
+  /* 모바일 접힘 상태: 힌트(매수가능·손익분기·예상 금액)와 직접 매수/매도 버튼도 숨김.
+     → 접힘 시엔 추천 실행 버튼만, 펼쳤을 때만 직접 버튼/힌트 노출. */
+  .order-form:not(.is-mobile-expanded) .order-form__hints,
+  .order-form:not(.is-mobile-expanded) .order-manual-actions {
+    display: none;
+  }
+
   /* 모바일에서 .order-form 이 펼쳐졌을 때 (.is-mobile-expanded) gap: 1rem 적용 */
   .trading-layout:not(.trading-layout--portfolio-only) .order-form.is-mobile-expanded {
     gap: 1rem;
@@ -2608,6 +2619,13 @@ select:focus-visible {
   }
 
   .order-form .order-rec-grid {
+    margin: 0;
+    padding: 0;
+    gap: 1rem;
+  }
+
+  /* 직접 매수/매도 버튼 간격을 추천 실행 버튼(rec grid)과 동일하게 맞춤 */
+  .order-form .order-manual-actions {
     margin: 0;
     padding: 0;
     gap: 1rem;
@@ -2743,7 +2761,7 @@ select:focus-visible {
     box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
     padding-left: 16px;
     padding-right: 16px;
-    padding-bottom: calc(0.6rem + env(safe-area-inset-bottom));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom));
     border-radius: 18px 18px 0 0;
 
     /* 전체 폭 bleed (부모의 16px padding 무시) */
