@@ -42,6 +42,15 @@ function useWorkerCompute<P, R>(
   }, []);
 
   useEffect(() => {
+    // 동기 폴백이 throw 해도(잘못된 입력 등) 직전 결과를 유지하고 inFlight 흐름을 깨지 않는다.
+    const setFromSyncCompute = (payload: P) => {
+      try {
+        setResult(syncCompute(payload));
+      } catch {
+        // 폴백 실패: 직전 결과 유지. (다음 input 변경 시 다시 계산을 시도한다.)
+      }
+    };
+
     const run = (payload: P) => {
       const promise = runner(payload);
 
@@ -49,7 +58,7 @@ function useWorkerCompute<P, R>(
         // 워커 미지원: 비동기 마이크로태스크로 폴백 계산(effect 내 동기 setState 회피).
         void Promise.resolve().then(() => {
           if (!cancelledRef.current) {
-            setResult(syncCompute(payload));
+            setFromSyncCompute(payload);
           }
         });
         return;
@@ -66,7 +75,7 @@ function useWorkerCompute<P, R>(
         })
         .catch(() => {
           if (!cancelledRef.current && seq === seqRef.current) {
-            setResult(syncCompute(payload));
+            setFromSyncCompute(payload);
           }
         })
         .finally(() => {

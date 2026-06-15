@@ -11,6 +11,8 @@
     "build": "tsc -b && vite build",
     "build:wasm": "asc wasm/assembly/indicators.ts --outFile client/shared/lib/wasm/indicators.wasm --runtime stub --optimize",
     "lint": "eslint .",
+    "test:engine": "tsx client/shared/lib/recommendationEngine.resilience.test.ts",
+    "test:wasm": "node wasm/test/indicators.test.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "preview": "vite preview",
     "auth:test": "tsx server/scripts/test-auth.ts"

@@ -57,21 +57,24 @@ export function computeOrderRecommendations(
   const {
     side,
     currentPrice,
-    candles,
     candleInterval,
-    bids,
-    asks,
-    trades,
     holding,
     takeProfitRatePercent,
     commissionRatePercent,
-    openOrders,
     effectiveOrderPrice,
     maxOrderQuantity,
     buyMaxForRec,
     sellMaxForRec,
     buyingPower,
   } = input;
+
+  // 배열 필드는 ?? [] 로 정규화한다. destructuring 기본값(= [])은 undefined 만 막고 null 은
+  // 통과시켜 빌더의 .map/.slice/.filter 에서 throw 하는데, 종목 전환 과도기엔 null 이 들어올 수 있다.
+  const candles = input.candles ?? [];
+  const bids = input.bids ?? [];
+  const asks = input.asks ?? [];
+  const trades = input.trades ?? [];
+  const openOrders = input.openOrders ?? [];
 
   const limitPriceRecommendation = buildLimitPriceRecommendation({
     side,
