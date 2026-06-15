@@ -933,6 +933,27 @@ export function OrderForm({
           )}
         </div>
 
+        {/* 직접 입력(수량·가격)으로 실행하는 버튼. 추천 카드와 별개로 사용자가 정한 값 그대로 주문.
+            기본적으로 추천 실행 버튼 위에 배치한다. */}
+        <div className="order-manual-actions">
+          <button
+            type="button"
+            className="order-manual-btn buy"
+            onClick={() => executeManual('BUY')}
+            disabled={submitting}
+          >
+            직접 매수
+          </button>
+          <button
+            type="button"
+            className="order-manual-btn sell"
+            onClick={() => executeManual('SELL')}
+            disabled={submitting}
+          >
+            직접 매도
+          </button>
+        </div>
+
         {/* 추천 매수/매도 카드를 좌우 배치, 라벨 아래에 정보 세로 나열 (클릭 영역은 카드 전체) */}
         {/* async 데이터(currentPrice, buyingPower, candles, bids/asks 등) 도착 전에는 '불러오는 중...' 표시.
             데이터 도착 후에야 quantity/limit rec 계산이 유효한 입력으로 동작하고, 추천 또는 합당한 '—' 를 표시. */}
@@ -974,26 +995,6 @@ export function OrderForm({
               <span className="rec-expected">예상 금액 {formatUsd(recommendedSellAmount)}</span>
             )}
           </div>
-        </div>
-
-        {/* 직접 입력(수량·가격)으로 실행하는 버튼. 추천 카드와 별개로 사용자가 정한 값 그대로 주문. */}
-        <div className="order-manual-actions">
-          <button
-            type="button"
-            className="order-manual-btn buy"
-            onClick={() => executeManual('BUY')}
-            disabled={submitting}
-          >
-            직접 매수
-          </button>
-          <button
-            type="button"
-            className="order-manual-btn sell"
-            onClick={() => executeManual('SELL')}
-            disabled={submitting}
-          >
-            직접 매도
-          </button>
         </div>
 
       </div>
