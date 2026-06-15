@@ -13,6 +13,9 @@ dist-ssr
 *.local
 .env
 
+# PWA 아이콘 생성용 임시 소스(빌드 산출물 아님, 커밋 제외)
+public/_icon-source.svg
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

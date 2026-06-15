@@ -2,7 +2,8 @@
   max-width: 2560px;
   min-height: 100vh;
   margin: 0 auto;
-  padding: 1rem;
+  /* 상단 노치/상태바 안전영역 확보 (PWA standalone + viewport-fit=cover). 데스크톱은 env=0 → 1rem */
+  padding: calc(1rem + env(safe-area-inset-top)) 1rem 1rem;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -1029,6 +1030,22 @@ textarea {
 .portfolio-holding-hide:hover {
   color: var(--text-primary);
   border-color: var(--text-secondary);
+}
+
+/* 터치 기기(hover 없음): 숨기기 버튼을 hover 로 노출하면 첫 탭이 hover 로 소비되어
+   "두 번 탭해야 선택" 문제가 생긴다. → 터치에서는 상시 표시하고 우측에 공간을 확보해
+   본문과 겹치지 않게 한다. 단일 탭으로 항목 선택, 숨기기 칩 탭으로 숨김. */
+@media (hover: none) {
+  .portfolio-holding-item {
+    padding-right: 3.6rem;
+  }
+
+  .portfolio-holding-hide {
+    opacity: 1;
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+  }
 }
 
 .portfolio-holding-item.is-hidden {
