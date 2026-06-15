@@ -82,7 +82,7 @@ async function ensureIndex(): Promise<Map<string, SearchableStock>> {
 }
 
 function looksLikeTicker(query: string): boolean {
-  return /^[A-Za-z0-9.^\-]+$/.test(query);
+  return /^[A-Za-z0-9.^-]+$/.test(query);
 }
 
 function scoreStock(stock: SearchableStock, query: string): number {

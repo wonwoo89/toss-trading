@@ -52,9 +52,9 @@ function normalizeViewport(raw: ChartViewport | undefined): ChartViewport | null
     return null;
   }
 
-  if (barSpacing !== undefined && barSpacing <= 0) return null;
-  if (rightOffset !== undefined && rightOffset < 0) return null;
-  if (lastBarIndex !== undefined && lastBarIndex < 0) return null;
+  if (barSpacing != null && barSpacing <= 0) return null;
+  if (rightOffset != null && rightOffset < 0) return null;
+  if (lastBarIndex != null && lastBarIndex < 0) return null;
 
   return {
     timeFrom,

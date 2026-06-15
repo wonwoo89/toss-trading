@@ -34,7 +34,7 @@ interface TossRequestOptions {
 async function parseErrorPayload(response: Response) {
   let payload: {
     error?: { code?: string; message?: string; data?: unknown; requestId?: string };
-  } = {};
+  };
 
   try {
     payload = await response.json();

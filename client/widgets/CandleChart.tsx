@@ -223,12 +223,7 @@ function applyInitialViewport(chart: IChartApi, lastBarIndex: number) {
   });
 }
 
-function getBollingerLineOptions(
-  colors: ReturnType<typeof getChartThemeColors>,
-  color: string,
-  title: string,
-  lineStyle: LineStyle
-) {
+function getBollingerLineOptions(color: string, title: string, lineStyle: LineStyle) {
   return {
     color,
     lineWidth: 1 as const,
@@ -285,13 +280,13 @@ function applyChartTheme(
   });
 
   bollingerSeries.upper?.applyOptions(
-    getBollingerLineOptions(colors, colors.bollingerUpper, 'BB 상단', LineStyle.Dashed)
+    getBollingerLineOptions(colors.bollingerUpper, 'BB 상단', LineStyle.Dashed)
   );
   bollingerSeries.middle?.applyOptions(
-    getBollingerLineOptions(colors, colors.bollingerMiddle, 'BB 중간', LineStyle.Solid)
+    getBollingerLineOptions(colors.bollingerMiddle, 'BB 중간', LineStyle.Solid)
   );
   bollingerSeries.lower?.applyOptions(
-    getBollingerLineOptions(colors, colors.bollingerLower, 'BB 하단', LineStyle.Dashed)
+    getBollingerLineOptions(colors.bollingerLower, 'BB 하단', LineStyle.Dashed)
   );
   bollingerSeries.fill?.setFillColor(colors.bollingerFill);
 
@@ -393,17 +388,17 @@ export function CandleChart({
 
     const bbUpperSeries = chart.addSeries(
       LineSeries,
-      getBollingerLineOptions(colors, colors.bollingerUpper, 'BB 상단', LineStyle.Dashed),
+      getBollingerLineOptions(colors.bollingerUpper, 'BB 상단', LineStyle.Dashed),
       0
     );
     const bbMiddleSeries = chart.addSeries(
       LineSeries,
-      getBollingerLineOptions(colors, colors.bollingerMiddle, 'BB 중간', LineStyle.Solid),
+      getBollingerLineOptions(colors.bollingerMiddle, 'BB 중간', LineStyle.Solid),
       0
     );
     const bbLowerSeries = chart.addSeries(
       LineSeries,
-      getBollingerLineOptions(colors, colors.bollingerLower, 'BB 하단', LineStyle.Dashed),
+      getBollingerLineOptions(colors.bollingerLower, 'BB 하단', LineStyle.Dashed),
       0
     );
     const bbFillPrimitive = new BollingerBandFillPrimitive();
