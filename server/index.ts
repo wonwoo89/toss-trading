@@ -60,6 +60,21 @@ app.use('/api/market', marketRouter);
 app.use('/api/account', accountRouter);
 app.use('/api/orders', ordersRouter);
 
+// 운영 모드: 빌드된 프론트(dist)를 정적 서빙하고, /api 가 아닌 GET 은 SPA 진입점으로
+// 폴백한다(클라이언트 라우팅). 개발 모드(NODE_ENV !== production)에서는 Vite dev 서버가
+// 프론트를 담당하므로 이 블록은 비활성화된다.
+if (process.env.NODE_ENV === 'production') {
+  const clientDist = path.join(rootDir, 'dist');
+  app.use(express.static(clientDist));
+  app.use((req, res, next) => {
+    if (req.method !== 'GET' || req.path.startsWith('/api')) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
+
 app.use(
   (error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof TossApiError) {
