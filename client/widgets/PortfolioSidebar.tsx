@@ -12,6 +12,8 @@ interface PortfolioSidebarProps {
   totalProfitLoss?: number;
   totalProfitLossRate?: number;
   holdings: HoldingItem[];
+  hiddenHoldings?: HoldingItem[];
+  onToggleHidden?: (symbol: string) => void;
   openOrders: Order[];
   activeSymbol?: string;
   holdingsPollIntervalMs?: number;
@@ -25,6 +27,8 @@ export function PortfolioSidebar({
   totalProfitLoss,
   totalProfitLossRate,
   holdings,
+  hiddenHoldings = [],
+  onToggleHidden,
   openOrders,
   activeSymbol,
   holdingsPollIntervalMs = 5000,
@@ -32,6 +36,7 @@ export function PortfolioSidebar({
   onCancelOrder,
 }: PortfolioSidebarProps) {
   const navigate = useNavigate();
+  const [showHidden, setShowHidden] = useState(false);
 
   // 보유 종목 가치/PL 실시간 flash (UI/UX)
   const prevValuesRef = useRef<Record<string, number>>({});
@@ -91,7 +96,7 @@ export function PortfolioSidebar({
                 const isActive = item.symbol.toUpperCase() === activeSymbol?.toUpperCase();
 
                 return (
-                  <li key={item.symbol}>
+                  <li key={item.symbol} className="portfolio-holding-row">
                     <button
                       type="button"
                       className={`portfolio-holding-item${isActive ? ' is-active' : ''}`}
@@ -119,10 +124,84 @@ export function PortfolioSidebar({
                         </span>
                       </div>
                     </button>
+                    {onToggleHidden && (
+                      <button
+                        type="button"
+                        className="portfolio-holding-hide"
+                        title="자산에서 숨기기"
+                        aria-label={`${item.symbol} 자산에서 숨기기`}
+                        onClick={() => onToggleHidden(item.symbol)}
+                      >
+                        숨기기
+                      </button>
+                    )}
                   </li>
                 );
               })}
             </ul>
+          )}
+
+          {hiddenHoldings.length > 0 && (
+            <div className="portfolio-hidden">
+              <button
+                type="button"
+                className="portfolio-hidden__toggle"
+                onClick={() => setShowHidden((prev) => !prev)}
+                aria-expanded={showHidden}
+              >
+                <span>숨긴 종목 {hiddenHoldings.length}개</span>
+                <span className="portfolio-hidden__chevron">{showHidden ? '▾' : '▸'}</span>
+              </button>
+
+              {showHidden && (
+                <ul className="portfolio-holdings-list__items portfolio-hidden__items">
+                  {hiddenHoldings.map((item) => {
+                    const isActive = item.symbol.toUpperCase() === activeSymbol?.toUpperCase();
+
+                    return (
+                      <li key={item.symbol} className="portfolio-holding-row">
+                        <button
+                          type="button"
+                          className={`portfolio-holding-item is-hidden${isActive ? ' is-active' : ''}`}
+                          onClick={() => goToStock(item.symbol)}
+                        >
+                          <div className="portfolio-holding-item__main">
+                            <StockLabel symbol={item.symbol} />
+                            <span className="portfolio-holding-item__value">
+                              {formatUsd(item.marketValue)}
+                            </span>
+                          </div>
+                          <div className="portfolio-holding-item__meta">
+                            <span className="portfolio-holding-item__qty">
+                              {item.quantity.toLocaleString('en-US', {
+                                maximumFractionDigits: 4,
+                              })}
+                              주
+                            </span>
+                            <span
+                              className={`portfolio-holding-item__pl ${getKrProfitLossClass(item.profitLoss) ?? ''}`}
+                            >
+                              {formatProfitLoss(item.profitLoss, item.profitLossRate)}
+                            </span>
+                          </div>
+                        </button>
+                        {onToggleHidden && (
+                          <button
+                            type="button"
+                            className="portfolio-holding-hide"
+                            title="자산에 다시 표시"
+                            aria-label={`${item.symbol} 자산에 다시 표시`}
+                            onClick={() => onToggleHidden(item.symbol)}
+                          >
+                            표시
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           )}
         </div>
       </section>

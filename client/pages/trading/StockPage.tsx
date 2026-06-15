@@ -17,7 +17,9 @@ export function StockPage() {
   const layoutRef = useRef<HTMLElement | null>(null);
 
   const {
-    portfolioHoldings,
+    visibleHoldings,
+    hiddenHoldings,
+    toggleHiddenSymbol,
     portfolioOpenOrders,
     createOrder,
     cancelOrder,
@@ -50,7 +52,9 @@ export function StockPage() {
           totalMarketValue={portfolioTotals.totalMarketValue}
           totalProfitLoss={portfolioTotals.totalProfitLoss}
           totalProfitLossRate={portfolioTotals.totalProfitLossRate}
-          holdings={portfolioHoldings}
+          holdings={visibleHoldings}
+          hiddenHoldings={hiddenHoldings}
+          onToggleHidden={toggleHiddenSymbol}
           openOrders={portfolioOpenOrders}
           activeSymbol={symbol}
           holdingsPollIntervalMs={HOLDINGS_POLL_MS}

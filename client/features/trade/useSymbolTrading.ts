@@ -34,6 +34,10 @@ import {
   getStoredRealtimePollingForced,
   setStoredRealtimePollingForced,
 } from '../../shared/lib/realtimePollingPreference';
+import {
+  getStoredHiddenSymbols,
+  setStoredHiddenSymbols,
+} from '../../shared/lib/hiddenHoldingsPreference';
 import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
 import {
   getOpenOrdersSignature,
@@ -234,6 +238,25 @@ export function useSymbolTrading(
     getCachedOpenOrders(accountSeq)
   );
 
+  // 자산에서 제외(숨김)할 종목 — localStorage 영속. 토스 앱의 "숨김"을 WTS 에서 재현.
+  const [hiddenSymbols, setHiddenSymbols] = useState<string[]>(getStoredHiddenSymbols);
+
+  const toggleHiddenSymbol = useCallback((sym: string) => {
+    const upper = sym.toUpperCase();
+    setHiddenSymbols((prev) => {
+      const next = prev.includes(upper)
+        ? prev.filter((s) => s !== upper)
+        : [...prev, upper];
+      setStoredHiddenSymbols(next);
+      return next;
+    });
+  }, []);
+
+  const hiddenSymbolSet = useMemo(
+    () => new Set(hiddenSymbols.map((s) => s.toUpperCase())),
+    [hiddenSymbols]
+  );
+
   // account data pollings encapsulated in hook
   const commissionsFetcher = useCallback(async () => {
     if (!accountSeq) return [] as CommissionRaw[];
@@ -364,18 +387,28 @@ export function useSymbolTrading(
     };
   }, [holding, currentPrice]);
 
+  // 숨김 종목을 분리: 합계·헤더 총자산은 visible 기준, hidden 은 사이드바 접이식에만 노출.
+  const visibleHoldings = useMemo(
+    () => portfolioHoldings.filter((item) => !hiddenSymbolSet.has(item.symbol.toUpperCase())),
+    [portfolioHoldings, hiddenSymbolSet]
+  );
+  const hiddenHoldings = useMemo(
+    () => portfolioHoldings.filter((item) => hiddenSymbolSet.has(item.symbol.toUpperCase())),
+    [portfolioHoldings, hiddenSymbolSet]
+  );
+
   const portfolioTotals = useMemo(() => {
-    const totalMarketValue = portfolioHoldings.reduce(
+    const totalMarketValue = visibleHoldings.reduce(
       (sum, item) => sum + (item.marketValue ?? 0),
       0
     );
-    const totalPurchaseAmount = portfolioHoldings.reduce(
+    const totalPurchaseAmount = visibleHoldings.reduce(
       (sum, item) => sum + (item.purchaseAmount ?? 0),
       0
     );
     const totalProfitLoss =
-      portfolioHoldings.length > 0
-        ? portfolioHoldings.reduce((sum, item) => sum + (item.profitLoss ?? 0), 0)
+      visibleHoldings.length > 0
+        ? visibleHoldings.reduce((sum, item) => sum + (item.profitLoss ?? 0), 0)
         : undefined;
     const totalProfitLossRate =
       totalPurchaseAmount > 0 && totalProfitLoss !== undefined
@@ -383,7 +416,7 @@ export function useSymbolTrading(
         : undefined;
 
     return { totalMarketValue, totalProfitLoss, totalProfitLossRate };
-  }, [portfolioHoldings]);
+  }, [visibleHoldings]);
 
   // portfolio total 동기화 to context (for header etc)
   useEffect(() => {
@@ -948,6 +981,10 @@ export function useSymbolTrading(
     holding,
     openOrders,
     portfolioHoldings,
+    visibleHoldings,
+    hiddenHoldings,
+    hiddenSymbols,
+    toggleHiddenSymbol,
     portfolioOpenOrders,
     getCachedHoldings: () => getCachedHoldings(accountSeq),
     getCachedOpenOrders: () => getCachedOpenOrders(accountSeq),

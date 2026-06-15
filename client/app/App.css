@@ -970,6 +970,72 @@ textarea {
   color: var(--color-down);
 }
 
+/* 숨김 토글: 보유 행에 hover/focus 시 우상단에 작은 버튼 노출 */
+.portfolio-holding-row {
+  position: relative;
+}
+
+.portfolio-holding-hide {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.7rem;
+  line-height: 1.4;
+  color: var(--text-secondary);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.portfolio-holding-row:hover .portfolio-holding-hide,
+.portfolio-holding-row:focus-within .portfolio-holding-hide {
+  opacity: 1;
+}
+
+.portfolio-holding-hide:hover {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+}
+
+.portfolio-holding-item.is-hidden {
+  opacity: 0.6;
+}
+
+/* "숨긴 종목" 접이식 섹션 */
+.portfolio-hidden {
+  margin-top: 0.4rem;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.4rem;
+}
+
+.portfolio-hidden__toggle {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.75rem;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.portfolio-hidden__toggle:hover {
+  background: var(--holding-item-active-bg);
+  color: var(--text-primary);
+}
+
+.portfolio-hidden__chevron {
+  font-size: 0.7rem;
+}
+
 .panel {
   background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
