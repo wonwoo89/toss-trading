@@ -64,6 +64,39 @@ export function PortfolioSidebar({
     navigate(`/stock/${symbol}`);
   };
 
+  // Option(Alt) + 1~9 로 보이는 보유종목(표시 순서)으로 빠르게 이동.
+  // 입력창 포커스 중에는 무시(다른 단축키와 동일 정책). holdings 는 폴링으로 자주 바뀌므로
+  // ref 로 최신값만 참조해 리스너를 재바인딩하지 않는다.
+  const holdingsRef = useRef(holdings);
+  holdingsRef.current = holdings;
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (!event.altKey || event.metaKey || event.ctrlKey) return;
+
+      const match = event.code.match(/^Digit([1-9])$/);
+      if (!match) return;
+
+      const active = document.activeElement;
+      const isInputFocused =
+        active instanceof HTMLElement &&
+        (active.isContentEditable ||
+          active.tagName === 'INPUT' ||
+          active.tagName === 'TEXTAREA' ||
+          active.tagName === 'SELECT');
+      if (isInputFocused) return;
+
+      const target = holdingsRef.current[Number(match[1]) - 1];
+      if (!target) return;
+
+      event.preventDefault();
+      navigate(`/stock/${target.symbol}`);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [navigate]);
+
   return (
     <aside className="portfolio-sidebar">
       <section className="panel portfolio-sidebar__summary">
@@ -92,8 +125,10 @@ export function PortfolioSidebar({
             <p className="hint">보유한 미국 주식이 없습니다.</p>
           ) : (
             <ul className="portfolio-holdings-list__items">
-              {holdings.map((item) => {
+              {holdings.map((item, index) => {
                 const isActive = item.symbol.toUpperCase() === activeSymbol?.toUpperCase();
+                // Option+1~9 단축키와 대응하는 번호 뱃지(상위 9개, 데스크톱 전용).
+                const hotkey = index < 9 ? index + 1 : undefined;
 
                 return (
                   <li key={item.symbol} className="portfolio-holding-row">
@@ -103,7 +138,18 @@ export function PortfolioSidebar({
                       onClick={() => goToStock(item.symbol)}
                     >
                       <div className="portfolio-holding-item__main">
-                        <StockLabel symbol={item.symbol} />
+                        <span className="portfolio-holding-item__label-group">
+                          {hotkey !== undefined && (
+                            <span
+                              className="portfolio-holding-item__hotkey"
+                              aria-hidden="true"
+                              title={`Option+${hotkey} 로 이동`}
+                            >
+                              {hotkey}
+                            </span>
+                          )}
+                          <StockLabel symbol={item.symbol} />
+                        </span>
                         <span
                           className={`portfolio-holding-item__value ${flashes[item.symbol] ? `price-flash-${flashes[item.symbol]}` : ''}`}
                         >

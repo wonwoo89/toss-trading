@@ -19,7 +19,7 @@ import {
   type CommissionRaw,
   type HoldingItem,
   type Order,
-  type UsMarketDayRaw,
+  type UsMarketCalendarRaw,
 } from '../shared/types';
 
 interface OrderbookEntry {
@@ -47,7 +47,7 @@ interface MarketPanelProps {
   holding?: HoldingItem;
   holdingProfitLossRate?: number;
   targetProfitRatePercent?: number;
-  usMarketDay?: UsMarketDayRaw;
+  usMarketCalendar?: UsMarketCalendarRaw | null;
   usMarketCalendarError?: string | null;
   usMarketCalendarLoading?: boolean;
   openOrders?: Order[];
@@ -91,7 +91,7 @@ export function MarketPanel({
   holding,
   holdingProfitLossRate,
   targetProfitRatePercent = 3,
-  usMarketDay,
+  usMarketCalendar,
   usMarketCalendarError,
   usMarketCalendarLoading,
   openOrders = [],
@@ -231,7 +231,7 @@ export function MarketPanel({
 
         <div className={`market-details-content ${detailsExpanded ? 'is-expanded' : ''}`}>
           <ChartMarketContextPanel
-            marketDay={usMarketDay}
+            marketCalendar={usMarketCalendar}
             calendarError={usMarketCalendarError}
             calendarLoading={usMarketCalendarLoading}
             bids={bids}

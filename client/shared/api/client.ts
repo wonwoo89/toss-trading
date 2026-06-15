@@ -26,12 +26,14 @@ const API_BASE = '/api';
 export class ApiRequestError extends Error {
   status: number;
   code?: string;
+  retryAfterMs?: number;
 
-  constructor(status: number, message: string, code?: string) {
+  constructor(status: number, message: string, code?: string, retryAfterMs?: number) {
     super(message);
     this.name = 'ApiRequestError';
     this.status = status;
     this.code = code;
+    this.retryAfterMs = retryAfterMs;
   }
 
   get isRateLimited() {
@@ -41,6 +43,13 @@ export class ApiRequestError extends Error {
 
 function accountHeaders(accountSeq?: string): HeadersInit {
   return accountSeq ? { 'X-Account-Seq': accountSeq } : {};
+}
+
+function parseRetryAfterMs(response: Response): number | undefined {
+  const raw = response.headers.get('Retry-After');
+  if (!raw) return undefined;
+  const seconds = Number(raw);
+  return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : undefined;
 }
 
 async function request<T>(
@@ -57,17 +66,28 @@ async function request<T>(
     },
   });
 
-  const data = (await response.json()) as T & ApiError;
-
   if (!response.ok) {
+    // 에러 본문이 JSON 이 아닐 수 있다(프록시 오류·빈 본문 등) → 안전하게 파싱.
+    let errorBody: ApiError | undefined;
+    try {
+      errorBody = (await response.json()) as ApiError;
+    } catch {
+      errorBody = undefined;
+    }
+
     throw new ApiRequestError(
       response.status,
-      data.error?.message ?? `요청에 실패했습니다 (${response.status})`,
-      data.error?.code
+      errorBody?.error?.message ?? `요청에 실패했습니다 (${response.status})`,
+      errorBody?.error?.code,
+      parseRetryAfterMs(response)
     );
   }
 
-  return data;
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
 }
 
 export const api = {
@@ -125,16 +145,14 @@ export const api = {
     >('/account/snapshot', { accountSeq }),
   getAllOpenOrders: (accountSeq?: string) =>
     request<ApiEnvelope<OrdersPageRaw>>('/orders?status=OPEN', { accountSeq }),
-  getTradeSnapshot: (symbol: string, accountSeq?: string) => {
-    console.log(`[client api] calling getTradeSnapshot for symbol=${symbol}`);
-    return request<
+  getTradeSnapshot: (symbol: string, accountSeq?: string) =>
+    request<
       ApiEnvelope<{
         orders: OrdersPageRaw;
         sellableQuantity: SellableQuantityRaw | null;
         holding: HoldingsItemRaw | null;
       }>
-    >(`/account/snapshot?symbol=${symbol}`, { accountSeq });
-  },
+    >(`/account/snapshot?symbol=${symbol}`, { accountSeq }),
   getOrders: (options?: { status?: string; symbol?: string }, accountSeq?: string) => {
     const params = new URLSearchParams();
     if (options?.status) params.set('status', options.status);

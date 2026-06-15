@@ -1,4 +1,5 @@
 import { HeaderAccountBalance } from './HeaderAccountBalance';
+import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { SymbolSearch } from './SymbolSearch';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -12,6 +13,7 @@ export function Header() {
         <div className="header-left-actions">
           <SymbolSearch />
           <ThemeToggle />
+          <KeyboardShortcutsHelp />
         </div>
       </div>
 

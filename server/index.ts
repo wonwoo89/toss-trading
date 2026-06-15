@@ -78,6 +78,10 @@ if (process.env.NODE_ENV === 'production') {
 app.use(
   (error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
     if (error instanceof TossApiError) {
+      // 429 면 토스가 권장한 대기 시간을 클라이언트에도 Retry-After(초)로 전달해 폴링이 선제 완화하게 함.
+      if (error.status === 429 && error.retryAfterMs !== undefined) {
+        res.setHeader('Retry-After', String(Math.ceil(error.retryAfterMs / 1000)));
+      }
       res.status(error.status).json({
         error: {
           message: error.message,

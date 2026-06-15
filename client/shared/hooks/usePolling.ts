@@ -11,7 +11,8 @@ const DEDUP_WINDOW_MS = 1500;
 
 function getBackoffMs(error: unknown, rateLimitBackoffMs: number, intervalMs: number) {
   if (error instanceof ApiRequestError && error.isRateLimited) {
-    return rateLimitBackoffMs;
+    // 서버가 전달한 Retry-After(토스 권장 대기)가 있으면 우선 사용, 없으면 기본 백오프.
+    return error.retryAfterMs ?? rateLimitBackoffMs;
   }
   return intervalMs;
 }
@@ -98,9 +99,14 @@ export function usePolling<T>(params: {
       try {
         const result = await fetcherRef.current();
         if (!cancelledRef.current) {
-          setData(result);
+          // fetcher 가 undefined 를 반환하면 "이번 주기 갱신 없음"으로 보고 직전 data 를 유지한다.
+          // (시세 fetch 가 실패/가드로 undefined 를 돌려줄 때 currentPrice 가 사라져
+          //  매수 가능·예상 금액 등이 깜빡이는 문제 방지. null 은 명시적 비우기로 그대로 반영.)
+          if (result !== undefined) {
+            setData(result);
+            hasDataRef.current = true;
+          }
           setError(null);
-          hasDataRef.current = true;
         }
       } catch (err) {
         if (!cancelledRef.current) {

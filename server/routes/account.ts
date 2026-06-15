@@ -50,47 +50,28 @@ accountRouter.get('/snapshot', async (req, res, next) => {
     const accountSeq = resolveAccountSeq(req.header('x-account-seq') ?? undefined);
     const symbol = req.query.symbol ? String(req.query.symbol).toUpperCase() : undefined;
 
-    console.log(`[account/snapshot] HIT - symbol=${symbol || 'none'}, accountSeq present=${!!req.header('x-account-seq')}`);
-
     if (symbol) {
-      console.log(`[account/snapshot] symbol=${symbol} - entering symbol branch, starting orders + holdings fetch`);
-      let ordersRes, holdingsRes;
-      try {
-        [ordersRes, holdingsRes] = await Promise.all([
-          tossRequest({
-            path: '/api/v1/orders',
-            accountSeq,
-            query: { status: 'OPEN', symbol },
-          }),
-          tossRequest({
-            path: '/api/v1/holdings',
-            accountSeq,
-          }),
-        ]);
-        console.log(`[account/snapshot] symbol=${symbol} - orders + holdings fetch SUCCESS`);
-      } catch (fetchErr) {
-        console.error(`[account/snapshot] symbol=${symbol} - orders or holdings fetch FAILED:`, fetchErr?.message || fetchErr);
-        if (fetchErr?.stack) console.error(fetchErr.stack);
-        throw fetchErr;
-      }
+      const [ordersRes, holdingsRes] = await Promise.all([
+        tossRequest({
+          path: '/api/v1/orders',
+          accountSeq,
+          query: { status: 'OPEN', symbol },
+        }),
+        tossRequest({
+          path: '/api/v1/holdings',
+          accountSeq,
+        }),
+      ]);
 
+      // sellable-quantity 는 실패해도 스냅샷 전체를 깨지 않고 null 로 폴백한다.
       let sellableRes = null;
-      console.log(`[sellable-quantity] symbol=${symbol} - ABOUT TO CALL /api/v1/sellable-quantity (accountSeq=${accountSeq ? 'yes' : 'no'})`);
       try {
         sellableRes = await tossRequest({
           path: '/api/v1/sellable-quantity',
           accountSeq,
           query: { symbol },
         });
-        console.log(`[sellable-quantity] symbol=${symbol} - SUCCESS from /api/v1/sellable-quantity, has result:`, !!sellableRes?.result);
-        if (sellableRes?.result) {
-          console.log(`[sellable-quantity] symbol=${symbol} - sellable result:`, JSON.stringify(sellableRes.result).slice(0, 200));
-        } else {
-          console.log(`[sellable-quantity] symbol=${symbol} - SUCCESS but result is null/empty`);
-        }
-      } catch (err) {
-        console.error(`[sellable-quantity] symbol=${symbol} - ERROR calling /api/v1/sellable-quantity:`, err?.message || err);
-        if (err?.stack) console.error(err.stack);
+      } catch {
         sellableRes = null;
       }
 
@@ -134,8 +115,6 @@ accountRouter.get('/snapshot', async (req, res, next) => {
       },
     });
   } catch (error) {
-    console.error(`[account/snapshot] overall handler error (symbol=${symbol || 'none'}):`, error?.message || error);
-    if (error?.stack) console.error(error.stack);
     next(error);
   }
 });
@@ -154,17 +133,14 @@ accountRouter.get('/commissions', async (req, res, next) => {
 
 accountRouter.get('/sellable-quantity/:symbol', async (req, res, next) => {
   const sym = req.params.symbol.toUpperCase();
-  console.log(`[sellable-quantity] (direct) symbol=${sym} - calling /api/v1/sellable-quantity...`);
   try {
     const data = await tossRequest({
       path: '/api/v1/sellable-quantity',
       accountSeq: resolveAccountSeq(req.header('x-account-seq') ?? undefined),
       query: { symbol: sym },
     });
-    console.log(`[sellable-quantity] (direct) symbol=${sym} - SUCCESS, has result:`, !!data?.result);
     res.json(data);
   } catch (error) {
-    console.error(`[sellable-quantity] (direct) symbol=${sym} - FAILED:`, error?.message || error);
     next(error);
   }
 });
