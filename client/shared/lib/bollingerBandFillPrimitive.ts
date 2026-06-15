@@ -1,5 +1,4 @@
 import type {
-  CanvasRenderingTarget2D,
   IChartApi,
   IPrimitivePaneRenderer,
   IPrimitivePaneView,
@@ -10,15 +9,29 @@ import type {
 } from 'lightweight-charts';
 import type { BollingerBandPoint } from './bollingerBands';
 
-class BollingerBandFillRenderer implements IPrimitivePaneRenderer {
-  constructor(
-    private bands: BollingerBandPoint[],
-    private series: ISeriesApi<'Line'>,
-    private chart: IChartApi,
-    private fillColor: string
-  ) {}
+// lightweight-charts 가 CanvasRenderingTarget2D 를 public export 하지 않으므로
+// draw 시그니처에서 타입을 추출해 쓴다.
+type DrawTarget = Parameters<IPrimitivePaneRenderer['draw']>[0];
 
-  draw(target: CanvasRenderingTarget2D) {
+class BollingerBandFillRenderer implements IPrimitivePaneRenderer {
+  private bands: BollingerBandPoint[];
+  private series: ISeriesApi<'Line'>;
+  private chart: IChartApi;
+  private fillColor: string;
+
+  constructor(
+    bands: BollingerBandPoint[],
+    series: ISeriesApi<'Line'>,
+    chart: IChartApi,
+    fillColor: string
+  ) {
+    this.bands = bands;
+    this.series = series;
+    this.chart = chart;
+    this.fillColor = fillColor;
+  }
+
+  draw(target: DrawTarget) {
     target.useBitmapCoordinateSpace(({ context, horizontalPixelRatio, verticalPixelRatio }) => {
       const timeScale = this.chart.timeScale();
       const coordinates: { x: number; yUpper: number; yLower: number }[] = [];
@@ -54,7 +67,11 @@ class BollingerBandFillRenderer implements IPrimitivePaneRenderer {
 }
 
 class BollingerBandFillPaneView implements IPrimitivePaneView {
-  constructor(private primitive: BollingerBandFillPrimitive) {}
+  private primitive: BollingerBandFillPrimitive;
+
+  constructor(primitive: BollingerBandFillPrimitive) {
+    this.primitive = primitive;
+  }
 
   zOrder() {
     return 'bottom' as const;

@@ -8,7 +8,7 @@ import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference
 import { useOrderRecommendations } from '../shared/hooks/useRecommendations';
 import type { CandleInterval, ChartCandle, HoldingItem, Order } from '../shared/types';
 import { formatOrderSuccessMessage } from '../shared/lib/formatOrderToast';
-import { ORDER_SIDE_LABEL } from '../shared/lib/labels';
+import type { LimitPriceRecommendation } from '../shared/lib/limitPriceRecommendation';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../shared/types';
 
 type PriceMode = 'limit' | 'current' | 'market';
@@ -303,7 +303,10 @@ export function OrderForm({
       ? sellQuantityRec.quantity * sellLimitPriceRec.price
       : undefined;
 
-  const getDisplayedPrice = (limitRec, currPrice) => {
+  const getDisplayedPrice = (
+    limitRec: LimitPriceRecommendation | undefined,
+    currPrice: number | undefined
+  ) => {
     if (limitRec?.available && limitRec.price !== undefined && Number.isFinite(limitRec.price)) {
       return limitRec.price.toFixed(2);
     }
@@ -319,14 +322,6 @@ export function OrderForm({
     Number.isFinite(limitPriceRecommendation.price)
       ? limitPriceRecommendation.price.toFixed(2)
       : undefined;
-
-  const applyRecommendedLimitPrice = () => {
-    if (!recommendedLimitPriceText) return;
-
-    limitPriceManualRef.current = false;
-    setPriceMode('limit');
-    setPrice(recommendedLimitPriceText);
-  };
 
   // 추천 정보로 간편 실행 (해당 사이드의 추천 수량 + 지정가 자동 적용 후 제출)
   const executeWithRecommendation = (intendedSide: 'BUY' | 'SELL') => {
@@ -458,19 +453,6 @@ export function OrderForm({
     updateTakeProfitRate(takeProfitRateRecommendation.rate);
   };
 
-  const applyRecommendedQuantity = () => {
-    if (
-      !quantityRecommendation.available ||
-      !quantityRecommendation.recommended ||
-      quantityRecommendation.quantity === undefined
-    ) {
-      return;
-    }
-
-    setQuantity(formatOrderQuantity(quantityRecommendation.quantity));
-    setSelectedQuantityPercent(quantityRecommendation.snapPercent);
-  };
-
   const clearSelectedQuantityPercent = () => {
     setSelectedQuantityPercent(undefined);
   };
@@ -494,7 +476,7 @@ export function OrderForm({
     if (amountOrder) return;
 
     const parsed = Number(currentQuantity);
-    let base =
+    const base =
       Number.isFinite(parsed) && parsed > 0
         ? parsed
         : (quantityRecommendationRef.current.quantity ?? 0);
@@ -683,13 +665,6 @@ export function OrderForm({
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const submitWithSide = (intendedSide: 'BUY' | 'SELL') => {
-    pendingSideRef.current = intendedSide;
-    // side 상태를 업데이트해서 추천 계산 등이 최신화되도록 (선택)
-    setSide(intendedSide);
-    formRef.current?.requestSubmit();
   };
 
   // Mobile: 핸들바로 주문폼 전체 펼치기/접기

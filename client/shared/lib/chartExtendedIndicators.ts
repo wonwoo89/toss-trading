@@ -1,4 +1,4 @@
-import { BOLLINGER_PERIOD, BOLLINGER_STD_DEV, getLatestBollingerBands } from './bollingerBands';
+import { BOLLINGER_PERIOD, getLatestBollingerBands } from './bollingerBands';
 import type { ChartCandle } from '../types';
 import type { ChartSignalBias, ChartSignalMetric } from './chartSignals';
 

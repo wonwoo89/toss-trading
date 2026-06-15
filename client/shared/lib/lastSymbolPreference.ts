@@ -2,7 +2,7 @@ const STORAGE_KEY = 'toss-trading:last-symbol';
 
 function normalizeSymbol(symbol: string) {
   const trimmed = symbol.trim().toUpperCase();
-  if (!trimmed || !/^[A-Z0-9.^\-]+$/.test(trimmed)) return null;
+  if (!trimmed || !/^[A-Z0-9.^-]+$/.test(trimmed)) return null;
   return trimmed;
 }
 

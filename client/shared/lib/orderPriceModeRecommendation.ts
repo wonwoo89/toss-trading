@@ -69,7 +69,7 @@ export function buildOrderPriceModeRecommendation(
     limit: 0,
   };
   const reasons: string[] = [];
-  let currentFillLikelihood: FillLikelihood = 'unknown';
+  let currentFillLikelihood: FillLikelihood;
   let marketPremiumPerShare: number | undefined;
 
   if (side === 'BUY') {
