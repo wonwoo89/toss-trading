@@ -24,6 +24,7 @@ export function StockPage() {
     createOrder,
     cancelOrder,
     portfolioTotals,
+    holdingsRefreshing,
     marketPanelProps,
     orderFormProps,
   } = useTrading({
@@ -58,7 +59,7 @@ export function StockPage() {
           openOrders={portfolioOpenOrders}
           activeSymbol={symbol}
           holdingsPollIntervalMs={HOLDINGS_POLL_MS}
-          holdingsRefreshing={false}
+          holdingsRefreshing={holdingsRefreshing}
           onCancelOrder={cancelOrder}
         />
         {hasSymbol && symbol ? (

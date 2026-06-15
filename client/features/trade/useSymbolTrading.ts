@@ -330,6 +330,32 @@ export function useSymbolTrading(
     }
   }, [isClosed, commissionsPolling.data, closedOrdersPolling.data, closedAccountDone]);
 
+  // 포트폴리오 스냅샷(보유 목록 + 매수가능) 인터벌 폴링.
+  // 기존엔 계좌 변경/주문 직후에만 갱신돼 목록이 주기적으로 안 바뀌었다. 실시간 토글 ON 이면
+  // 폐장에도 계속 갱신해 평가금액(연장 시세 반영)을 따라간다.
+  const portfolioSnapshotFetcher = useCallback(async () => {
+    if (!accountSeq) return null;
+    if (isClosed && closedAccountDone && !realtimePollingForced) return null;
+    return unwrapResult(await api.getPortfolioSnapshot(accountSeq));
+  }, [accountSeq, isClosed, closedAccountDone, realtimePollingForced]);
+
+  const portfolioPolling = usePolling({
+    fetcher: portfolioSnapshotFetcher,
+    intervalMs: HOLDINGS_POLL_MS,
+    enabled: effectiveAccountPollingEnabled || realtimePollingForced,
+    resetKey: `portfolio:${accountSeq ?? ''}`,
+    options: { initialDelayMs: PORTFOLIO_INITIAL_DELAY_MS },
+  });
+
+  // 폴링 결과를 포트폴리오 상태에 반영 (보유 목록 + 매수가능 + 폐장 1회 플래그)
+  useEffect(() => {
+    const snap = portfolioPolling.data;
+    if (!snap) return;
+    setPortfolioHoldings(mapHoldings(snap.holdings));
+    if (setBuyingPower) setBuyingPower(toNumber(snap.buyingPower.cashBuyingPower));
+    if (isClosed && !closedAccountDone) setClosedAccountDone(true);
+  }, [portfolioPolling.data, isClosed, closedAccountDone, setBuyingPower]);
+
   const marketPolling = usePolling({
     fetcher: marketFetcher,
     intervalMs: MARKET_POLL_MS,
@@ -1009,6 +1035,7 @@ export function useSymbolTrading(
     handleRealtimePollingForcedChange,
     commissions: commissionsPolling.data,
     closedOrdersState: closedOrdersPolling.data,
+    holdingsRefreshing: portfolioPolling.refreshing,
     marketData: marketPolling.data,
     refreshMarketNow: marketPolling.refreshNow,
     candles: candlesData.candles,

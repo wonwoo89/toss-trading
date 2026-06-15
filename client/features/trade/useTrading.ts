@@ -64,6 +64,7 @@ export function useTrading(options: UseTradingOptions = {}) {
     toggleHiddenSymbol: data.toggleHiddenSymbol,
     portfolioOpenOrders: data.portfolioOpenOrders,
     portfolioTotals: data.portfolioTotals,
+    holdingsRefreshing: data.holdingsRefreshing,
 
     // Entity를 활용한 position (feature + entity 협력)
     position: {
