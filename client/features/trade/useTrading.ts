@@ -58,6 +58,10 @@ export function useTrading(options: UseTradingOptions = {}) {
 
     // Sidebar용 포트폴리오 데이터 (raw)
     portfolioHoldings: data.portfolioHoldings,
+    visibleHoldings: data.visibleHoldings,
+    hiddenHoldings: data.hiddenHoldings,
+    hiddenSymbols: data.hiddenSymbols,
+    toggleHiddenSymbol: data.toggleHiddenSymbol,
     portfolioOpenOrders: data.portfolioOpenOrders,
     portfolioTotals: data.portfolioTotals,
 
