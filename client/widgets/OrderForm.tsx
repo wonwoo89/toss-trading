@@ -955,7 +955,7 @@ export function OrderForm({
               {!recInputsReady
                 ? '불러오는 중...'
                 : (sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined
-                  ? `${formatOrderQuantity(sellQuantityRec.quantity)}${getDisplayedPrice(sellLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(sellLimitPriceRec, currentPrice)}` : ''}`
+                  ? `${formatOrderQuantity(sellQuantityRec.quantity)}주${getDisplayedPrice(sellLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(sellLimitPriceRec, currentPrice)}` : ''}`
                   : '—')}
             </span>
             {recommendedSellAmount !== undefined && recInputsReady && (
