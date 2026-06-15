@@ -52,6 +52,8 @@ interface MarketPanelProps {
   buyingPower?: number;
   sellableQuantity?: number;
   commissions?: CommissionRaw[];
+  realtimePollingForced?: boolean;
+  onRealtimePollingForcedChange?: (forced: boolean) => void;
 }
 
 function formatUsd(value?: number) {
@@ -94,6 +96,8 @@ export function MarketPanel({
   buyingPower,
   sellableQuantity,
   commissions = [],
+  realtimePollingForced = false,
+  onRealtimePollingForcedChange,
 }: MarketPanelProps) {
   const [orderbookExpanded, setOrderbookExpanded] = useState(false);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
@@ -149,17 +153,32 @@ export function MarketPanel({
       <div className="chart-panel">
         <div className="chart-toolbar">
           <StockLabel symbol={symbol} name={stockName} as="heading" />
-          <select
-            className="chart-interval"
-            value={candleInterval}
-            onChange={(e) => onCandleIntervalChange(e.target.value as CandleInterval)}
-          >
-            {CANDLE_INTERVALS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <div className="chart-toolbar__controls">
+            {onRealtimePollingForcedChange && (
+              <label
+                className="realtime-toggle"
+                title="켜면 장 세션(프리/데이/애프터/정규)·주말과 무관하게 시세·차트를 계속 갱신합니다."
+              >
+                <input
+                  type="checkbox"
+                  checked={realtimePollingForced}
+                  onChange={(e) => onRealtimePollingForcedChange(e.target.checked)}
+                />
+                <span>실시간</span>
+              </label>
+            )}
+            <select
+              className="chart-interval"
+              value={candleInterval}
+              onChange={(e) => onCandleIntervalChange(e.target.value as CandleInterval)}
+            >
+              {CANDLE_INTERVALS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div className="chart-bleed">
