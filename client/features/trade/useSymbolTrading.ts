@@ -386,8 +386,11 @@ export function useSymbolTrading(
   const holdingSummary = useMemo(() => {
     if (!holding || holding.quantity <= 0) return undefined;
 
+    // 라이브 시세 우선 사용. options.currentPrice 가 없으면(StockPage 미전달) 시세 폴링값으로
+    // 평가금액/수익률을 실시간 반영한다. 둘 다 없을 때만 스냅샷 marketValue 로 폴백.
+    const livePrice = currentPrice ?? marketPolling.data?.price;
     const marketValue =
-      currentPrice !== undefined ? holding.quantity * currentPrice : holding.marketValue;
+      livePrice !== undefined ? holding.quantity * livePrice : holding.marketValue;
     const purchaseAmount =
       holding.purchaseAmount ??
       (holding.averagePrice !== undefined ? holding.quantity * holding.averagePrice : undefined);
@@ -411,7 +414,7 @@ export function useSymbolTrading(
       profitLoss,
       profitLossRate,
     };
-  }, [holding, currentPrice]);
+  }, [holding, currentPrice, marketPolling.data?.price]);
 
   // 숨김 종목을 분리: 합계·헤더 총자산은 visible 기준, hidden 은 사이드바 접이식에만 노출.
   const visibleHoldings = useMemo(
