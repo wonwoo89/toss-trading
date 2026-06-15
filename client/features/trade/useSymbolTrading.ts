@@ -63,13 +63,13 @@ import type {
 import type { TradeSnapshotState } from '../../shared/lib/tradeSnapshot';
 
 // Symbol trading 관련 폴링 주기 상수
-export const MARKET_POLL_MS = 250;
+export const MARKET_POLL_MS = 500;
 export const MARKET_CALENDAR_POLL_MS = 60_000;
 export const COMMISSIONS_POLL_MS = 300_000;
 export const CLOSED_ORDERS_POLL_MS = 60_000;
 export const CANDLE_POLL_MS = 500;
 export const TRADE_POLL_MS = 15000;
-export const HOLDINGS_POLL_MS = 1000;
+export const HOLDINGS_POLL_MS = 2000;
 
 export const MARKET_INITIAL_DELAY_MS = 0;
 export const CANDLE_INITIAL_DELAY_MS = 500;
@@ -286,7 +286,6 @@ export function useSymbolTrading(
       const ob = snap.orderbook;
       const priceInfo = p as { lastPrice?: string; price?: string } | undefined;
       const computedPrice = toNumber(priceInfo?.lastPrice ?? priceInfo?.price);
-      console.log(`[client] marketFetcher SUCCESS for ${symbol}: computedPrice=`, computedPrice, 'rawPrice0=', p);
       return {
         bids: (ob?.bids ?? []).map((b: OrderbookEntryRaw) => ({
           price: toNumber(b.price) ?? 0,
@@ -303,8 +302,8 @@ export function useSymbolTrading(
         })),
         price: computedPrice,
       };
-    } catch (e) {
-      console.warn(`[client] marketFetcher FAILED for ${symbol}:`, e);
+    } catch {
+      // 시세 조회 실패 시 undefined 반환 → usePolling 이 직전 시세를 유지(깜빡임 방지).
       return undefined;
     }
   }, [symbol, isClosed, closedMarketDone, realtimePollingForced]);
@@ -479,7 +478,6 @@ export function useSymbolTrading(
   const refreshTrade = useCallback(async () => {
     if (!accountSeq || !symbol) return;
 
-    console.log(`[client] refreshTrade called for symbol=${symbol}`);
     const seq = ++tradeRefreshSeqRef.current;
     const state = await fetchTradeSnapshotState(symbol, accountSeq);
     if (seq === tradeRefreshSeqRef.current) {
@@ -507,7 +505,6 @@ export function useSymbolTrading(
   useEffect(() => {
     if (contextIsReady && symbol && symbol !== prevSymbolRef.current) {
       prevSymbolRef.current = symbol;
-      console.log(`[client] triggering initial refreshTrade + market refresh + buyingPower for symbol=${symbol} on load`);
       void refreshTrade();
       marketPolling.refreshNow?.();
       candlesData.refreshNow?.();
@@ -762,19 +759,32 @@ export function useSymbolTrading(
     [refreshPortfolioOpenOrders]
   );
 
+  // 매수/매도 체결 감지 → 미체결 주문 영역 1회 갱신.
+  // portfolioOpenOrders 는 인터벌 폴링이 없어 지정가/목표수익률 매도가 나중에 체결돼도
+  // 패널이 갱신되지 않는다. 보유 수량은 포트폴리오 스냅샷(2초 폴링)으로 갱신되므로,
+  // 수량 변화(=체결)를 신호로 삼아 미체결 주문을 한 번 다시 불러온다.
+  const holdingsQtySignatureRef = useRef<string | null>(null);
+  useEffect(() => {
+    const signature = portfolioHoldings
+      .map((item) => `${item.symbol.toUpperCase()}:${item.quantity}`)
+      .sort()
+      .join('|');
+
+    const prev = holdingsQtySignatureRef.current;
+    holdingsQtySignatureRef.current = signature;
+
+    // 최초 로드(기준선 설정)나 변화 없을 때는 트리거하지 않는다.
+    if (prev === null || prev === signature) return;
+
+    void refreshPortfolioOpenOrders();
+  }, [portfolioHoldings, refreshPortfolioOpenOrders]);
+
   const refreshBuyingPower = useCallback(
     async (accSeq: string) => {
-      console.log(`[client] refreshBuyingPower called for accountSeq=${accSeq}`);
-      const buyingPowerRes = await api.getBuyingPower(accSeq).catch((e) => {
-        console.warn(`[client] refreshBuyingPower api error for ${accSeq}:`, e);
-        return null;
-      });
+      const buyingPowerRes = await api.getBuyingPower(accSeq).catch(() => null);
       if (buyingPowerRes && setBuyingPower) {
         const bp = toNumber(unwrapResult(buyingPowerRes).cashBuyingPower);
-        console.log(`[client] refreshBuyingPower SUCCESS, setting buyingPower=`, bp);
         setBuyingPower(bp);
-      } else {
-        console.log(`[client] refreshBuyingPower no res or no setter`);
       }
     },
     [setBuyingPower]
@@ -909,7 +919,7 @@ export function useSymbolTrading(
       holding: effectiveHolding && effectiveHolding.quantity > 0 ? effectiveHolding : undefined,
       holdingProfitLossRate: holdingSummary?.profitLossRate,
       targetProfitRatePercent: takeProfitRatePercent,
-      usMarketDay: usMarketCalendar?.today,
+      usMarketCalendar,
       usMarketCalendarError,
       usMarketCalendarLoading,
       openOrders,

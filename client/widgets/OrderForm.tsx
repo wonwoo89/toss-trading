@@ -3,7 +3,6 @@ import { StockHoldingSummary } from './StockHoldingSummary';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import { formatUsd } from '../shared/lib/formatHoldings';
-import { resolveOrderQuantity } from '../shared/lib/orderQuantityRecommendation';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { useOrderRecommendations } from '../shared/hooks/useRecommendations';
 import type { CandleInterval, ChartCandle, HoldingItem, Order } from '../shared/types';
@@ -226,12 +225,13 @@ export function OrderForm({
   // (candles 없어도 build*Recommendation 은 기본 추천을 낼 수 있음. candles는 보정용.)
   const recInputsReady = buyCapacityReady || sellCapacityReady;
 
+  // 손익분기는 가격·수수료만으로 결정되므로 side(매수/매도)와 무관하게 항상 계산해 노출한다.
   const buyBreakEvenHint = useMemo(() => {
-    if (side !== 'BUY' || effectiveBuyPrice === undefined || effectiveBuyPrice <= 0) {
+    if (effectiveBuyPrice === undefined || effectiveBuyPrice <= 0) {
       return undefined;
     }
     return buildBuyBreakEvenHint(effectiveBuyPrice, commissionRatePercent);
-  }, [commissionRatePercent, effectiveBuyPrice, side]);
+  }, [commissionRatePercent, effectiveBuyPrice]);
 
   // 7개 주문 추천의 입력을 한 객체로 모은다. useMemo 로 안정화해 실제 의존성이 바뀔 때만
   // 워커에 새 계산을 요청한다.
@@ -276,10 +276,11 @@ export function OrderForm({
 
   // 7개 추천(지정가·수량·익절률, BUY/SELL 각각)을 단일 Web Worker 왕복으로 계산해
   // 메인 스레드를 계산에서 분리한다. 결과 도착 전까지는 직전 값을 유지(no-flicker)한다.
+  // 커스텀(직접) 주문 폼은 추천 정보에 따라 바뀌지 않는다.
+  // 추천 데이터는 오직 아래 '추천 매수/매도' 카드 내부 표시에만 사용한다.
+  // (takeProfitRateRecommendation 은 별도 '목표 실수익률 매도' 추천 기능에서만 사용)
   const {
-    limitPriceRecommendation,
     takeProfitRateRecommendation,
-    quantityRecommendation,
     buyQuantityRec,
     sellQuantityRec,
     buyLimitPriceRec,
@@ -318,13 +319,6 @@ export function OrderForm({
     return null;
   };
 
-  const recommendedLimitPriceText =
-    limitPriceRecommendation.available &&
-    limitPriceRecommendation.price !== undefined &&
-    Number.isFinite(limitPriceRecommendation.price)
-      ? limitPriceRecommendation.price.toFixed(2)
-      : undefined;
-
   // 추천 정보로 간편 실행 (해당 사이드의 추천 수량 + 지정가 자동 적용 후 제출)
   const executeWithRecommendation = (intendedSide: 'BUY' | 'SELL') => {
     const isBuy = intendedSide === 'BUY';
@@ -356,6 +350,19 @@ export function OrderForm({
     }, 0);
   };
 
+  // 직접 입력값(수량·가격)으로 실행. 추천과 달리 목표수익률 자동 매도 설정을 그대로 따른다.
+  const executeManual = (intendedSide: 'BUY' | 'SELL') => {
+    if (submitting) return;
+    setSide(intendedSide);
+    pendingSideRef.current = intendedSide;
+    skipTakeProfitRef.current = false;
+    formRef.current?.requestSubmit();
+  };
+
+  // 키보드 단축키(A/S)에서 최신 executeManual 을 호출하기 위한 ref (keydown effect 는 빈 deps).
+  const executeManualRef = useRef(executeManual);
+  executeManualRef.current = executeManual;
+
   const shortcutStateRef = useRef({
     side,
     quantity,
@@ -380,18 +387,17 @@ export function OrderForm({
     currentPrice,
   };
 
-  const effectiveQuantity = useMemo(
-    () => resolveOrderQuantity(quantity, quantityRecommendation),
-    [quantity, quantityRecommendation]
-  );
+  // 커스텀 폼 수량은 사용자가 입력한 값만 사용한다(추천 수량으로 폴백하지 않음).
+  const effectiveQuantity = useMemo(() => {
+    const parsed = Number(quantity);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  }, [quantity]);
 
+  // 예상 금액은 입력 수량 × 현재가(가격변동)만 따른다.
   const estimatedAmount =
     !useAmountOrder && currentPrice !== undefined && effectiveQuantity !== undefined
       ? effectiveQuantity * currentPrice
       : undefined;
-
-  const quantityRecommendationRef = useRef(quantityRecommendation);
-  quantityRecommendationRef.current = quantityRecommendation;
 
   useEffect(() => {
     limitPriceManualRef.current = false;
@@ -405,13 +411,14 @@ export function OrderForm({
     }
   }, [currentPrice, priceMode]);
 
+  // 지정가 기본값은 추천이 아닌 현재가(가격변동)를 따른다. 사용자가 직접 수정하면 추종 중단.
   useEffect(() => {
-    if (priceMode !== 'limit' || !recommendedLimitPriceText || limitPriceManualRef.current) {
+    if (priceMode !== 'limit' || currentPrice === undefined || limitPriceManualRef.current) {
       return;
     }
 
-    setPrice(recommendedLimitPriceText);
-  }, [priceMode, recommendedLimitPriceText]);
+    setPrice(String(currentPrice));
+  }, [priceMode, currentPrice]);
 
   const handlePriceModeChange = (mode: PriceMode) => {
     setPriceMode(mode);
@@ -430,8 +437,8 @@ export function OrderForm({
 
     if (mode === 'limit') {
       limitPriceManualRef.current = false;
-      if (recommendedLimitPriceText) {
-        setPrice(recommendedLimitPriceText);
+      if (currentPrice !== undefined) {
+        setPrice(String(currentPrice));
       }
     }
   };
@@ -479,10 +486,8 @@ export function OrderForm({
     if (amountOrder) return;
 
     const parsed = Number(currentQuantity);
-    const base =
-      Number.isFinite(parsed) && parsed > 0
-        ? parsed
-        : (quantityRecommendationRef.current.quantity ?? 0);
+    // 추천 수량을 기준으로 삼지 않는다(커스텀 폼은 추천 비의존). 입력이 없으면 0에서 시작.
+    const base = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
     let next = base + delta;
     next = Math.max(1, next);
 
@@ -534,8 +539,15 @@ export function OrderForm({
       }
 
       switch (event.code) {
-        // A/S 키는 상단 탭이 제거되었으므로 매수/매도 모드 전환으로는 더 이상 사용하지 않음
-        // (실행 버튼으로 직접 결정)
+        // A = 직접 매수, S = 직접 매도 (직매수/매도 실행 버튼과 동일하게 동작)
+        case 'KeyA':
+          event.preventDefault();
+          executeManualRef.current('BUY');
+          return;
+        case 'KeyS':
+          event.preventDefault();
+          executeManualRef.current('SELL');
+          return;
         case 'Minus':
         case 'NumpadSubtract':
           event.preventDefault();
@@ -580,10 +592,6 @@ export function OrderForm({
           handlePriceModeChangeRef.current(nextMode);
           return;
         }
-        case 'Enter':
-          event.preventDefault();
-          formRef.current?.requestSubmit();
-          return;
         case 'Tab': {
           const form = formRef.current;
           if (!form) return;
@@ -621,9 +629,9 @@ export function OrderForm({
       payload.orderAmount = Number(orderAmount);
       payload.orderType = 'MARKET';
     } else {
-      const submitQuantity = resolveOrderQuantity(quantity, quantityRecommendation);
+      const submitQuantity = effectiveQuantity;
       if (submitQuantity === undefined) {
-        showToast('수량을 입력하거나 추천 수량을 확인해 주세요.', 'error');
+        showToast('수량을 입력해 주세요.', 'error');
         return;
       }
 
@@ -687,6 +695,13 @@ export function OrderForm({
       ref={formRef}
       className={`panel order-form ${isMobileExpanded ? 'is-mobile-expanded' : ''}`}
       onSubmit={handleSubmit}
+      onKeyDown={(event) => {
+        // Enter 로는 주문을 실행하지 않는다(버튼 또는 A/S 단축키로만).
+        // 입력창에서의 암묵적 폼 제출(금액 주문 단일 입력 등)도 차단.
+        if (event.key === 'Enter' && event.target instanceof HTMLInputElement) {
+          event.preventDefault();
+        }
+      }}
     >
       {/* 모바일 플로팅 주문폼용 핸들바: 탭하면 전체 주문폼(입력/요약 등) 보였다/숨겼다 */}
       <div
@@ -762,13 +777,7 @@ export function OrderForm({
                     <button
                       key={percent}
                       type="button"
-                      className={
-                        selectedQuantityPercent === percent
-                          ? 'active'
-                          : quantityRecommendation.snapPercent === percent
-                            ? 'is-suggested'
-                            : ''
-                      }
+                      className={selectedQuantityPercent === percent ? 'active' : ''}
                       onClick={() => applyQuantityPercent(percent)}
                       disabled={quantityPercentDisabled}
                     >
@@ -890,38 +899,35 @@ export function OrderForm({
       </div>
 
       <div className="order-form__submit-block">
+        {/* 매수 가능·손익분기·매도 가능·예상 금액은 side(매수/매도)나 추천 상황과 무관하게 항상 노출 */}
         <div className="order-form__hints">
-          {side === 'BUY' && (
-            <div className="order-form__buy-hints-row">
-              <p className="hint order-form__footer-hint">
-                매수 가능: {buyCapacityReady
-                  ? formatOrderQuantity(maxBuyQuantity ?? 0) + '주'
-                  : (buyingPower !== undefined || currentPrice !== undefined ? '—' : '불러오는 중...')}
-              </p>
-              {buyBreakEvenHint && buyCapacityReady && (
-                <>
-                  <span className="order-form__hint-divider">·</span>
-                  <p className="hint order-form__footer-hint">{buyBreakEvenHint}</p>
-                </>
-              )}
-            </div>
-          )}
-
-          {side === 'SELL' && (
+          <div className="order-form__buy-hints-row">
             <p className="hint order-form__footer-hint">
-              매도 가능: {sellCapacityReady && effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0
-                ? `${effectiveSellableQuantity}주`
-                : (sellCapacityReady ? '0주' : (effectiveSellableQuantity !== undefined ? '—' : '불러오는 중...'))}
+              매수 가능: {buyCapacityReady
+                ? formatOrderQuantity(maxBuyQuantity ?? 0) + '주'
+                : (buyingPower !== undefined || currentPrice !== undefined ? '—' : '불러오는 중...')}
             </p>
-          )}
+            {buyBreakEvenHint && (
+              <>
+                <span className="order-form__hint-divider">·</span>
+                <p className="hint order-form__footer-hint">{buyBreakEvenHint}</p>
+              </>
+            )}
+          </div>
 
-          {estimatedAmount !== undefined && (
+          <p className="hint order-form__footer-hint">
+            매도 가능: {sellCapacityReady && effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0
+              ? `${effectiveSellableQuantity}주`
+              : (sellCapacityReady ? '0주' : (effectiveSellableQuantity !== undefined ? '—' : '불러오는 중...'))}
+          </p>
+
+          {!useAmountOrder && (
             <>
               <p className="order-estimated-amount">
-                예상 매수 금액 <strong>{formatUsd(estimatedAmount)}</strong>
+                예상 매수 금액 <strong>{estimatedAmount !== undefined ? formatUsd(estimatedAmount) : '—'}</strong>
               </p>
               <p className="order-estimated-amount sell">
-                예상 매도 금액 <strong>{formatUsd(estimatedAmount)}</strong>
+                예상 매도 금액 <strong>{estimatedAmount !== undefined ? formatUsd(estimatedAmount) : '—'}</strong>
               </p>
             </>
           )}
@@ -970,9 +976,26 @@ export function OrderForm({
           </div>
         </div>
 
-        <div className="order-manual-hint">
-          <span className="hint">수량/가격을 직접 조정한 후에는 Enter 키로 실행하세요.</span>
+        {/* 직접 입력(수량·가격)으로 실행하는 버튼. 추천 카드와 별개로 사용자가 정한 값 그대로 주문. */}
+        <div className="order-manual-actions">
+          <button
+            type="button"
+            className="order-manual-btn buy"
+            onClick={() => executeManual('BUY')}
+            disabled={submitting}
+          >
+            직접 매수
+          </button>
+          <button
+            type="button"
+            className="order-manual-btn sell"
+            onClick={() => executeManual('SELL')}
+            disabled={submitting}
+          >
+            직접 매도
+          </button>
         </div>
+
       </div>
     </form>
   );

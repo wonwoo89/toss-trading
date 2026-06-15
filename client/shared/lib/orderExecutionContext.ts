@@ -29,8 +29,6 @@ export function buildOrderExecutionMetrics(params: {
   const { openOrders, buyingPower, sellableQuantity, holdingQuantity, currentPrice } = params;
   const symbolOrders = openOrders;
 
-  console.log(`[client] buildOrderExecutionMetrics: buyingPower=${buyingPower}, currentPrice=${currentPrice}, hasSell=${(sellableQuantity ?? holdingQuantity) != null}`);
-
   const buyOrders = symbolOrders.filter((order) => order.side === 'BUY');
   const sellOrders = symbolOrders.filter((order) => order.side === 'SELL');
 

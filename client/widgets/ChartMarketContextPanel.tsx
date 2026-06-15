@@ -25,7 +25,7 @@ import type {
   CommissionRaw,
   HoldingItem,
   Order,
-  UsMarketDayRaw,
+  UsMarketCalendarRaw,
 } from '../shared/types';
 
 interface OrderbookEntry {
@@ -40,7 +40,7 @@ interface TradeEntry {
 }
 
 interface ChartMarketContextPanelProps {
-  marketDay?: UsMarketDayRaw;
+  marketCalendar?: UsMarketCalendarRaw | null;
   calendarError?: string | null;
   calendarLoading?: boolean;
   bids?: OrderbookEntry[];
@@ -122,7 +122,7 @@ function MetricRow({ label, metrics }: { label: string; metrics: ContextMetric[]
 }
 
 export function ChartMarketContextPanel({
-  marketDay,
+  marketCalendar,
   calendarError,
   calendarLoading = false,
   bids = [],
@@ -149,7 +149,10 @@ export function ChartMarketContextPanel({
     return () => clearInterval(timer);
   }, []);
 
-  const session = useMemo(() => resolveUsMarketSession(marketDay, now), [marketDay, now]);
+  const session = useMemo(
+    () => resolveUsMarketSession(marketCalendar, now),
+    [marketCalendar, now]
+  );
 
   const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids]);
   const tradeFlow = useMemo(() => buildTradeFlowSnapshot(trades, bids, asks), [asks, bids, trades]);

@@ -1,4 +1,4 @@
-import type { UsMarketDayRaw } from '../types';
+import type { UsMarketCalendarRaw, UsMarketDayRaw } from '../types';
 
 export type UsMarketSessionKind =
   | 'day'
@@ -73,10 +73,15 @@ export function isUsWeekend(date = new Date()): boolean {
   return day === 0 || day === 6; // 0=일요일, 6=토요일
 }
 
+function dayHasAnySession(day: UsMarketDayRaw | undefined): boolean {
+  if (!day) return false;
+  return SESSION_DEFS.some((def) => parseSession(day[def.key]) !== null);
+}
+
 export function isUsMarketHoliday(today: UsMarketDayRaw | undefined): boolean {
   if (!today) return false;
-  const status = resolveUsMarketSession(today);
-  return status.holiday === true || status.kind === 'holiday';
+  // 세션 창이 하나도 없으면 휴장.
+  return !dayHasAnySession(today);
 }
 
 export function shouldEnableRecurringMarketPolling(today: UsMarketDayRaw | undefined): boolean {
@@ -88,33 +93,47 @@ export function shouldEnableRecurringMarketPolling(today: UsMarketDayRaw | undef
   return !isUsMarketHoliday(today);
 }
 
+interface ResolvedSession {
+  kind: UsMarketSessionKind;
+  label: string;
+  window: UsMarketSessionWindow;
+}
+
+// 토스 캘린더는 세션을 KST 날짜 기준으로 버킷팅한다. 정규장은 전날(KST) 22:30 에 열려 자정을 넘겨
+// 다음날 05:00 까지 이어지므로, 자정~새벽에는 활성 세션이 previousBusinessDay 에 들어 있다.
+// 따라서 전날·오늘·다음날 세션을 모두 모아 현재 활성/다음 세션을 찾아야 한다.
+function collectSessions(days: (UsMarketDayRaw | undefined)[]): ResolvedSession[] {
+  const sessions: ResolvedSession[] = [];
+  for (const day of days) {
+    if (!day) continue;
+    for (const def of SESSION_DEFS) {
+      const window = parseSession(day[def.key]);
+      if (window) {
+        sessions.push({ kind: def.kind, label: def.label, window });
+      }
+    }
+  }
+  return sessions;
+}
+
 export function resolveUsMarketSession(
-  today: UsMarketDayRaw | undefined,
+  calendar: UsMarketCalendarRaw | null | undefined,
   now = new Date()
 ): UsMarketSessionStatus {
+  const today = calendar?.today;
   if (!today) {
     return { kind: 'unknown', label: '장 정보 없음', unavailable: true };
   }
 
-  const sessions = SESSION_DEFS.map((def) => ({
-    ...def,
-    window: parseSession(today[def.key]),
-  }));
-
-  if (sessions.every((session) => !session.window)) {
-    return {
-      kind: 'holiday',
-      label: '휴장',
-      detail: `${today.date} 미국 휴장`,
-      holiday: true,
-    };
-  }
-
   const nowMs = now.getTime();
+  const sessions = collectSessions([
+    calendar.previousBusinessDay,
+    today,
+    calendar.nextBusinessDay,
+  ]);
 
+  // 1) 현재 진행 중인 세션 (전날 정규장이 자정을 넘긴 경우 포함)
   for (const session of sessions) {
-    if (!session.window) continue;
-
     const { startTime, endTime } = session.window;
     if (nowMs >= startTime.getTime() && nowMs < endTime.getTime()) {
       const remaining = endTime.getTime() - nowMs;
@@ -127,11 +146,22 @@ export function resolveUsMarketSession(
     }
   }
 
-  const upcoming = sessions
-    .filter((session) => session.window && session.window.startTime.getTime() > nowMs)
-    .sort((a, b) => a.window!.startTime.getTime() - b.window!.startTime.getTime())[0];
+  // 2) 진행 중인 세션이 없고 오늘 세션 자체가 없으면 휴장
+  if (!dayHasAnySession(today)) {
+    return {
+      kind: 'holiday',
+      label: '휴장',
+      detail: `${today.date} 미국 휴장`,
+      holiday: true,
+    };
+  }
 
-  if (upcoming?.window) {
+  // 3) 다음 개장까지 카운트다운
+  const upcoming = sessions
+    .filter((session) => session.window.startTime.getTime() > nowMs)
+    .sort((a, b) => a.window.startTime.getTime() - b.window.startTime.getTime())[0];
+
+  if (upcoming) {
     const remaining = upcoming.window.startTime.getTime() - nowMs;
     return {
       kind: 'closed',
