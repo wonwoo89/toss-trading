@@ -6,10 +6,12 @@ import {
   HistogramSeries,
   LineSeries,
   LineStyle,
+  TickMarkType,
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
   type LogicalRange,
+  type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { calculateBollingerBandSeries } from '../shared/lib/bollingerBands';
@@ -74,6 +76,49 @@ function formatPercentFromOpen(value: number, open: number) {
 
 function formatOhlcLegendValue(value: number, open: number) {
   return `${formatChartPrice(value)}${formatPercentFromOpen(value, open)}`;
+}
+
+// lightweight-charts 는 시간 축/크로스헤어를 기본 UTC 로 표기한다. 한국(KST, UTC+9) 기준으로
+// 보이도록 축 눈금과 크로스헤어 시간을 Asia/Seoul 로 포맷한다. (데이터 타임스탬프는 그대로 UTC)
+const CHART_TZ = 'Asia/Seoul';
+
+function formatKstTickMark(time: Time, tickMarkType: TickMarkType): string {
+  const date = new Date((time as number) * 1000);
+  switch (tickMarkType) {
+    case TickMarkType.Year:
+      return date.toLocaleDateString('ko-KR', { year: 'numeric', timeZone: CHART_TZ });
+    case TickMarkType.Month:
+      return date.toLocaleDateString('ko-KR', { month: 'short', timeZone: CHART_TZ });
+    case TickMarkType.DayOfMonth:
+      return date.toLocaleDateString('ko-KR', { day: 'numeric', month: 'numeric', timeZone: CHART_TZ });
+    case TickMarkType.TimeWithSeconds:
+      return date.toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+        timeZone: CHART_TZ,
+      });
+    default:
+      return date.toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+        timeZone: CHART_TZ,
+      });
+  }
+}
+
+function formatKstCrosshairTime(time: Time): string {
+  const date = new Date((time as number) * 1000);
+  return date.toLocaleString('ko-KR', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: CHART_TZ,
+  });
 }
 
 function getCandlePriceScaleOptions() {
@@ -368,11 +413,16 @@ export function CandleChart({
       rightPriceScale: {
         borderColor: colors.border,
       },
+      localization: {
+        locale: 'ko-KR',
+        timeFormatter: formatKstCrosshairTime,
+      },
       timeScale: {
         borderColor: colors.border,
         timeVisible: true,
         secondsVisible: false,
         minBarSpacing: CHART_MIN_BAR_SPACING,
+        tickMarkFormatter: formatKstTickMark,
       },
       crosshair: {
         vertLine: { color: colors.crosshair },
