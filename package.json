@@ -11,6 +11,7 @@
     "build": "tsc -b && vite build",
     "build:all": "pnpm run build:wasm && pnpm run build",
     "build:wasm": "asc wasm/assembly/indicators.ts --outFile client/shared/lib/wasm/indicators.wasm --runtime stub --optimize",
+    "gen:icons": "node scripts/gen-icons.mjs",
     "start": "NODE_ENV=production tsx server/index.ts",
     "lint": "eslint .",
     "test:engine": "tsx client/shared/lib/recommendationEngine.resilience.test.ts",
@@ -30,6 +31,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^24.12.3",
