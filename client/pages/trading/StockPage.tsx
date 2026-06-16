@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { MarketPanel } from '../../widgets/MarketPanel';
 import { OrderForm } from '../../widgets/OrderForm';
 import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
+import { HoldingsChipBar } from '../../widgets/HoldingsChipBar';
 
 import { useAppContext } from '../../app/providers/AppContext';
 import { HOLDINGS_POLL_MS, useTrading, useFocusOnSymbol } from '../../features/trade';
@@ -45,7 +46,10 @@ export function StockPage() {
       >
         <div className="trading-layout__main">
           {hasSymbol && symbol ? (
-            <MarketPanel key={symbol} {...marketPanelProps} symbol={symbol} />
+            <>
+              <HoldingsChipBar holdings={visibleHoldings} activeSymbol={symbol} />
+              <MarketPanel key={symbol} {...marketPanelProps} symbol={symbol} />
+            </>
           ) : null}
         </div>
         <PortfolioSidebar

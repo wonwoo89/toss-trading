@@ -702,6 +702,49 @@ textarea {
   min-height: 0;
 }
 
+/* 모바일 전용 보유 종목 칩 바 (데스크톱 숨김, 모바일 media query 에서 노출) */
+.holdings-chip-bar {
+  display: none;
+}
+
+.holdings-chip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.holdings-chip.is-active {
+  background: var(--holding-item-active-bg);
+  border-color: var(--holding-item-active-border);
+}
+
+.holdings-chip__ticker {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.holdings-chip__pl {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.holdings-chip__pl.kr-profit {
+  color: var(--color-up);
+}
+
+.holdings-chip__pl.kr-loss {
+  color: var(--color-down);
+}
+
 .order-column {
   position: sticky;
   top: 1rem;
@@ -1866,6 +1909,12 @@ select:focus-visible {
   padding-bottom: 0.5rem;
 }
 
+/* submit-block 의 항상 보이는 보유 요약: 기본(데스크톱·모바일 펼침)은 숨김.
+   모바일 접힘에서만 노출(media query). body 의 요약과 중복되지 않게 한다. */
+.order-form__sticky-holding {
+  display: none;
+}
+
 .order-form__submit-block {
   flex: 0 0 auto;
   margin-left: -1rem;
@@ -2470,6 +2519,26 @@ select:focus-visible {
     height: auto;
   }
 
+  /* 모바일: 보유 종목 칩 바 노출 (티커 + 수익률%, 가로 스크롤). 상단에서 바로 종목 전환. */
+  .holdings-chip-bar {
+    display: flex;
+    gap: 0.4rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-subtle) transparent;
+    padding-bottom: 2px;
+  }
+
+  .holdings-chip-bar::-webkit-scrollbar {
+    height: 2px;
+  }
+
+  .holdings-chip-bar::-webkit-scrollbar-thumb {
+    background: var(--border-subtle);
+    border-radius: 2px;
+  }
+
   .market-panel {
     height: auto;
     overflow: visible;
@@ -2620,6 +2689,12 @@ select:focus-visible {
   /* 모바일 접힘 상태: order-form__body 전체를 숨겨서 추천 rec grid만 보이게 함 */
   .order-form:not(.is-mobile-expanded) .order-form__body {
     display: none;
+  }
+
+  /* 모바일 접힘 상태: 보유 요약(수량/평단/총가치)은 항상 노출 (추천 버튼과 함께).
+     펼침 상태에서는 body 의 요약이 보이므로 여기선 숨겨 중복 방지. */
+  .order-form:not(.is-mobile-expanded) .order-form__sticky-holding {
+    display: block;
   }
 
   /* 모바일 접힘 상태: 힌트(매수가능·손익분기·예상 금액)와 직접 매수/매도 버튼도 숨김.
