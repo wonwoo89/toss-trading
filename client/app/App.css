@@ -2370,7 +2370,8 @@ select:focus-visible {
   flex-direction: column;
   justify-content: center;
   gap: 0.15rem;
-  padding: 0.55rem 0.6rem;
+  /* 좌측 그라데이션 바(::before 6px)와 텍스트가 붙지 않도록 왼쪽 패딩을 더 줌 */
+  padding: 0.55rem 0.6rem 0.55rem 0.9rem;
   /* 데이터 유무(추천/—/불러오는 중)에 따라 행 높이가 들쑥날쑥하지 않도록 고정 */
   height: 82px;
   box-sizing: border-box;
