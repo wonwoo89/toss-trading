@@ -1394,6 +1394,8 @@ select:focus-visible {
 .chart-toolbar .stock-label {
   min-width: 0;
   flex: 1 1 auto;
+  /* 종목명이 2줄로 줄바꿈될 때 티커가 첫 줄(baseline)에 붙지 않고 수직 중앙에 오도록 */
+  align-items: center;
 }
 
 .chart-toolbar .stock-label--heading {
