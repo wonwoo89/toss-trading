@@ -77,6 +77,14 @@ textarea {
   white-space: nowrap;
 }
 
+/* 앱 네임 대신 로고만 표시 */
+.brand__logo {
+  height: 28px;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+}
+
 .brand h1,
 .panel-title h2 {
   margin: 0;
@@ -2152,7 +2160,7 @@ select:focus-visible {
 
 .order-manual-btn {
   padding: 0.65rem 0.6rem;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid transparent;
   font-size: 0.9rem;
   font-weight: 700;
@@ -2305,7 +2313,7 @@ select:focus-visible {
   height: 82px;
   box-sizing: border-box;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 12px;
   font-size: 0.82rem;
   background: var(--bg-subtle);
   border: 1px solid var(--border-subtle);
@@ -2755,6 +2763,11 @@ select:focus-visible {
   .chart-toolbar {
     padding-left: 0;
     padding-right: 0;
+  }
+
+  /* 종목명이 길어도 한 줄 말줄임 → 2줄로 늘어나 툴바가 커지며 차트 시간축이 잘리는 것 방지 */
+  .chart-toolbar .stock-label--heading .stock-label__name {
+    -webkit-line-clamp: 1;
   }
 
   /* .portfolio-sidebar 내부 자식(요약/보유종목/미체결) 은 모바일에서도 카드 형태 복원 */
