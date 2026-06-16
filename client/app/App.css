@@ -2507,6 +2507,27 @@ select:focus-visible {
   margin-top: 0.6rem;
 }
 
+/* 가격/주문금액 라벨 줄 + 우측 금액 주문 토글 */
+.order-form__field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.order-form__field-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.order-form__amount-toggle {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .order-quick-actions button {
   width: auto;
   flex: 0 0 auto;

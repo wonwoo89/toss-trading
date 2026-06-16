@@ -636,6 +636,18 @@ export function OrderForm({
     column.classList.toggle('order-column--mobile-expanded', isMobileExpanded);
   }, [isMobileExpanded]);
 
+  // 가격/주문금액 라벨과 같은 줄(우측)에 두는 금액 주문 토글 (두 모드 공통)
+  const amountOrderToggle = (
+    <label className="checkbox order-form__amount-toggle">
+      <input
+        type="checkbox"
+        checked={useAmountOrder}
+        onChange={(e) => setUseAmountOrder(e.target.checked)}
+      />
+      금액 주문 (USD, 정규장만)
+    </label>
+  );
+
   return (
     <form
       ref={formRef}
@@ -678,32 +690,31 @@ export function OrderForm({
 
         {/* 매수/매도 구분은 상단 탭이 아닌 하단 실행 버튼으로만 결정 (UX 개선) */}
 
-        <label className="checkbox">
-          <input
-            type="checkbox"
-            checked={useAmountOrder}
-            onChange={(e) => setUseAmountOrder(e.target.checked)}
-          />
-          금액 주문 (USD, 정규장만)
-        </label>
-
         {useAmountOrder ? (
-          <label>
-            주문 금액 (USD)
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={orderAmount}
-              onChange={(e) => setOrderAmount(e.target.value)}
-              required
-            />
-          </label>
+          <div className="order-form__section">
+            <div className="order-form__field-header">
+              <span className="order-form__field-label">주문 금액 (USD)</span>
+              {amountOrderToggle}
+            </div>
+            <label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={orderAmount}
+                onChange={(e) => setOrderAmount(e.target.value)}
+                required
+              />
+            </label>
+          </div>
         ) : (
           <>
             <div className="order-form__section">
+              <div className="order-form__field-header">
+                <span className="order-form__field-label">가격</span>
+                {amountOrderToggle}
+              </div>
               <label>
-                가격
                 <input
                   type="number"
                   min="0"
