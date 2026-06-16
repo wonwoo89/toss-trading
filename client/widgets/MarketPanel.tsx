@@ -1,5 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
-import { CandleChart } from './CandleChart';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+// lightweight-charts(차트 청크)를 지연 로드 → 주문폼/시세가 먼저 그려진다.
+const CandleChart = lazy(() =>
+  import('./CandleChart').then((m) => ({ default: m.CandleChart }))
+);
 import { ChartMarketContextPanel } from './ChartMarketContextPanel';
 import { ChartSignalPanel } from './ChartSignalPanel';
 import { StockLabel } from './StockLabel';
@@ -201,16 +204,24 @@ export function MarketPanel({
         </div>
 
         <div className="chart-bleed">
-          <CandleChart
-            candles={candles}
-            averagePrice={averagePrice}
-            loading={candlesLoading}
-            loadingOlder={candlesLoadingOlder}
-            error={candlesError}
-            fitKey={`${symbol}:${candleInterval}`}
-            hasMoreHistory={hasMoreHistory}
-            onLoadOlder={onLoadOlderCandles}
-          />
+          <Suspense
+            fallback={
+              <div className="chart-block chart-block--loading">
+                <p className="chart-status hint">차트 불러오는 중…</p>
+              </div>
+            }
+          >
+            <CandleChart
+              candles={candles}
+              averagePrice={averagePrice}
+              loading={candlesLoading}
+              loadingOlder={candlesLoadingOlder}
+              error={candlesError}
+              fitKey={`${symbol}:${candleInterval}`}
+              hasMoreHistory={hasMoreHistory}
+              onLoadOlder={onLoadOlderCandles}
+            />
+          </Suspense>
         </div>
       </div>
 
