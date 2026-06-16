@@ -644,7 +644,7 @@ export function OrderForm({
         checked={useAmountOrder}
         onChange={(e) => setUseAmountOrder(e.target.checked)}
       />
-      금액 주문 (USD, 정규장만)
+      금액 주문
     </label>
   );
 
