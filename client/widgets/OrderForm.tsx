@@ -13,7 +13,7 @@ import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '
 
 type PriceMode = 'limit' | 'current' | 'market';
 
-const QUANTITY_PERCENTAGES = [10, 25, 50, 75, 100] as const;
+const QUANTITY_PERCENTAGES = [1, 10, 25, 50, 100] as const;
 
 const PRICE_MODES = ['limit', 'current', 'market'] as const satisfies readonly PriceMode[];
 
