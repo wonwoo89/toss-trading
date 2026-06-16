@@ -393,11 +393,27 @@ export function OrderForm({
     return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
   }, [quantity]);
 
-  // 예상 금액은 입력 수량 × 현재가(가격변동)만 따른다.
-  const estimatedAmount =
-    !useAmountOrder && currentPrice !== undefined && effectiveQuantity !== undefined
-      ? effectiveQuantity * currentPrice
-      : undefined;
+  // 예상 금액(현재가 기준). % 수량을 선택하면 매수는 주문가능 금액(maxBuyQuantity), 매도는 보유
+  // 수량(effectiveSellableQuantity)을 각각 기준으로 계산한다. 수동 입력 수량이면 그 수량을 쓴다.
+  const buyEstimatedAmount = useMemo(() => {
+    if (useAmountOrder || currentPrice === undefined || currentPrice <= 0) return undefined;
+    if (selectedQuantityPercent !== undefined && maxBuyQuantity !== undefined && maxBuyQuantity > 0) {
+      const qty = quantityFromPercent(maxBuyQuantity, selectedQuantityPercent);
+      return qty > 0 ? qty * currentPrice : undefined;
+    }
+    return effectiveQuantity !== undefined ? effectiveQuantity * currentPrice : undefined;
+  }, [useAmountOrder, currentPrice, selectedQuantityPercent, maxBuyQuantity, effectiveQuantity]);
+
+  const sellEstimatedAmount = useMemo(() => {
+    if (useAmountOrder || currentPrice === undefined || currentPrice <= 0) return undefined;
+    const sellable =
+      effectiveSellableQuantity !== undefined ? Math.floor(effectiveSellableQuantity) : undefined;
+    if (selectedQuantityPercent !== undefined && sellable !== undefined && sellable > 0) {
+      const qty = quantityFromPercent(sellable, selectedQuantityPercent);
+      return qty > 0 ? qty * currentPrice : undefined;
+    }
+    return effectiveQuantity !== undefined ? effectiveQuantity * currentPrice : undefined;
+  }, [useAmountOrder, currentPrice, selectedQuantityPercent, effectiveSellableQuantity, effectiveQuantity]);
 
   useEffect(() => {
     limitPriceManualRef.current = false;
@@ -937,10 +953,10 @@ export function OrderForm({
           {!useAmountOrder && (
             <>
               <p className="order-estimated-amount">
-                예상 매수 금액 <strong>{estimatedAmount !== undefined ? formatUsd(estimatedAmount) : '—'}</strong>
+                예상 매수 금액 <strong>{buyEstimatedAmount !== undefined ? formatUsd(buyEstimatedAmount) : '—'}</strong>
               </p>
               <p className="order-estimated-amount sell">
-                예상 매도 금액 <strong>{estimatedAmount !== undefined ? formatUsd(estimatedAmount) : '—'}</strong>
+                예상 매도 금액 <strong>{sellEstimatedAmount !== undefined ? formatUsd(sellEstimatedAmount) : '—'}</strong>
               </p>
             </>
           )}
