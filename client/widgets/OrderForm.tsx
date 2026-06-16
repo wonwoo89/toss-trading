@@ -468,11 +468,6 @@ export function OrderForm({
     setSelectedQuantityPercent((prev) => (prev === percent ? undefined : percent));
   };
 
-  const applyRecommendedTakeProfitRate = () => {
-    if (!takeProfitRateRecommendation.available) return;
-    updateTakeProfitRate(takeProfitRateRecommendation.rate);
-  };
-
   const clearSelectedQuantityPercent = () => {
     setSelectedQuantityPercent(undefined);
   };
@@ -711,7 +706,6 @@ export function OrderForm({
         ) : (
           <>
             <div className="order-form__section">
-              <div className="order-form__section-title">가격</div>
               <label>
                 지정가 (USD)
                 <input
@@ -817,20 +811,6 @@ export function OrderForm({
                         {rate}%
                       </button>
                     ))}
-                  </div>
-                  <div className="order-insight order-insight--compact order-take-profit-recommendation">
-                    <span className="order-insight__title">추천 목표</span>
-                    <strong className="order-insight__value">
-                      {takeProfitRateRecommendation.rateLabel}
-                    </strong>
-                    <button
-                      type="button"
-                      className="order-insight__apply"
-                      onClick={applyRecommendedTakeProfitRate}
-                      disabled={!takeProfitRateRecommendation.available || submitting}
-                    >
-                      적용
-                    </button>
                   </div>
                 </>
               )}

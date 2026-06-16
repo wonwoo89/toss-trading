@@ -2479,9 +2479,25 @@ select:focus-visible {
   gap: 4px;
 }
 
+/* 추천 목표 수익률에 해당하는 버튼 강조 (선택 전 상태) */
 .order-quick-actions button.is-suggested {
-  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border-subtle));
+  position: relative;
+  border: 1px solid var(--accent, #3182f6);
+  background: color-mix(in srgb, var(--accent, #3182f6) 16%, transparent);
   color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 우상단 작은 점으로 '추천' 표시 */
+.order-quick-actions button.is-suggested::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--accent, #3182f6);
 }
 
 .order-price-modes {
