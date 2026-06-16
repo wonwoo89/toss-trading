@@ -13,6 +13,8 @@ export default defineConfig(({ mode }) => {
       VitePWA({
         // 새 배포 시 SW 자동 갱신(우리 update.sh 흐름과 맞음)
         registerType: 'autoUpdate',
+        // 등록을 main.tsx 에서 직접 처리(앱 복귀 시 업데이트 체크 추가) → 자동 주입 비활성
+        injectRegister: false,
         includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
         manifest: {
           name: 'Toss Trading',
