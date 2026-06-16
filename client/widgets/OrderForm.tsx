@@ -4,6 +4,7 @@ import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import { formatUsd } from '../shared/lib/formatHoldings';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
+import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
 import { useOrderRecommendations } from '../shared/hooks/useRecommendations';
 import type { CandleInterval, ChartCandle, HoldingItem, Order } from '../shared/types';
 import { formatOrderSuccessMessage } from '../shared/lib/formatOrderToast';
@@ -144,7 +145,7 @@ export function OrderForm({
   const skipTakeProfitRef = useRef(false);
   // 제출 직전 결정된 주문 수량(사이드별 %기준). 설정돼 있으면 handleSubmit 이 이 값을 우선 사용.
   const pendingQuantityRef = useRef<number | null>(null);
-  const [priceMode, setPriceMode] = useState<PriceMode>('limit');
+  const [priceMode, setPriceMode] = useState<PriceMode>(getStoredPriceMode);
   const [quantity, setQuantity] = useState('');
   const [selectedQuantityPercent, setSelectedQuantityPercent] = useState<number>();
   const [price, setPrice] = useState('');
@@ -417,12 +418,6 @@ export function OrderForm({
   }, [useAmountOrder, currentPrice, sellQuantityForPercent, effectiveQuantity]);
 
   useEffect(() => {
-    limitPriceManualRef.current = false;
-    setQuantity('');
-    setSelectedQuantityPercent(undefined);
-  }, [side, symbol]);
-
-  useEffect(() => {
     if (priceMode === 'current' && currentPrice !== undefined) {
       setPrice(String(currentPrice));
     }
@@ -439,6 +434,7 @@ export function OrderForm({
 
   const handlePriceModeChange = (mode: PriceMode) => {
     setPriceMode(mode);
+    setStoredPriceMode(mode);
 
     if (mode === 'current' && currentPrice !== undefined) {
       limitPriceManualRef.current = false;
