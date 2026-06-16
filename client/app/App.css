@@ -370,9 +370,13 @@ textarea {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.35rem;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 500;
   color: var(--text-emphasis);
+}
+
+.stock-holding-summary--order .stock-holding-summary__average {
+  font-size: 0.82rem;
 }
 
 .stock-holding-summary__divider {
@@ -387,19 +391,21 @@ textarea {
 }
 
 .stock-holding-summary--order .stock-holding-summary__value {
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: flex-start;
   text-align: left;
-  gap: 0.25rem;
+  gap: 0.5rem;
 }
 
 .stock-holding-summary--order .stock-holding-summary__value > span:first-child {
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .stock-holding-summary--order .holding-pl {
-  font-size: 1rem;
+  font-size: 0.85rem;
 }
 
 .back-link {
