@@ -779,17 +779,7 @@ export function OrderForm({
 
               {useTakeProfitSell && (
                 <>
-                  <label>
-                    목표 실수익률 (세금·수수료 반영, %)
-                    <input
-                      type="number"
-                      min="0.1"
-                      step="0.1"
-                      value={takeProfitRatePercent}
-                      onChange={(e) => updateTakeProfitRate(Number(e.target.value))}
-                      required
-                    />
-                  </label>
+                  <p className="hint">목표 실수익률 (세금·수수료 반영)</p>
                   <div className="order-quick-actions">
                     {TAKE_PROFIT_RATE_OPTIONS.map((rate) => (
                       <button
