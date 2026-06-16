@@ -19,7 +19,7 @@
 1. AWS 콘솔 → **Lightsail** → **Create instance**
 2. 리전: `Seoul (ap-northeast-2)` (지연 최소)
 3. 플랫폼/블루프린트: **Linux/Unix → OS Only → 최신 Ubuntu LTS (24.04 권장, 22.04 도 가능)**
-   - apt 계열(Ubuntu/Debian)이면 아래 명령을 그대로 사용. 핵심 요건은 "Node 22 설치 가능한 최신 LTS".
+   - apt 계열(Ubuntu/Debian)이면 아래 명령을 그대로 사용. 핵심 요건은 "Node 24 설치 가능한 최신 LTS".
 4. 플랜: **$7/월 (1GB RAM, 2 vCPU)** 권장
    - 네트워크 타입은 **Dual-stack**(공용 IPv4 포함)으로. *IPv6-only 금지* — 고정 IPv4 가 있어야 토스 허용목록 등록 + 아웃바운드가 그 IP로 나간다.
    - $5(512MB)는 런타임엔 충분하지만 **서버에서 `vite build` 시 메모리 부족(OOM)으로 빌드가 죽기 쉽다.** 굳이 $5로 가려면 스왑 2GB 추가 또는 로컬 빌드 후 `dist` 업로드로 우회.
@@ -36,9 +36,9 @@
 # 로컬에서: Lightsail 콘솔에서 받은 키로 접속 (또는 콘솔 브라우저 SSH)
 ssh -i LightsailDefaultKey.pem ubuntu@<고정IP>
 
-# 서버에서: Node 22 + pnpm + git
+# 서버에서: Node 24 + pnpm + git
 sudo apt update
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
 sudo apt install -y nodejs git
 sudo corepack enable && corepack prepare pnpm@latest --activate
 node -v && pnpm -v
