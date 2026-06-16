@@ -2713,9 +2713,8 @@ select:focus-visible {
     max-width: none;
   }
 
-  /* 모바일에서 주문폼 오픈 시 .order-column 을 70vh 로 고정 */
+  /* 모바일에서 주문폼 오픈 시 상단 라운드 (높이는 내용에 맞춰 자동) */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column.order-column--mobile-expanded {
-    height: 70vh;
     border-radius: 18px 18px 0 0;
   }
 
