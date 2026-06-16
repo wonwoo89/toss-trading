@@ -6,9 +6,7 @@
       <stop offset="1" stop-color="#47bfff"/>
     </linearGradient>
   </defs>
-  <!-- 배경 없음. 우상향 영역(fill) 차트 — 팔레트 그라데이션으로 채움 -->
-  <path d="M4 40 L14 31 L22 34 L31 22 L39 14 L45 7 L45 45 L4 45 Z" fill="url(#fill)"/>
-  <!-- 상단 라인 하이라이트 (라이트 라벤더) -->
-  <path d="M4 40 L14 31 L22 34 L31 22 L39 14 L45 7" fill="none" stroke="#ede6ff"
-        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 배경 없음. 우상향 영역(fill) 차트 — 부드러운 곡선, 팔레트 그라데이션 채움 -->
+  <path d="M4 41 C10 39 13 33 19 33 C25 33 27 23 33 20 C38 17.5 40 10 45 7 L45 45 L4 45 Z"
+        fill="url(#fill)"/>
 </svg>
