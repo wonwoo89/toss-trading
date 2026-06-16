@@ -2552,6 +2552,8 @@ select:focus-visible {
 
   .chart-panel {
     flex: 0 0 auto;
+    /* chart-bleed 가 좌우로 full-bleed(100vw) 할 때 잘리지 않게 가로 클리핑 해제 */
+    overflow: visible;
   }
 
   .market-panel__orderbook {
@@ -2690,6 +2692,12 @@ select:focus-visible {
     min-height: 0;
     display: flex;
     flex-direction: column;
+    /* 차트만 좌우 패딩 없이 화면 가로로 꽉 차게 (full-bleed). 부모(앱/패널)의 좌우 인셋을
+       100vw + 중앙정렬로 무시한다. 툴바 등 다른 섹션은 기존 인셋 유지. */
+    width: 100vw;
+    max-width: 100vw;
+    margin-left: 50%;
+    transform: translateX(-50%);
   }
 
   /* 모바일 접힘 상태: order-form__body 전체를 숨겨서 추천 rec grid만 보이게 함 */
