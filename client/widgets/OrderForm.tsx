@@ -767,7 +767,6 @@ export function OrderForm({
             </div>
 
             <div className="order-form__section">
-              <div className="order-form__section-title">목표 실수익률 매도 (선택)</div>
               <label className="checkbox">
                 <input
                   type="checkbox"
@@ -779,7 +778,6 @@ export function OrderForm({
 
               {useTakeProfitSell && (
                 <>
-                  <p className="hint">목표 실수익률 (세금·수수료 반영)</p>
                   <div className="order-quick-actions">
                     {TAKE_PROFIT_RATE_OPTIONS.map((rate) => (
                       <button
