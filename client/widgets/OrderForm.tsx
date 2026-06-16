@@ -711,25 +711,6 @@ export function OrderForm({
         ) : (
           <>
             <div className="order-form__section">
-              <div className="order-form__section-title">수량 비율</div>
-              {showQuantityPercentButtons && (
-                <div className="order-quick-actions">
-                  {QUANTITY_PERCENTAGES.map((percent) => (
-                    <button
-                      key={percent}
-                      type="button"
-                      className={selectedQuantityPercent === percent ? 'active' : ''}
-                      onClick={() => applyQuantityPercent(percent)}
-                      disabled={quantityPercentDisabled}
-                    >
-                      {percent}%
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="order-form__section">
               <div className="order-form__section-title">가격</div>
               <label>
                 지정가 (USD)
@@ -774,6 +755,25 @@ export function OrderForm({
                   시장가
                 </button>
               </div>
+            </div>
+
+            <div className="order-form__section">
+              <div className="order-form__section-title">수량 비율</div>
+              {showQuantityPercentButtons && (
+                <div className="order-quick-actions">
+                  {QUANTITY_PERCENTAGES.map((percent) => (
+                    <button
+                      key={percent}
+                      type="button"
+                      className={selectedQuantityPercent === percent ? 'active' : ''}
+                      onClick={() => applyQuantityPercent(percent)}
+                      disabled={quantityPercentDisabled}
+                    >
+                      {percent}%
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="order-form__section">
