@@ -1,16 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+    <linearGradient id="fill" x1="6" y1="45" x2="44" y2="7" gradientUnits="userSpaceOnUse">
       <stop stop-color="#7e14ff"/>
-      <stop offset="1" stop-color="#863bff"/>
+      <stop offset=".55" stop-color="#863bff"/>
+      <stop offset="1" stop-color="#47bfff"/>
     </linearGradient>
   </defs>
-  <!-- 라운드 사각 배지 (보라 그라데이션) -->
-  <rect width="48" height="48" rx="12" fill="url(#bg)"/>
-  <!-- 우상향 차트 라인 (라이트 라벤더) -->
-  <path d="M8 35 L17 28 L24 31 L32 20 L40 11" fill="none" stroke="#ede6ff"
-        stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- 상승 화살표 머리 (블루 액센트) -->
-  <path d="M31 11 H40 V20" fill="none" stroke="#47bfff"
-        stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- 배경 없음. 우상향 영역(fill) 차트 — 팔레트 그라데이션으로 채움 -->
+  <path d="M4 40 L14 31 L22 34 L31 22 L39 14 L45 7 L45 45 L4 45 Z" fill="url(#fill)"/>
+  <!-- 상단 라인 하이라이트 (라이트 라벤더) -->
+  <path d="M4 40 L14 31 L22 34 L31 22 L39 14 L45 7" fill="none" stroke="#ede6ff"
+        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
