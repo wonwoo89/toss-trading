@@ -558,8 +558,6 @@ export function useSymbolTrading(
   const placeTakeProfitSell = useCallback(
     async (
       profitRatePercent: number,
-      boughtQuantity: number | undefined,
-      baselineQuantity: number,
       state: TradeSnapshotState
     ): Promise<OrderSubmitResult['takeProfitSell']> => {
       const targetAccountSeq = accountSeq;
@@ -568,11 +566,12 @@ export function useSymbolTrading(
       }
 
       const averagePrice = state.holding?.averagePrice;
-      const sellQuantity = resolveTakeProfitSellQuantity(
-        boughtQuantity,
-        baselineQuantity,
-        state.holding?.quantity
-      );
+      // 매수 후 평단가 기준 목표 실수익률 매도는 새로 산 수량이 아니라
+      // 총 보유수량 전체를 대상으로 한다(매수 반영 후 스냅샷 기준).
+      // 지정가 매도는 정수 주(株)만 허용되므로 소수점 보유분은 내림 처리한다.
+      const totalQuantity = state.holding?.quantity;
+      const sellQuantity =
+        totalQuantity !== undefined ? Math.floor(totalQuantity) : undefined;
 
       if (!averagePrice || averagePrice <= 0) {
         return {
@@ -648,12 +647,21 @@ export function useSymbolTrading(
         applyTradeSnapshot(currentState);
       }
 
-      const result = await placeTakeProfitSell(
-        profitRatePercent,
-        boughtQuantity,
-        baselineQuantity,
-        currentState
-      );
+      // 이미 걸려 있는 매도 대기 주문(이전 목표가 매도 등)이 있으면 취소한 뒤
+      // 갱신된 총 보유수량으로 다시 건다. 취소가 매도 가능 수량에 반영될
+      // 때까지 스냅샷을 재조회(openOrders 시그니처 변화 감지)한다.
+      const pendingSells = currentState.openOrders.filter((o) => o.side === 'SELL');
+      if (pendingSells.length > 0) {
+        await Promise.all(
+          pendingSells.map((o) =>
+            api.cancelOrder(o.orderId, accountSeq!).catch(() => undefined)
+          )
+        );
+        currentState = await fetchTradeSnapshotWithRetry(symbol!, accountSeq!, currentState);
+        applyTradeSnapshot(currentState);
+      }
+
+      const result = await placeTakeProfitSell(profitRatePercent, currentState);
 
       return result;
     },

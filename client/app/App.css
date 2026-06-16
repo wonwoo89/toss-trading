@@ -1892,13 +1892,11 @@ select:focus-visible {
 }
 
 .order-form__section {
-  margin-bottom: 0.85rem;
   padding-bottom: 0.65rem;
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .order-form__section:last-child {
-  margin-bottom: 0;
   padding-bottom: 0;
   border-bottom: none;
 }
@@ -2479,13 +2477,55 @@ select:focus-visible {
   gap: 4px;
 }
 
+/* 추천 목표 수익률에 해당하는 버튼 강조 (선택 전 상태) */
 .order-quick-actions button.is-suggested {
-  border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--border-subtle));
+  position: relative;
+  border: 1px solid var(--accent, #3182f6);
+  background: color-mix(in srgb, var(--accent, #3182f6) 16%, transparent);
   color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 우상단 작은 점으로 '추천' 표시 */
+.order-quick-actions button.is-suggested::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--accent, #3182f6);
 }
 
 .order-price-modes {
   margin-top: 0;
+}
+
+/* 목표 실수익률: 체크박스와 비율 버튼 사이 간격 */
+.order-form__section > .checkbox + .order-quick-actions {
+  margin-top: 0.6rem;
+}
+
+/* 가격/주문금액 라벨 줄 + 우측 금액 주문 토글 */
+.order-form__field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.order-form__field-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.order-form__amount-toggle {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
 }
 
 .order-quick-actions button {
@@ -2673,9 +2713,8 @@ select:focus-visible {
     max-width: none;
   }
 
-  /* 모바일에서 주문폼 오픈 시 .order-column 을 70vh 로 고정 */
+  /* 모바일에서 주문폼 오픈 시 상단 라운드 (높이는 내용에 맞춰 자동) */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column.order-column--mobile-expanded {
-    height: 70vh;
     border-radius: 18px 18px 0 0;
   }
 
