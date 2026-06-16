@@ -55,6 +55,28 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
+    build: {
+      rollupOptions: {
+        output: {
+          // vendor 라이브러리를 별도 청크로 분리.
+          // 앱 코드는 배포마다 바뀌지만 vendor 는 거의 안 바뀌므로
+          // 장기 캐시되어 PWA 업데이트/재방문 시 앱 청크만 다시 받는다.
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return undefined;
+            if (id.includes('lightweight-charts')) return 'charts';
+            if (
+              id.includes('/react-router') ||
+              id.includes('/react-dom/') ||
+              id.includes('/react/') ||
+              id.includes('/scheduler/')
+            ) {
+              return 'react-vendor';
+            }
+            return 'vendor';
+          },
+        },
+      },
+    },
     server: {
       proxy: {
         '/api': `http://localhost:${bffPort}`,
