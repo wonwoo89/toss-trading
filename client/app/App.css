@@ -2563,24 +2563,18 @@ select:focus-visible {
     height: auto;
   }
 
-  /* 모바일: 보유 종목 칩 바 노출 (티커 + 수익률%, 가로 스크롤). 상단에서 바로 종목 전환. */
+  /* 모바일: 보유 종목 칩 바 노출 (티커 + 수익률%, 가로 스크롤). 상단에서 바로 종목 전환.
+     스크롤바는 표시하지 않음(가로 스크롤은 유지). */
   .holdings-chip-bar {
     display: flex;
     gap: 0.4rem;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: var(--border-subtle) transparent;
-    padding-bottom: 2px;
+    scrollbar-width: none; /* Firefox */
   }
 
   .holdings-chip-bar::-webkit-scrollbar {
-    height: 2px;
-  }
-
-  .holdings-chip-bar::-webkit-scrollbar-thumb {
-    background: var(--border-subtle);
-    border-radius: 2px;
+    display: none; /* WebKit (Chrome/Safari) */
   }
 
   .market-panel {
