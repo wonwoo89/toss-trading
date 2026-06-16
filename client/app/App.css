@@ -2365,6 +2365,7 @@ select:focus-visible {
 }
 
 .order-rec-row {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -2400,13 +2401,34 @@ select:focus-visible {
   pointer-events: none;
 }
 
-.order-rec-row.buy {
-  border-left: 6px solid var(--color-up);
+/* 좌측 강조선을 6px 그라데이션 바(::before)로 표현. border-color 는 그라데이션을 못 받으므로
+   가상요소 + linear-gradient 로 처리하고, 카드의 overflow:hidden 이 둥근 모서리에 맞춰 클립한다. */
+.order-rec-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  border-radius: 12px 0 0 12px;
 }
 
-.order-rec-row.sell {
-  border-left: 6px solid var(--color-down);
+.order-rec-row.buy::before {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-up) 60%, #ffffff),
+    var(--color-up)
+  );
 }
+
+.order-rec-row.sell::before {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--color-down) 60%, #ffffff),
+    var(--color-down)
+  );
+}
+
 
 .order-rec-row .rec-label {
   font-weight: 600;
