@@ -2,6 +2,7 @@ import { HeaderAccountBalance } from './HeaderAccountBalance';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { SymbolSearch } from './SymbolSearch';
 import { ThemeToggle } from './ThemeToggle';
+import { WakeLockToggle } from './WakeLockToggle';
 
 export function Header() {
   return (
@@ -13,6 +14,7 @@ export function Header() {
         <div className="header-left-actions">
           <SymbolSearch />
           <ThemeToggle />
+          <WakeLockToggle />
           <KeyboardShortcutsHelp />
         </div>
       </div>
