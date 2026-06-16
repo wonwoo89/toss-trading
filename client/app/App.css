@@ -768,6 +768,8 @@ textarea {
   position: static;
   top: auto;
   overflow: hidden;
+  /* 모바일 플로팅용 상하 패딩(기본 .order-column)이 데스크톱에선 높이를 깎으므로 제거 */
+  padding: 0;
 
   /* 이제 trading-layout flex row의 직접 자식.
      이전 grid 트랙 minmax(300px,360px) 와 유사한 폭 부여.
