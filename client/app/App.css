@@ -695,7 +695,6 @@ textarea {
   min-width: 0;
   min-height: 0;
   display: grid;
-  gap: 1rem;
   align-content: stretch;
   align-items: stretch;
 }
@@ -723,9 +722,9 @@ textarea {
 .holdings-chip {
   flex: 0 0 auto;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.1rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.25rem;
   padding: 0.35rem 0.6rem;
   border-radius: 12px;
   background: var(--bg-subtle);
