@@ -707,7 +707,7 @@ export function OrderForm({
           <>
             <div className="order-form__section">
               <label>
-                지정가 (USD)
+                가격
                 <input
                   type="number"
                   min="0"
