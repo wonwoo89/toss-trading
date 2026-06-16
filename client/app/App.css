@@ -184,6 +184,13 @@ textarea {
   background: var(--bg-hover);
 }
 
+/* 화면 꺼짐 방지(Wake Lock) ON 상태 강조 */
+.wake-lock-toggle.is-active {
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
+  background: var(--bg-active);
+}
+
 .symbol-search--header {
   margin-bottom: 0;
   align-items: center;
