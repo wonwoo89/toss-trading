@@ -180,6 +180,94 @@ pm2 restart toss-trading --update-env
 
 ---
 
+## 자동 배포 (GitHub Actions + Tailscale SSH)
+
+`main` 에 머지될 때마다 **CI(타입체크·ESLint·WASM 테스트)가 통과하면** GitHub Actions 가
+테일넷에 임시로 합류해 서버에 SSH 로 들어가 `update.sh` 를 실행한다.
+**공개 포트는 하나도 열지 않고**(러너는 GitHub 로 outbound 만 사용), **SSH 개인키도 두지 않는다**
+(인증은 Tailscale SSH = 테일넷 신원으로 처리).
+
+워크플로 파일: `.github/workflows/deploy.yml` (이미 레포에 있음).
+
+```
+[main 머지] → CI(ci.yml) 통과 → Deploy(deploy.yml)
+   러너가 tag:ci 로 테일넷 합류 → ssh tag:ci → tag:prod(서버) → ./update.sh
+```
+
+### 1회성 셋업 — 서버
+
+서버를 **태그 노드로 전환 + Tailscale SSH 활성화**한다. (기존 `tailscale serve` 설정·머신이름은 유지됨)
+
+```bash
+# 서버에서
+sudo tailscale up --ssh --advertise-tags=tag:prod
+tailscale status            # 머신이름(MagicDNS 호스트) 확인 — 아래 TS_SERVER_HOST 에 쓴다
+```
+
+> 태그가 ACL 에 정의돼 있어야 적용된다(아래 3번). 태그를 붙이면 노드가 tag-owned 로 바뀌지만
+> serve(3001) 노출은 그대로 동작한다.
+
+### 2회성 셋업 — Tailscale admin: OAuth client
+
+러너가 테일넷에 합류할 자격증명을 만든다.
+
+1. Tailscale admin → **Settings → OAuth clients → Generate OAuth client**
+2. Scope: **Auth Keys → Write** (체크)
+3. Tags: **`tag:ci`** 지정
+4. 생성된 **Client ID / Client Secret** 을 아래 GitHub secret 으로 등록
+
+### 3. Tailscale admin: ACL 정책
+
+태그 정의 + "CI 러너(tag:ci) 가 서버(tag:prod) 에 `ubuntu` 로 SSH 가능" 규칙을 추가한다.
+
+```jsonc
+{
+  "tagOwners": {
+    "tag:ci":   ["autogroup:admin"],
+    "tag:prod": ["autogroup:admin"]
+  },
+
+  // Tailscale SSH: CI 러너가 키 없이 서버에 ubuntu 로 로그인.
+  // action 은 반드시 "accept" — "check" 는 대화형 재인증을 요구해 CI 에서 막힌다.
+  "ssh": [
+    {
+      "action": "accept",
+      "src":    ["tag:ci"],
+      "dst":    ["tag:prod"],
+      "users":  ["ubuntu", "autogroup:nonroot"]
+    }
+  ]
+}
+```
+
+> 기본 ACL(`acls` 가 allow-all)이면 네트워크 도달성은 이미 열려 있다. `acls` 를 좁혀놨다면
+> `tag:ci` → `tag:prod:22` 도 허용해야 한다.
+
+### 4. GitHub repo 설정값
+
+**Settings → Secrets and variables → Actions**
+
+Secrets (Repository secrets):
+| 이름 | 값 |
+|------|----|
+| `TS_OAUTH_CLIENT_ID` | 2번에서 만든 OAuth Client ID |
+| `TS_OAUTH_SECRET` | 2번에서 만든 OAuth Client Secret |
+
+Variables (Repository variables):
+| 이름 | 값 |
+|------|----|
+| `TS_SSH_USER` | `ubuntu` (Lightsail Ubuntu 기본 사용자) |
+| `TS_SERVER_HOST` | 1번 `tailscale status` 의 머신이름(MagicDNS 호스트). 예: `toss-trading` |
+
+### 동작 확인
+
+- 셋업 후 **Actions → Deploy (Lightsail) → Run workflow** 로 수동 1회 실행해 본다.
+  로그에 `✅ 배포 완료 — /api/health OK` 가 보이면 정상.
+- 이후엔 main 에 머지 → CI 통과 → 배포가 자동으로 돈다.
+- 빌드 실패 시 `update.sh` 가 `pm2 restart` 전에 멈추므로 **기존 프로세스(구버전)는 계속 떠 있다** — 다운타임 없음.
+
+---
+
 ## 보안 체크리스트
 
 - [ ] Lightsail 방화벽: **공개로 80/443/3001 열지 않음** (SSH 22만, 가능하면 내 IP로 제한)
@@ -187,5 +275,7 @@ pm2 restart toss-trading --update-env
 - [ ] `.env` 는 `chmod 600`, git에 커밋 금지
 - [ ] 토스 키 노출 의심 시 WTS에서 즉시 재발급
 - [ ] HTTPS는 Tailscale가 자동 — 평문 접속 없음
+- [ ] CD: OAuth client 는 **Auth Keys(write) scope + tag:ci** 로만 최소 권한. 노출 의심 시 admin 에서 즉시 폐기·재발급
+- [ ] CD: ssh ACL 은 `tag:ci → tag:prod` 로만 한정 (CI 러너가 다른 노드엔 못 들어감)
 
 > 참고: 인증을 앱 레벨(로그인)로 추가하지 않은 이유는 **공개 노출 자체가 없기 때문**이다. 나중에 공개 도메인으로 열고 싶어지면, 그때 로그인/세션을 추가하면 된다.
