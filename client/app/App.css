@@ -1775,10 +1775,12 @@ select:focus-visible {
   top: 0.5rem;
   right: 0.75rem;
   z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.55rem 0.85rem;
+  /* 영역을 가득 채우지 않고 내용(2열: 시가·고가 / 저가·종가)에 맞춰 가변 폭으로 렌더 */
+  display: grid;
+  grid-template-columns: auto auto;
+  width: fit-content;
+  max-width: calc(100% - 1.5rem);
+  gap: 0.3rem 0.85rem;
   padding: 0.35rem 0.55rem;
   border-radius: 8px;
   background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
