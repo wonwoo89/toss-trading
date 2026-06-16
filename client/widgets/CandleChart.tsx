@@ -349,6 +349,9 @@ export function CandleChart({
       layout: {
         background: { type: ColorType.Solid, color: colors.background },
         textColor: colors.text,
+        // lightweight-charts 는 series title(예: 'BB 상단/중간/하단') 라벨 폰트를 차트 전역
+        // fontSize 에 묶는다(라벨별 지정 불가). BB 라벨을 작게 보이도록 전역 폰트를 축소.
+        fontSize: 10,
         panes: {
           enableResize: true,
           separatorColor: colors.separator,
