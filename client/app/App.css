@@ -77,6 +77,14 @@ textarea {
   white-space: nowrap;
 }
 
+/* 앱 네임 대신 로고만 표시 */
+.brand__logo {
+  height: 28px;
+  width: auto;
+  display: block;
+  flex-shrink: 0;
+}
+
 .brand h1,
 .panel-title h2 {
   margin: 0;
@@ -2152,7 +2160,7 @@ select:focus-visible {
 
 .order-manual-btn {
   padding: 0.65rem 0.6rem;
-  border-radius: 8px;
+  border-radius: 18px;
   border: 1px solid transparent;
   font-size: 0.9rem;
   font-weight: 700;
@@ -2305,7 +2313,7 @@ select:focus-visible {
   height: 82px;
   box-sizing: border-box;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: 18px;
   font-size: 0.82rem;
   background: var(--bg-subtle);
   border: 1px solid var(--border-subtle);

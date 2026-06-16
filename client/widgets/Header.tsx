@@ -8,7 +8,7 @@ export function Header() {
     <header className="header">
       <div className="header-left">
         <div className="brand">
-          <h1>Toss Trading</h1>
+          <img className="brand__logo" src="/favicon.svg" alt="Toss Trading" />
         </div>
         <div className="header-left-actions">
           <SymbolSearch />
