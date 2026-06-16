@@ -4,7 +4,7 @@ const SHORTCUTS: { keys: string; label: string }[] = [
   { keys: 'A', label: '직접 매수 실행' },
   { keys: 'S', label: '직접 매도 실행' },
   { keys: 'Option + 1 ~ 9', label: '보유종목 빠른 이동' },
-  { keys: '1 ~ 5', label: '수량 10·25·50·75·100%' },
+  { keys: '1 ~ 5', label: '수량 1·10·25·50·100%' },
   { keys: 'W', label: '수량 최대(100%)' },
   { keys: '+ / −', label: '수량 ±1' },
   { keys: '[ / ]', label: '가격 모드 이전 / 다음' },
