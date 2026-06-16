@@ -1764,6 +1764,11 @@ select:focus-visible {
   min-height: 0;
 }
 
+/* 차트 청크 지연 로드 중 fallback: 차트와 동일 영역을 점유해 레이아웃 점프 방지 */
+.chart-block--loading {
+  min-height: 200px;
+}
+
 .candle-chart {
   width: 100%;
   flex: 1 1 0;
