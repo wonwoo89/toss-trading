@@ -1,11 +1,95 @@
-import type { CandleInterval, ChartCandle } from '../types';
+import type { CandleInterval, ChartCandle, StockInfo } from '../types';
 import type { MicrostructureBias } from './marketMicrostructure';
+import { toNumber } from './parse';
 
 export interface MarketMetric {
   id: string;
   label: string;
   value: string;
   bias: MicrostructureBias;
+}
+
+// 일봉 캔들에서 "전일(직전 거래일) 종가"를 고른다. 미국 거래일(ET) 기준으로 판단해야
+// 자정을 넘긴 정규장(KST 새벽)에서도 오늘 캔들을 prevClose 로 잘못 쓰지 않는다.
+export function resolvePreviousClose(dailyCandles: ChartCandle[], now = new Date()): number | undefined {
+  if (dailyCandles.length === 0) return undefined;
+  const sorted = [...dailyCandles].sort((a, b) => a.time - b.time);
+
+  const etDate = (epochSec: number) =>
+    new Date(epochSec * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+  const todayEt = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
+
+  const last = sorted[sorted.length - 1];
+  const lastIsToday = etDate(last.time) === todayEt;
+  // 오늘 캔들이 있으면 그 직전(전일) 종가, 없으면 가장 최근 완료 세션의 종가.
+  const prev = lastIsToday ? sorted[sorted.length - 2] : last;
+  return prev?.close;
+}
+
+function formatSignedUsd(value: number) {
+  const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  return `${sign}$${Math.abs(value).toFixed(2)}`;
+}
+
+function formatCompactUsd(value: number) {
+  if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
+  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
+  if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
+  return `$${Math.round(value).toLocaleString('en-US')}`;
+}
+
+// 전일대비 등락(전일 종가 대비 현재가). 양수=상승 색, 음수=하락 색.
+export function buildDayChangeMetric(
+  previousClose?: number,
+  currentPrice?: number
+): MarketMetric {
+  if (
+    previousClose === undefined ||
+    previousClose <= 0 ||
+    currentPrice === undefined
+  ) {
+    return { id: 'day-change', label: '전일대비', value: '—', bias: 'neutral' };
+  }
+  const diff = currentPrice - previousClose;
+  const rate = (diff / previousClose) * 100;
+  const bias: MicrostructureBias = rate > 0 ? 'bullish' : rate < 0 ? 'bearish' : 'neutral';
+  return {
+    id: 'day-change',
+    label: '전일대비',
+    value: `${formatSignedPercent(rate)} (${formatSignedUsd(diff)})`,
+    bias,
+  };
+}
+
+// 종목 메타(시가총액·레버리지·상장폐지·종류). /api/v1/stocks 가 주던 미사용 필드 활용.
+export function buildStockInfoMetrics(info?: StockInfo, currentPrice?: number): MarketMetric[] {
+  if (!info) return [];
+  const metrics: MarketMetric[] = [];
+
+  const shares = toNumber(info.sharesOutstanding);
+  if (shares !== undefined && shares > 0 && currentPrice !== undefined && currentPrice > 0) {
+    metrics.push({
+      id: 'market-cap',
+      label: '시가총액',
+      value: formatCompactUsd(shares * currentPrice),
+      bias: 'neutral',
+    });
+  }
+
+  const leverage = toNumber(info.leverageFactor);
+  if (leverage !== undefined && leverage !== 0 && leverage !== 1) {
+    metrics.push({ id: 'leverage', label: '레버리지', value: `${leverage}x`, bias: 'bearish' });
+  }
+
+  if (info.delistDate) {
+    metrics.push({ id: 'delist', label: '상장폐지', value: info.delistDate, bias: 'bearish' });
+  }
+
+  if (info.securityType && info.securityType !== 'STOCK') {
+    metrics.push({ id: 'sec-type', label: '종류', value: info.securityType, bias: 'neutral' });
+  }
+
+  return metrics;
 }
 
 const SUPPORT_RESISTANCE_PERIOD = 20;

@@ -24,6 +24,15 @@ export interface StockInfo {
   englishName?: string;
   market: string;
   currency: string;
+  // /api/v1/stocks 가 함께 주지만 그동안 버려지던 메타. (문자열로 옴)
+  isinCode?: string;
+  securityType?: string; // STOCK | ETF | ...
+  isCommonShare?: boolean;
+  status?: string; // ACTIVE | ...
+  listDate?: string;
+  delistDate?: string | null;
+  sharesOutstanding?: string;
+  leverageFactor?: string | null;
 }
 
 export interface PriceInfo {

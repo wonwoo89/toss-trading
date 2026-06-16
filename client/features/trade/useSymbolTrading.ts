@@ -49,6 +49,8 @@ import {
   shouldEnableRecurringMarketPolling,
 } from '../../shared/lib/usMarketCalendar';
 import { resolveUsCommissionRatePercent } from '../../shared/lib/commissionBreakEven';
+import { mapApiCandles } from '../../shared/lib/candles';
+import { resolvePreviousClose } from '../../shared/lib/marketAnalytics';
 import type {
   CandleInterval,
   CommissionRaw,
@@ -58,6 +60,7 @@ import type {
   OrderSubmitOptions,
   OrderSubmitResult,
   OrderbookEntryRaw,
+  StockInfo,
   TradeRaw,
 } from '../../shared/types';
 import type { TradeSnapshotState } from '../../shared/lib/tradeSnapshot';
@@ -224,6 +227,8 @@ export function useSymbolTrading(
 
   // symbol meta load (이름, 경고) — encapsulated here
   const [stockName, setStockName] = useState<string>();
+  const [stockInfo, setStockInfo] = useState<StockInfo>();
+  const [previousClose, setPreviousClose] = useState<number>();
   const [warnings, setWarnings] = useState<string[]>([]);
 
   const [sellableQuantity, setSellableQuantity] = useState<number>();
@@ -533,6 +538,7 @@ export function useSymbolTrading(
 
         const stock = unwrapResult(stockRes)[0];
         setStockName(stock?.englishName ?? stock?.name);
+        setStockInfo(stock);
 
         const warningsRes = await api
           .getWarnings(symbol)
@@ -543,6 +549,7 @@ export function useSymbolTrading(
       } catch {
         if (!cancelled) {
           setStockName(undefined);
+          setStockInfo(undefined);
           setWarnings([]);
         }
       }
@@ -550,6 +557,29 @@ export function useSymbolTrading(
 
     void loadStockMeta();
 
+    return () => {
+      cancelled = true;
+    };
+  }, [contextIsReady, symbol]);
+
+  // 전일(직전 거래일) 종가 — 일봉 캔들 몇 개를 받아 산출. 전일대비 등락률 표시에 사용.
+  // (prevClose 는 하루 동안 고정이므로 종목 변경 시 1회만 로드)
+  useEffect(() => {
+    if (!contextIsReady || !symbol) {
+      setPreviousClose(undefined);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.getCandles(symbol, '1d', 3);
+        if (cancelled) return;
+        const daily = mapApiCandles(unwrapResult(res).candles);
+        setPreviousClose(resolvePreviousClose(daily));
+      } catch {
+        if (!cancelled) setPreviousClose(undefined);
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -918,6 +948,8 @@ export function useSymbolTrading(
     () => ({
       symbol,
       stockName,
+      stockInfo,
+      previousClose,
       bids: marketPolling.data?.bids,
       asks: marketPolling.data?.asks,
       trades: marketPolling.data?.trades,
@@ -950,6 +982,8 @@ export function useSymbolTrading(
     [
       symbol,
       stockName,
+      stockInfo,
+      previousClose,
       marketPolling.data,
       candlesData.candles,
       holding,

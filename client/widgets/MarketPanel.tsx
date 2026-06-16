@@ -22,6 +22,7 @@ import {
   type CommissionRaw,
   type HoldingItem,
   type Order,
+  type StockInfo,
   type UsMarketCalendarRaw,
 } from '../shared/types';
 
@@ -33,6 +34,8 @@ interface OrderbookEntry {
 interface MarketPanelProps {
   symbol: string;
   stockName?: string;
+  stockInfo?: StockInfo;
+  previousClose?: number;
   bids?: OrderbookEntry[];
   asks?: OrderbookEntry[];
   trades?: { price: number; quantity: number; timestamp: string }[];
@@ -77,6 +80,8 @@ function getMetricBiasClass(bias: MicrostructureBias) {
 export function MarketPanel({
   symbol,
   stockName,
+  stockInfo,
+  previousClose,
   bids = [],
   asks = [],
   trades = [],
@@ -251,6 +256,8 @@ export function MarketPanel({
             candles={candles}
             candleInterval={candleInterval}
             currentPrice={currentPrice}
+            previousClose={previousClose}
+            stockInfo={stockInfo}
             holding={holding}
             profitLossRate={holdingProfitLossRate}
             targetProfitRatePercent={targetProfitRatePercent}
