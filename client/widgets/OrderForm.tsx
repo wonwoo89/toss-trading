@@ -58,6 +58,12 @@ function formatOrderQuantity(value: number) {
   return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 }
 
+// USD 지정가는 센트(0.01) 단위만 유효 → 소수점은 내림 처리한다.
+function floorToCents(value: number | undefined) {
+  if (value === undefined || !Number.isFinite(value)) return value;
+  return Math.floor(value * 100) / 100;
+}
+
 function getOrderFormFocusables(form: HTMLFormElement) {
   const selector = [
     'button:not([disabled])',
@@ -587,10 +593,10 @@ export function OrderForm({
         payload.orderType = 'MARKET';
       } else if (priceMode === 'current') {
         payload.orderType = 'LIMIT';
-        payload.price = currentPrice;
+        payload.price = floorToCents(currentPrice);
       } else {
         payload.orderType = 'LIMIT';
-        payload.price = Number(price || currentPrice);
+        payload.price = floorToCents(Number(price || currentPrice));
       }
     }
 
