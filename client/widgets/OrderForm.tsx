@@ -899,6 +899,19 @@ export function OrderForm({
       </div>
 
       <div className="order-form__submit-block">
+        {/* 모바일 접힘 상태에서도 보유 요약(수량/평단/총가치)을 항상 노출. 데스크톱·모바일 펼침에서는
+            order-form__body 의 요약이 보이므로 CSS 로 중복 표시를 막는다. */}
+        <div className="order-form__sticky-holding">
+          <StockHoldingSummary
+            variant="order"
+            quantity={holdingQuantity}
+            averagePrice={holdingAveragePrice}
+            marketValue={holdingMarketValue}
+            profitLoss={holdingProfitLoss}
+            profitLossRate={holdingProfitLossRate}
+          />
+        </div>
+
         {/* 매수 가능·손익분기·매도 가능·예상 금액은 side(매수/매도)나 추천 상황과 무관하게 항상 노출 */}
         <div className="order-form__hints">
           <div className="order-form__buy-hints-row">
