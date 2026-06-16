@@ -157,7 +157,7 @@ export function OrderForm({
   const [price, setPrice] = useState('');
   const [orderAmount, setOrderAmount] = useState('');
   const [useAmountOrder, setUseAmountOrder] = useState(false);
-  const [useTakeProfitSell, setUseTakeProfitSell] = useState(true);
+  const [useTakeProfitSell, setUseTakeProfitSell] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   const { showToast } = useToast();
