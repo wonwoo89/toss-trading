@@ -23,7 +23,7 @@ function readCssVar(name: string, fallback: string) {
 
 export function getChartThemeColors(): ChartThemeColors {
   return {
-    background: readCssVar('--chart-bg', '#141414'),
+    background: readCssVar('--chart-bg', 'rgba(0, 0, 0, 0)'),
     text: readCssVar('--chart-text', '#a0a0a0'),
     grid: readCssVar('--chart-grid', 'rgba(255, 255, 255, 0.06)'),
     border: readCssVar('--chart-border', 'rgba(255, 255, 255, 0.1)'),
