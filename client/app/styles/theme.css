@@ -34,7 +34,9 @@
   --link-hover: #d4d4d4;
   --refresh-dot: #a3a3a3;
 
-  --chart-bg: #141414;
+  /* 투명: 차트가 항상 뒤 컨테이너 색을 따라가게 한다. (모바일=페이지 base, 데스크톱=패널)
+     고정색은 모바일(투명 패널→base)과 데스크톱(패널) 양쪽을 동시에 맞출 수 없어 투명으로 처리. */
+  --chart-bg: rgba(0, 0, 0, 0);
   --chart-text: #a3a3a3;
   --chart-grid: rgba(255, 255, 255, 0.06);
   --chart-border: rgba(255, 255, 255, 0.1);
@@ -96,7 +98,7 @@
   --link-hover: #262626;
   --refresh-dot: #525252;
 
-  --chart-bg: #ffffff;
+  --chart-bg: rgba(0, 0, 0, 0);
   --chart-text: #525252;
   --chart-grid: rgba(0, 0, 0, 0.06);
   --chart-border: rgba(0, 0, 0, 0.1);
