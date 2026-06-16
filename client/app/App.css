@@ -2502,6 +2502,11 @@ select:focus-visible {
   margin-top: 0;
 }
 
+/* 목표 실수익률: 체크박스와 비율 버튼 사이 간격 */
+.order-form__section > .checkbox + .order-quick-actions {
+  margin-top: 0.6rem;
+}
+
 .order-quick-actions button {
   width: auto;
   flex: 0 0 auto;
