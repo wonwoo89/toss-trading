@@ -47,6 +47,9 @@ const BAR_SPACING_DRIFT_THRESHOLD = 0.001;
 const RIGHT_OFFSET_DRIFT_THRESHOLD = 0.5;
 const CHART_MIN_BAR_SPACING = 0.0001;
 const RIGHT_MARGIN_FRACTION = 1 / 3;
+// 왼쪽으로 과도하게 밀 때 허용하는 최대 오른쪽 여백(빈 공간) — 화면 폭(보이는 바 수) 대비 비율.
+// 이 이상 밀리면 마지막 캔들이 화면 밖으로 완전히 사라지므로 클램프한다(과거/왼쪽 스크롤은 무제한).
+const MAX_RIGHT_WHITESPACE_RATIO = 0.5;
 
 interface HoveredCandleOhlc {
   open: number;
@@ -457,8 +460,28 @@ export function CandleChart({
 
     window.addEventListener('pagehide', handlePageHide);
 
+    let clampingViewport = false;
     const handleVisibleRangeChange = (range: LogicalRange | null) => {
       if (!range) return;
+
+      // 오른쪽 여백 한계: 왼쪽으로 과도하게 밀려 마지막 캔들이 화면 밖으로 완전히 사라지는 것 방지.
+      // 오른쪽 여백(마지막 캔들 이후 빈 공간)이 화면 폭의 MAX_RIGHT_WHITESPACE_RATIO 를 넘으면
+      // 같은 확대율(span)을 유지한 채 되돌린다. 과거(왼쪽) 스크롤은 제한하지 않는다.
+      const span = range.to - range.from;
+      const lastBarIndex = lastBarIndexRef.current;
+      if (!clampingViewport && span > 0 && lastBarIndex >= 0) {
+        const maxRightWhitespace = span * MAX_RIGHT_WHITESPACE_RATIO;
+        if (range.to - lastBarIndex > maxRightWhitespace) {
+          clampingViewport = true;
+          const clampedTo = lastBarIndex + maxRightWhitespace;
+          chart.timeScale().setVisibleLogicalRange({ from: clampedTo - span, to: clampedTo });
+          requestAnimationFrame(() => {
+            clampingViewport = false;
+          });
+          return;
+        }
+      }
+
       if (loadingOlderRef.current || !hasMoreHistoryRef.current) return;
       if (range.from < HISTORY_LOAD_THRESHOLD) {
         onLoadOlderRef.current?.();
