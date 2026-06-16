@@ -13,7 +13,8 @@ export interface TakeProfitCostContext {
 }
 
 function roundUsdPrice(price: number) {
-  return Math.round(price * 100) / 100;
+  // USD 지정가는 센트(0.01) 단위만 유효. 소수점은 내림 처리한다.
+  return Math.floor(price * 100) / 100;
 }
 
 function scaleCostContext(
