@@ -648,6 +648,20 @@ export function useSymbolTrading(
         applyTradeSnapshot(currentState);
       }
 
+      // 이미 걸려 있는 매도 대기 주문(이전 목표가 매도 등)이 있으면 취소한 뒤
+      // 갱신된 총 보유수량으로 다시 건다. 취소가 매도 가능 수량에 반영될
+      // 때까지 스냅샷을 재조회(openOrders 시그니처 변화 감지)한다.
+      const pendingSells = currentState.openOrders.filter((o) => o.side === 'SELL');
+      if (pendingSells.length > 0) {
+        await Promise.all(
+          pendingSells.map((o) =>
+            api.cancelOrder(o.orderId, accountSeq!).catch(() => undefined)
+          )
+        );
+        currentState = await fetchTradeSnapshotWithRetry(symbol!, accountSeq!, currentState);
+        applyTradeSnapshot(currentState);
+      }
+
       const result = await placeTakeProfitSell(profitRatePercent, currentState);
 
       return result;
