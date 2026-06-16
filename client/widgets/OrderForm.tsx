@@ -79,21 +79,6 @@ function isEditableInputFocused() {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
 }
 
-function quantityFromAvailablePercent(
-  side: 'BUY' | 'SELL',
-  maxBuyQuantity: number | undefined,
-  sellableQuantity: number | undefined,
-  percent: number
-) {
-  if (side === 'BUY') {
-    if (maxBuyQuantity === undefined || maxBuyQuantity <= 0) return undefined;
-    return formatOrderQuantity(quantityFromPercent(maxBuyQuantity, percent));
-  }
-
-  if (sellableQuantity === undefined || sellableQuantity <= 0) return undefined;
-  return formatOrderQuantity(quantityFromPercent(sellableQuantity, percent));
-}
-
 function getQuantityPercentFromKey(event: KeyboardEvent) {
   const match = event.code.match(/^(?:Digit|Numpad)([1-5])$/);
   if (!match) return undefined;
@@ -157,6 +142,8 @@ export function OrderForm({
   const pendingSideRef = useRef<'BUY' | 'SELL' | null>(null);
   // 추천 매수/매도 간편 실행 시에는 목표수익률 자동 매도를 건너뛴다(체크돼 있어도 미실행).
   const skipTakeProfitRef = useRef(false);
+  // 제출 직전 결정된 주문 수량(사이드별 %기준). 설정돼 있으면 handleSubmit 이 이 값을 우선 사용.
+  const pendingQuantityRef = useRef<number | null>(null);
   const [priceMode, setPriceMode] = useState<PriceMode>('limit');
   const [quantity, setQuantity] = useState('');
   const [selectedQuantityPercent, setSelectedQuantityPercent] = useState<number>();
@@ -353,6 +340,10 @@ export function OrderForm({
   // 직접 입력값(수량·가격)으로 실행. 추천과 달리 목표수익률 자동 매도 설정을 그대로 따른다.
   const executeManual = (intendedSide: 'BUY' | 'SELL') => {
     if (submitting) return;
+    // 선택된 %를 실행하려는 사이드 기준으로 환산해 주문 수량 결정
+    // (매수=주문가능 금액 기준, 매도=보유 수량 기준). 추천 등으로 설정된 수량은 effectiveQuantity 로 폴백.
+    pendingQuantityRef.current =
+      intendedSide === 'BUY' ? (buyQuantityForPercent ?? null) : (sellQuantityForPercent ?? null);
     setSide(intendedSide);
     pendingSideRef.current = intendedSide;
     skipTakeProfitRef.current = false;
@@ -393,27 +384,37 @@ export function OrderForm({
     return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
   }, [quantity]);
 
-  // 예상 금액(현재가 기준). % 수량을 선택하면 매수는 주문가능 금액(maxBuyQuantity), 매도는 보유
-  // 수량(effectiveSellableQuantity)을 각각 기준으로 계산한다. 수동 입력 수량이면 그 수량을 쓴다.
+  // % 선택 시 예상 수량 — 매수는 주문가능 금액(maxBuyQuantity), 매도는 보유수량(effectiveSellableQuantity) 기준.
+  const buyQuantityForPercent = useMemo(() => {
+    if (selectedQuantityPercent === undefined || maxBuyQuantity === undefined || maxBuyQuantity <= 0) {
+      return undefined;
+    }
+    const qty = quantityFromPercent(maxBuyQuantity, selectedQuantityPercent);
+    return qty > 0 ? qty : undefined;
+  }, [selectedQuantityPercent, maxBuyQuantity]);
+
+  const sellQuantityForPercent = useMemo(() => {
+    const sellable =
+      effectiveSellableQuantity !== undefined ? Math.floor(effectiveSellableQuantity) : undefined;
+    if (selectedQuantityPercent === undefined || sellable === undefined || sellable <= 0) {
+      return undefined;
+    }
+    const qty = quantityFromPercent(sellable, selectedQuantityPercent);
+    return qty > 0 ? qty : undefined;
+  }, [selectedQuantityPercent, effectiveSellableQuantity]);
+
+  // 예상 금액(현재가 기준) = 예상 수량 × 현재가. (% 미선택 시 추천 등으로 설정된 수량으로 폴백)
   const buyEstimatedAmount = useMemo(() => {
     if (useAmountOrder || currentPrice === undefined || currentPrice <= 0) return undefined;
-    if (selectedQuantityPercent !== undefined && maxBuyQuantity !== undefined && maxBuyQuantity > 0) {
-      const qty = quantityFromPercent(maxBuyQuantity, selectedQuantityPercent);
-      return qty > 0 ? qty * currentPrice : undefined;
-    }
-    return effectiveQuantity !== undefined ? effectiveQuantity * currentPrice : undefined;
-  }, [useAmountOrder, currentPrice, selectedQuantityPercent, maxBuyQuantity, effectiveQuantity]);
+    const qty = buyQuantityForPercent ?? effectiveQuantity;
+    return qty !== undefined ? qty * currentPrice : undefined;
+  }, [useAmountOrder, currentPrice, buyQuantityForPercent, effectiveQuantity]);
 
   const sellEstimatedAmount = useMemo(() => {
     if (useAmountOrder || currentPrice === undefined || currentPrice <= 0) return undefined;
-    const sellable =
-      effectiveSellableQuantity !== undefined ? Math.floor(effectiveSellableQuantity) : undefined;
-    if (selectedQuantityPercent !== undefined && sellable !== undefined && sellable > 0) {
-      const qty = quantityFromPercent(sellable, selectedQuantityPercent);
-      return qty > 0 ? qty * currentPrice : undefined;
-    }
-    return effectiveQuantity !== undefined ? effectiveQuantity * currentPrice : undefined;
-  }, [useAmountOrder, currentPrice, selectedQuantityPercent, effectiveSellableQuantity, effectiveQuantity]);
+    const qty = sellQuantityForPercent ?? effectiveQuantity;
+    return qty !== undefined ? qty * currentPrice : undefined;
+  }, [useAmountOrder, currentPrice, sellQuantityForPercent, effectiveQuantity]);
 
   useEffect(() => {
     limitPriceManualRef.current = false;
@@ -462,16 +463,9 @@ export function OrderForm({
   const handlePriceModeChangeRef = useRef(handlePriceModeChange);
   handlePriceModeChangeRef.current = handlePriceModeChange;
 
+  // 수량 인풋 제거: %만 선택한다. 실제 주문 수량은 실행(직접 매수/매도) 시 사이드별로 환산.
   const applyQuantityPercent = (percent: number) => {
-    const nextQuantity = quantityFromAvailablePercent(
-      side,
-      maxBuyQuantity,
-      sellableQuantity,
-      percent
-    );
-    if (nextQuantity === undefined) return;
-    setSelectedQuantityPercent(percent);
-    setQuantity(nextQuantity);
+    setSelectedQuantityPercent((prev) => (prev === percent ? undefined : percent));
   };
 
   const applyRecommendedTakeProfitRate = () => {
@@ -483,48 +477,17 @@ export function OrderForm({
     setSelectedQuantityPercent(undefined);
   };
 
+  // 매수(주문가능)·매도(보유) 어느 쪽이든 여력이 있으면 % 버튼 노출 (사이드 비의존)
   const showQuantityPercentButtons =
-    side === 'BUY' ? maxBuyQuantity !== undefined : effectiveSellableQuantity !== undefined;
+    (maxBuyQuantity !== undefined && maxBuyQuantity > 0) ||
+    (effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0);
 
-  const quantityPercentDisabled =
-    side === 'BUY'
-      ? maxBuyQuantity === undefined || maxBuyQuantity <= 0
-      : effectiveSellableQuantity === undefined || effectiveSellableQuantity <= 0;
+  const quantityPercentDisabled = !showQuantityPercentButtons;
 
-  const adjustQuantity = (delta: number) => {
-    const {
-      side: currentSide,
-      quantity: currentQuantity,
-      sellableQuantity: sellable,
-      maxBuyQuantity: maxBuy,
-      useAmountOrder: amountOrder,
-    } = shortcutStateRef.current;
-    if (amountOrder) return;
-
-    const parsed = Number(currentQuantity);
-    // 추천 수량을 기준으로 삼지 않는다(커스텀 폼은 추천 비의존). 입력이 없으면 0에서 시작.
-    const base = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
-    let next = base + delta;
-    next = Math.max(1, next);
-
-    if (currentSide === 'BUY' && maxBuy !== undefined) {
-      next = Math.min(next, maxBuy);
-    }
-
-    if (currentSide === 'SELL') {
-      const sellMax = shortcutStateRef.current.effectiveSellableQuantity ?? sellable;
-      if (sellMax !== undefined) {
-        next = Math.min(next, Math.floor(sellMax));
-      }
-    }
-
-    clearSelectedQuantityPercent();
-    setQuantity(formatOrderQuantity(next));
-  };
-
+  // 금액 주문으로 전환 시 % 선택 해제 (수량 주문에서만 % 의미 있음)
   useEffect(() => {
-    clearSelectedQuantityPercent();
-  }, [side, useAmountOrder]);
+    if (useAmountOrder) clearSelectedQuantityPercent();
+  }, [useAmountOrder]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -539,18 +502,8 @@ export function OrderForm({
       const quantityPercent = getQuantityPercentFromKey(event);
       if (quantityPercent !== undefined) {
         if (state.useAmountOrder) return;
-
-        const nextQuantity = quantityFromAvailablePercent(
-          state.side,
-          state.maxBuyQuantity,
-          state.effectiveSellableQuantity ?? state.sellableQuantity,
-          quantityPercent
-        );
-        if (nextQuantity === undefined) return;
-
         event.preventDefault();
         setSelectedQuantityPercent(quantityPercent);
-        setQuantity(nextQuantity);
         return;
       }
 
@@ -564,28 +517,11 @@ export function OrderForm({
           event.preventDefault();
           executeManualRef.current('SELL');
           return;
-        case 'Minus':
-        case 'NumpadSubtract':
-          event.preventDefault();
-          adjustQuantity(-1);
-          return;
-        case 'Equal':
-        case 'NumpadAdd':
-          event.preventDefault();
-          adjustQuantity(1);
-          return;
         case 'KeyW': {
-          const nextQuantity = quantityFromAvailablePercent(
-            state.side,
-            state.maxBuyQuantity,
-            state.effectiveSellableQuantity ?? state.sellableQuantity,
-            100
-          );
-          if (nextQuantity === undefined) return;
-
+          // 100% 선택
+          if (state.useAmountOrder) return;
           event.preventDefault();
           setSelectedQuantityPercent(100);
-          setQuantity(nextQuantity);
           return;
         }
         case 'BracketLeft': {
@@ -633,6 +569,9 @@ export function OrderForm({
     // 추천 실행 여부를 읽고 즉시 리셋 (이후 일반 제출엔 영향 없게)
     const skipTakeProfit = skipTakeProfitRef.current;
     skipTakeProfitRef.current = false;
+    // 사이드별 %기준 수량(있으면) 우선, 없으면 추천 등으로 설정된 effectiveQuantity 사용.
+    const pendingQuantity = pendingQuantityRef.current;
+    pendingQuantityRef.current = null;
 
     const payload: CreateOrderPayload = {
       symbol: symbol.toUpperCase(),
@@ -645,9 +584,9 @@ export function OrderForm({
       payload.orderAmount = Number(orderAmount);
       payload.orderType = 'MARKET';
     } else {
-      const submitQuantity = effectiveQuantity;
-      if (submitQuantity === undefined) {
-        showToast('수량을 입력해 주세요.', 'error');
+      const submitQuantity = pendingQuantity ?? effectiveQuantity;
+      if (submitQuantity === undefined || submitQuantity <= 0) {
+        showToast('비율(%)을 선택하거나 추천 실행을 사용해 주세요.', 'error');
         return;
       }
 
@@ -772,21 +711,7 @@ export function OrderForm({
         ) : (
           <>
             <div className="order-form__section">
-              <div className="order-form__section-title">수량</div>
-              <label>
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={quantity}
-                  placeholder="수량"
-                  onChange={(e) => {
-                    clearSelectedQuantityPercent();
-                    setQuantity(e.target.value);
-                  }}
-                />
-              </label>
-
+              <div className="order-form__section-title">수량 비율</div>
               {showQuantityPercentButtons && (
                 <div className="order-quick-actions">
                   {QUANTITY_PERCENTAGES.map((percent) => (
@@ -953,10 +878,20 @@ export function OrderForm({
           {!useAmountOrder && (
             <>
               <p className="order-estimated-amount">
-                예상 매수 금액 <strong>{buyEstimatedAmount !== undefined ? formatUsd(buyEstimatedAmount) : '—'}</strong>
+                예상 매수{' '}
+                <strong>
+                  {buyQuantityForPercent !== undefined
+                    ? `${formatOrderQuantity(buyQuantityForPercent)}주${buyEstimatedAmount !== undefined ? ` · ${formatUsd(buyEstimatedAmount)}` : ''}`
+                    : '—'}
+                </strong>
               </p>
               <p className="order-estimated-amount sell">
-                예상 매도 금액 <strong>{sellEstimatedAmount !== undefined ? formatUsd(sellEstimatedAmount) : '—'}</strong>
+                예상 매도{' '}
+                <strong>
+                  {sellQuantityForPercent !== undefined
+                    ? `${formatOrderQuantity(sellQuantityForPercent)}주${sellEstimatedAmount !== undefined ? ` · ${formatUsd(sellEstimatedAmount)}` : ''}`
+                    : '—'}
+                </strong>
               </p>
             </>
           )}
