@@ -8,21 +8,21 @@
       <stop offset=".65" stop-color="#b095f0"/>
       <stop offset="1" stop-color="#f2a7b1"/>
     </linearGradient>
-    <!-- 세로 페이드: 위(라인)는 진하게, 아래로 갈수록 옅게 → 라인과 area 경계 없이 연결 -->
-    <linearGradient id="fade" x1="0" y1="4" x2="0" y2="46" gradientUnits="userSpaceOnUse">
+    <!-- 세로 페이드: 위는 진하게, 아래로 옅게 → 라인·영역 경계 없이 부드럽게 아래로 사라짐 -->
+    <linearGradient id="fade" x1="0" y1="6" x2="0" y2="46" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#fff"/>
-      <stop offset=".5" stop-color="#fff"/>
-      <stop offset="1" stop-color="#6b6b6b"/>
+      <stop offset=".45" stop-color="#fff"/>
+      <stop offset="1" stop-color="#4a4a4a"/>
     </linearGradient>
     <mask id="fadeMask">
       <rect width="48" height="48" fill="url(#fade)"/>
     </mask>
   </defs>
   <g mask="url(#fadeMask)">
-    <!-- 영역 + 차트 라인 모두 같은 trend 그라데이션 → 경계 없이 한 덩어리로 보임.
-         라인은 끊김 없는 단일 path(연속). -->
+    <!-- 영역과 라인을 같은 trend 그라데이션 + 같은 불투명도로 → 구분 없이 한 덩어리.
+         라인의 둥근 캡이 그대로 영역 양 끝의 둥근 모서리가 됨. -->
     <path d="M4 38 C8 37 13 24 18 23 C22 22 25 30 30 30 C36 30 40 12 45 7 L45 45 L4 45 Z"
-          fill="url(#trend)" fill-opacity=".55"/>
+          fill="url(#trend)"/>
     <path d="M4 38 C8 37 13 24 18 23 C22 22 25 30 30 30 C36 30 40 12 45 7"
           fill="none" stroke="url(#trend)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
