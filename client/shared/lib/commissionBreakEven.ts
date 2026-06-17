@@ -32,32 +32,19 @@ export function calculateRoundTripBreakEvenSellPrice(
   return roundUsdPrice(averagePrice * (1 + rate * 2));
 }
 
-export function buildCommissionBreakEvenMetrics(params: {
+/**
+ * 손익분기(왕복 수수료 반영 본전 매도가) 단일 지표. 보유(평단>0) 중일 때만 의미가 있어
+ * 미보유 시 undefined 를 반환한다 — 호출부(보유 포지션 행)에서 보유 시에만 렌더한다.
+ * 수수료율은 본 값에 이미 녹아 있으므로 별도 '수수료' 지표는 두지 않는다.
+ */
+export function buildBreakEvenMetric(params: {
   holdingAveragePrice?: number;
   currentPrice?: number;
   commissionRatePercent?: number;
-}): MarketMetric[] {
+}): MarketMetric | undefined {
   const { holdingAveragePrice, currentPrice, commissionRatePercent } = params;
 
-  if (!holdingAveragePrice || holdingAveragePrice <= 0) {
-    return [
-      {
-        id: 'commission-rate',
-        label: '수수료',
-        value:
-          commissionRatePercent !== undefined
-            ? `왕복 ${(commissionRatePercent * 2).toFixed(3)}%`
-            : '—',
-        bias: 'neutral',
-      },
-      {
-        id: 'break-even',
-        label: '손익분기',
-        value: '보유 시 표시',
-        bias: 'neutral',
-      },
-    ];
-  }
+  if (!holdingAveragePrice || holdingAveragePrice <= 0) return undefined;
 
   const rate = commissionRatePercent ?? DEFAULT_US_COMMISSION_RATE_PERCENT;
   const breakEvenPrice = calculateRoundTripBreakEvenSellPrice(holdingAveragePrice, rate);
@@ -66,29 +53,18 @@ export function buildCommissionBreakEvenMetrics(params: {
       ? ((breakEvenPrice - currentPrice) / currentPrice) * 100
       : undefined;
 
-  let breakEvenValue = formatUsd(breakEvenPrice);
+  let value = formatUsd(breakEvenPrice);
   if (distancePercent !== undefined) {
-    breakEvenValue =
-      distancePercent <= 0
-        ? `도달 (${breakEvenValue})`
-        : `+${distancePercent.toFixed(2)}% (${breakEvenValue})`;
+    value =
+      distancePercent <= 0 ? `도달 (${value})` : `+${distancePercent.toFixed(2)}% (${value})`;
   }
 
-  return [
-    {
-      id: 'commission-rate',
-      label: '수수료',
-      value: `왕복 ${(rate * 2).toFixed(3)}%`,
-      bias: 'neutral',
-    },
-    {
-      id: 'break-even',
-      label: '손익분기',
-      value: breakEvenValue,
-      bias:
-        distancePercent !== undefined ? (distancePercent <= 0 ? 'bullish' : 'neutral') : 'neutral',
-    },
-  ];
+  return {
+    id: 'break-even',
+    label: '손익분기',
+    value,
+    bias: distancePercent !== undefined && distancePercent <= 0 ? 'bullish' : 'neutral',
+  };
 }
 
 export function buildBuyBreakEvenHint(buyPrice: number, commissionRatePercent: number): string {
