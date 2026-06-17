@@ -2746,9 +2746,10 @@ input[type='checkbox']:focus-visible {
 }
 
 @media (max-width: 1100px) {
-  /* 단축키 안내·번호 뱃지는 데스크톱 전용(모바일은 키보드 단축키가 무의미하므로 숨김) */
+  /* 단축키 안내·번호 뱃지·백테스트 링크는 데스크톱 전용(모바일 헤더 공간 절약) */
   .order-shortcuts,
-  .portfolio-holding-item__hotkey {
+  .portfolio-holding-item__hotkey,
+  .header-backtest-link {
     display: none;
   }
 
