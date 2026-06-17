@@ -2246,8 +2246,11 @@ input[type='checkbox'] {
   appearance: none;
   -webkit-appearance: none;
   flex: 0 0 auto;
+  box-sizing: border-box;
   width: 16px;
   height: 16px;
+  /* .order-form input 등 일반 input 패딩이 더해져 체크박스가 커지는 것 방지 */
+  padding: 0;
   margin: 0;
   border: 1px solid var(--border-default);
   border-radius: 4px;
