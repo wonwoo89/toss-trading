@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../shared/api/client';
 import {
+  getCachedCandles,
   getCandleCount,
   getHistoryCandleCount,
   mapApiCandles,
   mergeChartCandles,
+  setCachedCandles,
 } from '../lib/candles';
 import { unwrapResult } from '../lib/parse';
 import type { CandleInterval, ChartCandle } from '../types';
@@ -48,10 +50,13 @@ export function useChartCandles(
   activeKeyRef.current = `${symbol}:${interval}`;
 
   useEffect(() => {
+    // 종목/인터벌 변경 시: 캐시에 마지막으로 본 차트가 있으면 즉시 복원(빈 차트 깜빡임 방지),
+    // 없으면 비운다. 어느 경우든 백그라운드로 최신 캔들을 다시 받아 갱신한다.
+    const cached = getCachedCandles(`${symbol}:${interval}`);
     historyCursorRef.current = null;
     loadingOlderRef.current = false;
-    hasDataRef.current = false;
-    setCandles([]);
+    hasDataRef.current = !!(cached && cached.length);
+    setCandles(cached ?? []);
     setLoading(false);
     setRefreshing(false);
     setLoadingOlder(false);
@@ -66,7 +71,11 @@ export function useChartCandles(
     if (requestKey !== activeKeyRef.current) return [];
     const mapped = mapApiCandles(page.candles);
 
-    setCandles((prev) => mergeChartCandles(prev, mapped));
+    setCandles((prev) => {
+      const merged = mergeChartCandles(prev, mapped);
+      setCachedCandles(requestKey, merged);
+      return merged;
+    });
     setError(null);
     hasDataRef.current = mapped.length > 0;
 
@@ -166,7 +175,11 @@ export function useChartCandles(
       if (requestKey !== activeKeyRef.current) return;
       const mapped = mapApiCandles(page.candles);
 
-      setCandles((prev) => mergeChartCandles(mapped, prev));
+      setCandles((prev) => {
+        const merged = mergeChartCandles(mapped, prev);
+        setCachedCandles(requestKey, merged);
+        return merged;
+      });
       setError(null);
 
       historyCursorRef.current = page.nextBefore;
