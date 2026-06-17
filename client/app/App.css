@@ -2240,11 +2240,50 @@ select:focus-visible {
   user-select: none;
 }
 
-/* 모든 체크박스를 실시간 토글(.realtime-toggle)과 동일한 모양으로 통일 */
-.checkbox input {
-  cursor: pointer;
+/* 모든 체크박스 통일: 네이티브(OS마다 동그라미/네모 제각각) 대신 직접 그린 '네모' 체크박스.
+   appearance:none 으로 전역 적용 → 실시간·볼린저·금액주문·매수후매도 전부 동일 모양. */
+input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
   margin: 0;
-  accent-color: var(--accent, #3182f6);
+  border: 1px solid var(--border-default);
+  border-radius: 4px;
+  background: var(--bg-input);
+  display: inline-grid;
+  place-content: center;
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease;
+}
+
+input[type='checkbox']::after {
+  content: '';
+  width: 4px;
+  height: 8px;
+  margin-top: -1px;
+  border: solid #fff;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+
+input[type='checkbox']:checked {
+  background: var(--accent, #3182f6);
+  border-color: var(--accent, #3182f6);
+}
+
+input[type='checkbox']:checked::after {
+  opacity: 1;
+}
+
+input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--accent, #3182f6);
+  outline-offset: 1px;
 }
 
 .segmented {
