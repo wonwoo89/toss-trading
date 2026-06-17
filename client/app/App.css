@@ -997,8 +997,9 @@ textarea {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.7rem 0.75rem;
+  /* 한 화면에 더 많이 보이게: 티커↔수량 / 총보유가↔수익 상하 간격 + 종목 영역 축소 */
+  gap: 0.12rem;
+  padding: 0.4rem 0.75rem;
   /* 보유종목 행 전체 폰트를 살짝 축소(종목명·평가금액이 이 값을 상속) */
   font-size: 0.9rem;
   border: 1px solid transparent;
