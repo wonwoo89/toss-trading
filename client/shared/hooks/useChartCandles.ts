@@ -42,6 +42,11 @@ export function useChartCandles(
   const pendingForceRefreshRef = useRef(false);
   const runRef = useRef<() => void>(() => {});
 
+  // 현재 요청 대상(종목+인터벌) 키. 렌더마다 최신값으로 갱신.
+  // 종목을 바꾼 뒤 늦게 도착한 이전 종목 응답(stale)을 식별해 폐기하는 데 쓴다.
+  const activeKeyRef = useRef('');
+  activeKeyRef.current = `${symbol}:${interval}`;
+
   useEffect(() => {
     historyCursorRef.current = null;
     loadingOlderRef.current = false;
@@ -55,7 +60,10 @@ export function useChartCandles(
   }, [symbol, interval]);
 
   const refreshLatest = useCallback(async () => {
+    const requestKey = `${symbol}:${interval}`;
     const page = unwrapResult(await api.getCandles(symbol, interval, getCandleCount(interval)));
+    // 응답 도착 시점에 종목/인터벌이 바뀌었으면 stale → 폐기(이전 종목 캔들이 섞이는 것 방지).
+    if (requestKey !== activeKeyRef.current) return [];
     const mapped = mapApiCandles(page.candles);
 
     setCandles((prev) => mergeChartCandles(prev, mapped));
@@ -143,6 +151,7 @@ export function useChartCandles(
   }, [enabled]);
 
   const loadOlder = useCallback(async () => {
+    const requestKey = `${symbol}:${interval}`;
     const before = historyCursorRef.current;
     if (!before || loadingOlderRef.current) return;
 
@@ -153,6 +162,8 @@ export function useChartCandles(
       const page = unwrapResult(
         await api.getCandles(symbol, interval, getHistoryCandleCount(), before)
       );
+      // 종목/인터벌이 바뀐 뒤 도착한 과거 캔들 응답은 폐기.
+      if (requestKey !== activeKeyRef.current) return;
       const mapped = mapApiCandles(page.candles);
 
       setCandles((prev) => mergeChartCandles(mapped, prev));

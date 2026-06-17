@@ -281,12 +281,18 @@ export function useSymbolTrading(
     }
   }, [accountSeq, symbol, isClosed, closedAccountDone]);
 
+  // 렌더마다 최신 symbol. 종목 변경 후 늦게 도착한 이전 종목 시세(stale)를 폐기하는 데 사용.
+  const latestSymbolRef = useRef(symbol);
+  latestSymbolRef.current = symbol;
+
   const marketFetcher = useCallback(async () => {
     if (!symbol) return undefined;
     // 토글 ON 이면 폐장 1회 가드를 우회해 계속 시세를 받아온다.
     if (isClosed && closedMarketDone && !realtimePollingForced) return undefined;
     try {
       const snap = unwrapResult(await api.getMarketSnapshot(symbol));
+      // 응답 도착 시점에 종목이 바뀌었으면 stale → undefined 반환(usePolling 이 직전 시세 유지).
+      if (symbol !== latestSymbolRef.current) return undefined;
       const p = snap.price?.[0];
       const ob = snap.orderbook;
       const priceInfo = p as { lastPrice?: string; price?: string } | undefined;
