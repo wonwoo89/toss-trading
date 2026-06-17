@@ -31,9 +31,15 @@ export function SymbolSearch() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const requestSeqRef = useRef(0);
 
+  // 페이지 이동(라우트 종목 변경) 시 입력값을 동기화하고 자동완성 목록을 정리한다.
   useEffect(() => {
     if (routeSymbol) {
+      requestSeqRef.current += 1;
+      clearTimeout(debounceRef.current);
       setSearchInput(routeSymbol.toUpperCase());
+      setSuggestions([]);
+      setIsOpen(false);
+      setActiveIndex(-1);
     }
   }, [routeSymbol]);
 
@@ -68,8 +74,11 @@ export function SymbolSearch() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    const query = searchInput.trim();
+  // 디바운스 검색은 "사용자 입력"(아래 onChange)에서만 실행한다.
+  // searchInput 을 프로그램적으로 바꿀 때(종목 선택·라우트 동기화)는 검색을 트리거하지 않아야
+  // 선택 후 자동완성 목록이 다시 떠버리지 않는다.
+  const runSearch = (raw: string) => {
+    const query = raw.trim();
     clearTimeout(debounceRef.current);
 
     if (!query) {
@@ -102,12 +111,15 @@ export function SymbolSearch() {
           setIsSearching(false);
         });
     }, 250);
+  };
 
-    return () => clearTimeout(debounceRef.current);
-  }, [searchInput]);
+  useEffect(() => () => clearTimeout(debounceRef.current), []);
 
   const goToSymbol = (symbol: string) => {
     const normalized = symbol.toUpperCase();
+    // 진행 중/예약된 검색 응답이 늦게 도착해 자동완성이 다시 열리는 것 방지
+    requestSeqRef.current += 1;
+    clearTimeout(debounceRef.current);
     setSearchInput(normalized);
     setSuggestions([]);
     setIsOpen(false);
@@ -182,7 +194,10 @@ export function SymbolSearch() {
           aria-controls="symbol-search-listbox"
           role="combobox"
           value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
+          onChange={(e) => {
+            setSearchInput(e.target.value);
+            runSearch(e.target.value);
+          }}
           onFocus={() => {
             if (suggestions.length > 0) setIsOpen(true);
           }}
