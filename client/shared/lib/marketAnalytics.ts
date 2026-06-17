@@ -1,6 +1,5 @@
-import type { CandleInterval, ChartCandle, StockInfo } from '../types';
+import type { CandleInterval, ChartCandle } from '../types';
 import type { MicrostructureBias } from './marketMicrostructure';
-import { toNumber } from './parse';
 
 export interface MarketMetric {
   id: string;
@@ -52,27 +51,6 @@ export function buildDayChangeMetric(
     value: `${formatSignedPercent(rate)} (${formatSignedUsd(diff)})`,
     bias,
   };
-}
-
-// 종목 메타(레버리지·상장폐지·종류). 일반 종목이면 전부 비어 행 자체가 숨겨진다.
-export function buildStockInfoMetrics(info?: StockInfo): MarketMetric[] {
-  if (!info) return [];
-  const metrics: MarketMetric[] = [];
-
-  const leverage = toNumber(info.leverageFactor);
-  if (leverage !== undefined && leverage !== 0 && leverage !== 1) {
-    metrics.push({ id: 'leverage', label: '레버리지', value: `${leverage}x`, bias: 'bearish' });
-  }
-
-  if (info.delistDate) {
-    metrics.push({ id: 'delist', label: '상장폐지', value: info.delistDate, bias: 'bearish' });
-  }
-
-  if (info.securityType && info.securityType !== 'STOCK') {
-    metrics.push({ id: 'sec-type', label: '종류', value: info.securityType, bias: 'neutral' });
-  }
-
-  return metrics;
 }
 
 function getTodayCandles(candles: ChartCandle[], interval: CandleInterval) {

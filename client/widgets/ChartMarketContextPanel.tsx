@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   buildDayChangeMetric,
   buildDayPriceMetrics,
-  buildStockInfoMetrics,
 } from '../shared/lib/marketAnalytics';
 import {
   buildBreakEvenMetric,
@@ -20,7 +19,6 @@ import type {
   CommissionRaw,
   HoldingItem,
   Order,
-  StockInfo,
   UsMarketCalendarRaw,
 } from '../shared/types';
 
@@ -32,7 +30,6 @@ interface ChartMarketContextPanelProps {
   candleInterval?: CandleInterval;
   currentPrice?: number;
   previousClose?: number;
-  stockInfo?: StockInfo;
   holding?: HoldingItem;
   profitLossRate?: number;
   targetProfitRatePercent: number;
@@ -111,7 +108,6 @@ export function ChartMarketContextPanel({
   candleInterval = '1m',
   currentPrice,
   previousClose,
-  stockInfo,
   holding,
   profitLossRate,
   targetProfitRatePercent,
@@ -159,8 +155,6 @@ export function ChartMarketContextPanel({
     [previousClose, currentPrice]
   );
 
-  const stockInfoMetrics = useMemo(() => buildStockInfoMetrics(stockInfo), [stockInfo]);
-
   const orderExecutionMetrics = useMemo(
     () =>
       buildOrderExecutionMetrics({
@@ -205,8 +199,6 @@ export function ChartMarketContextPanel({
       </div>
 
       <MetricRow label="당일·변동" metrics={[dayChangeMetric, ...dayPriceMetrics]} />
-
-      <MetricRow label="종목" metrics={stockInfoMetrics} />
 
       <MetricRow label="주문 실행" metrics={orderExecutionMetrics} />
 
