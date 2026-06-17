@@ -6,6 +6,7 @@ const CandleChart = lazy(() =>
 import { ChartMarketContextPanel } from './ChartMarketContextPanel';
 import { ChartSignalPanel } from './ChartSignalPanel';
 import { StockLabel } from './StockLabel';
+import { BacktestModal } from './BacktestModal';
 import {
   buildSpreadSnapshot,
   buildTradeFlowSnapshot,
@@ -112,6 +113,7 @@ export function MarketPanel({
   onRealtimePollingForcedChange,
 }: MarketPanelProps) {
   const [orderbookExpanded, setOrderbookExpanded] = useState(false);
+  const [backtestOpen, setBacktestOpen] = useState(false);
   const [bollingerVisible, setBollingerVisible] = useState(getStoredBollingerVisible);
 
   const handleBollingerVisibleChange = (visible: boolean) => {
@@ -219,6 +221,14 @@ export function MarketPanel({
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              className="chart-backtest-btn"
+              onClick={() => setBacktestOpen(true)}
+              title="이 종목 신호 백테스트"
+            >
+              백테스트
+            </button>
           </div>
         </div>
 
@@ -409,6 +419,10 @@ export function MarketPanel({
           </div>
         )}
       </div>
+
+      {backtestOpen && (
+        <BacktestModal symbol={symbol} onClose={() => setBacktestOpen(false)} />
+      )}
     </section>
   );
 }
