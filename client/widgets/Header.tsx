@@ -1,4 +1,5 @@
 import { HeaderAccountBalance } from './HeaderAccountBalance';
+import { HeaderAccountMenu } from './HeaderAccountMenu';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
 import { SymbolSearch } from './SymbolSearch';
 import { ThemeToggle } from './ThemeToggle';
@@ -15,6 +16,8 @@ export function Header() {
           <SymbolSearch />
           <ThemeToggle />
           <WakeLockToggle />
+          {/* 모바일 전용: 화면꺼짐 방지 버튼 옆 '내 계좌' 드롭다운 (데스크톱은 CSS 로 숨김) */}
+          <HeaderAccountMenu />
           <KeyboardShortcutsHelp />
         </div>
       </div>

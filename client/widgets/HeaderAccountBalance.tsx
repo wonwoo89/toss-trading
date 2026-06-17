@@ -1,19 +1,8 @@
-import { useMemo } from 'react';
-import { useAppContext } from '../app/providers/AppContext';
 import { formatKrw, formatUsd } from '../shared/lib/formatHoldings';
+import { useAccountSummary } from '../shared/hooks/useAccountSummary';
 
 export function HeaderAccountBalance() {
-  const { isReady, buyingPower, totalMarketValue, exchangeRate } = useAppContext();
-
-  const totalAccountValue = useMemo(() => {
-    if (buyingPower === undefined && totalMarketValue === undefined) return undefined;
-    return (buyingPower ?? 0) + (totalMarketValue ?? 0);
-  }, [buyingPower, totalMarketValue]);
-
-  const totalAccountValueKrw = useMemo(() => {
-    if (totalAccountValue === undefined || exchangeRate === undefined) return undefined;
-    return totalAccountValue * exchangeRate;
-  }, [exchangeRate, totalAccountValue]);
+  const { isReady, exchangeRate, totalAccountValue, totalAccountValueKrw } = useAccountSummary();
 
   if (!isReady) return null;
 
