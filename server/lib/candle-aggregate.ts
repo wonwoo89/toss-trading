@@ -84,13 +84,19 @@ function aggregateBucket(
     });
 }
 
+const SOURCE_MINUTE_MS = 60 * 1000;
+
 export function aggregateMinuteCandles(candles: RawCandle[], minutes: 5 | 10) {
   const bucketMs = minutes * 60 * 1000;
 
   return aggregateBucket(
     candles,
     (timestamp) => {
-      const bucketStart = Math.floor(new Date(timestamp).getTime() / bucketMs) * bucketMs;
+      // 토스 1분봉 timestamp 는 분의 "끝"(close 시각) 기준이다.
+      // 예: 22:35 봉 = 22:34~22:35 구간. 그대로 floor(ts/5분) 하면 22:35 봉이 다음 5분 버킷으로
+      // 빠져 마지막 봉이 분리된다. 1분(소스 주기)을 빼고 버킷팅해 봉이 속한 구간으로 정렬한다.
+      const bucketStart =
+        Math.floor((new Date(timestamp).getTime() - SOURCE_MINUTE_MS) / bucketMs) * bucketMs;
       return String(bucketStart);
     },
     (bucketKey, group) => formatBucketTimestamp(Number(bucketKey), group[0].timestamp)
