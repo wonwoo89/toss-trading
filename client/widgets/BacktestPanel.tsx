@@ -66,10 +66,10 @@ function EquitySparkline({ equity }: { equity: number[] }) {
 
 export function BacktestPanel({ initialSymbol = 'AAPL' }: { initialSymbol?: string }) {
   const [symbol, setSymbol] = useState(initialSymbol);
-  const [interval, setInterval] = useState<CandleInterval>('1m');
+  const [interval, setInterval] = useState<CandleInterval>('5m');
   const [forwardBars, setForwardBars] = useState(15);
-  const [targetPct, setTargetPct] = useState(0.8);
-  const [stopPct, setStopPct] = useState(0.8);
+  const [targetPct, setTargetPct] = useState(15);
+  const [stopPct, setStopPct] = useState(5);
   const [costPct, setCostPct] = useState(0.05);
 
   const [loading, setLoading] = useState(false);
