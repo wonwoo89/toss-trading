@@ -57,8 +57,6 @@ interface MarketPanelProps {
   usMarketCalendarError?: string | null;
   usMarketCalendarLoading?: boolean;
   openOrders?: Order[];
-  closedOrders?: Order[];
-  closedOrdersUnavailable?: boolean;
   buyingPower?: number;
   sellableQuantity?: number;
   commissions?: CommissionRaw[];
@@ -103,8 +101,6 @@ export function MarketPanel({
   usMarketCalendarError,
   usMarketCalendarLoading,
   openOrders = [],
-  closedOrders = [],
-  closedOrdersUnavailable = false,
   buyingPower,
   sellableQuantity,
   commissions = [],
@@ -259,8 +255,6 @@ export function MarketPanel({
             profitLossRate={holdingProfitLossRate}
             targetProfitRatePercent={targetProfitRatePercent}
             openOrders={openOrders}
-            closedOrders={closedOrders}
-            closedOrdersUnavailable={closedOrdersUnavailable}
             buyingPower={buyingPower}
             sellableQuantity={sellableQuantity}
             commissions={commissions}

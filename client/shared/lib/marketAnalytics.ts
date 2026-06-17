@@ -31,13 +31,6 @@ function formatSignedUsd(value: number) {
   return `${sign}$${Math.abs(value).toFixed(2)}`;
 }
 
-function formatCompactUsd(value: number) {
-  if (value >= 1e12) return `$${(value / 1e12).toFixed(2)}T`;
-  if (value >= 1e9) return `$${(value / 1e9).toFixed(2)}B`;
-  if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M`;
-  return `$${Math.round(value).toLocaleString('en-US')}`;
-}
-
 // 전일대비 등락(전일 종가 대비 현재가). 양수=상승 색, 음수=하락 색.
 export function buildDayChangeMetric(
   previousClose?: number,
@@ -61,20 +54,10 @@ export function buildDayChangeMetric(
   };
 }
 
-// 종목 메타(시가총액·레버리지·상장폐지·종류). /api/v1/stocks 가 주던 미사용 필드 활용.
-export function buildStockInfoMetrics(info?: StockInfo, currentPrice?: number): MarketMetric[] {
+// 종목 메타(레버리지·상장폐지·종류). 일반 종목이면 전부 비어 행 자체가 숨겨진다.
+export function buildStockInfoMetrics(info?: StockInfo): MarketMetric[] {
   if (!info) return [];
   const metrics: MarketMetric[] = [];
-
-  const shares = toNumber(info.sharesOutstanding);
-  if (shares !== undefined && shares > 0 && currentPrice !== undefined && currentPrice > 0) {
-    metrics.push({
-      id: 'market-cap',
-      label: '시가총액',
-      value: formatCompactUsd(shares * currentPrice),
-      bias: 'neutral',
-    });
-  }
 
   const leverage = toNumber(info.leverageFactor);
   if (leverage !== undefined && leverage !== 0 && leverage !== 1) {
@@ -91,9 +74,6 @@ export function buildStockInfoMetrics(info?: StockInfo, currentPrice?: number): 
 
   return metrics;
 }
-
-const SUPPORT_RESISTANCE_PERIOD = 20;
-const ATR_PERIOD = 14;
 
 function getTodayCandles(candles: ChartCandle[], interval: CandleInterval) {
   if (candles.length === 0) return [];
@@ -181,80 +161,4 @@ export function buildDayPriceMetrics(
           : 'neutral',
     },
   ];
-}
-
-export function buildSupportResistanceMetrics(candles: ChartCandle[]): MarketMetric[] {
-  const sorted = candles.slice().sort((a, b) => a.time - b.time);
-  const recent = sorted.slice(-SUPPORT_RESISTANCE_PERIOD);
-
-  if (recent.length < 5) {
-    return [
-      { id: 'support', label: '지지', value: '—', bias: 'neutral' },
-      { id: 'resistance', label: '저항', value: '—', bias: 'neutral' },
-    ];
-  }
-
-  const support = Math.min(...recent.map((candle) => candle.low));
-  const resistance = Math.max(...recent.map((candle) => candle.high));
-  const lastClose = recent[recent.length - 1].close;
-  const supportGap = lastClose > 0 ? ((lastClose - support) / lastClose) * 100 : undefined;
-  const resistanceGap = resistance > 0 ? ((resistance - lastClose) / lastClose) * 100 : undefined;
-
-  return [
-    {
-      id: 'support',
-      label: '지지',
-      value: supportGap !== undefined ? `${support.toFixed(2)} (-${supportGap.toFixed(2)}%)` : '—',
-      bias: 'bullish',
-    },
-    {
-      id: 'resistance',
-      label: '저항',
-      value:
-        resistanceGap !== undefined
-          ? `${resistance.toFixed(2)} (+${resistanceGap.toFixed(2)}%)`
-          : '—',
-      bias: 'bearish',
-    },
-  ];
-}
-
-function calculateAtr(candles: ChartCandle[], period = ATR_PERIOD) {
-  if (candles.length < period + 1) return undefined;
-
-  const sorted = candles.slice().sort((a, b) => a.time - b.time);
-  const trueRanges: number[] = [];
-
-  for (let index = 1; index < sorted.length; index += 1) {
-    const current = sorted[index];
-    const previous = sorted[index - 1];
-    const range = Math.max(
-      current.high - current.low,
-      Math.abs(current.high - previous.close),
-      Math.abs(current.low - previous.close)
-    );
-    trueRanges.push(range);
-  }
-
-  const recent = trueRanges.slice(-period);
-  return recent.reduce((sum, value) => sum + value, 0) / recent.length;
-}
-
-export function buildAtrMetric(candles: ChartCandle[], currentPrice?: number): MarketMetric {
-  const atr = calculateAtr(candles);
-  if (atr === undefined || currentPrice === undefined || currentPrice <= 0) {
-    return { id: 'atr', label: 'ATR', value: '—', bias: 'neutral' };
-  }
-
-  const atrPercent = (atr / currentPrice) * 100;
-  let bias: MicrostructureBias = 'neutral';
-  if (atrPercent >= 2) bias = 'bearish';
-  else if (atrPercent <= 0.5) bias = 'bullish';
-
-  return {
-    id: 'atr',
-    label: 'ATR(14)',
-    value: `${atr.toFixed(2)} (${atrPercent.toFixed(2)}%)`,
-    bias,
-  };
 }

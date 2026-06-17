@@ -1,19 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  buildAtrMetric,
   buildDayChangeMetric,
   buildDayPriceMetrics,
   buildStockInfoMetrics,
-  buildSupportResistanceMetrics,
 } from '../shared/lib/marketAnalytics';
 import {
-  buildCommissionBreakEvenMetrics,
+  buildBreakEvenMetric,
   resolveUsCommissionRatePercent,
 } from '../shared/lib/commissionBreakEven';
 import { buildHoldingPositionSnapshot } from '../shared/lib/holdingTarget';
 import { type MicrostructureBias } from '../shared/lib/marketMicrostructure';
 import { buildOrderExecutionMetrics } from '../shared/lib/orderExecutionContext';
-import { buildRecentOrderActivityMetric } from '../shared/lib/orderHistoryContext';
 import { formatUsd } from '../shared/lib/formatHoldings';
 import { formatWarningSummary } from '../shared/lib/warningLabels';
 import { resolveUsMarketSession, type UsMarketSessionKind } from '../shared/lib/usMarketCalendar';
@@ -40,8 +37,6 @@ interface ChartMarketContextPanelProps {
   profitLossRate?: number;
   targetProfitRatePercent: number;
   openOrders?: Order[];
-  closedOrders?: Order[];
-  closedOrdersUnavailable?: boolean;
   buyingPower?: number;
   sellableQuantity?: number;
   commissions?: CommissionRaw[];
@@ -121,8 +116,6 @@ export function ChartMarketContextPanel({
   profitLossRate,
   targetProfitRatePercent,
   openOrders = [],
-  closedOrders = [],
-  closedOrdersUnavailable = false,
   buyingPower,
   sellableQuantity,
   commissions = [],
@@ -166,14 +159,7 @@ export function ChartMarketContextPanel({
     [previousClose, currentPrice]
   );
 
-  const stockInfoMetrics = useMemo(
-    () => buildStockInfoMetrics(stockInfo, currentPrice),
-    [stockInfo, currentPrice]
-  );
-
-  const supportResistanceMetrics = useMemo(() => buildSupportResistanceMetrics(candles), [candles]);
-
-  const atrMetric = useMemo(() => buildAtrMetric(candles, currentPrice), [candles, currentPrice]);
+  const stockInfoMetrics = useMemo(() => buildStockInfoMetrics(stockInfo), [stockInfo]);
 
   const orderExecutionMetrics = useMemo(
     () =>
@@ -187,19 +173,14 @@ export function ChartMarketContextPanel({
     [buyingPower, currentPrice, holding?.quantity, openOrders, sellableQuantity]
   );
 
-  const commissionMetrics = useMemo(
+  const breakEvenMetric = useMemo(
     () =>
-      buildCommissionBreakEvenMetrics({
+      buildBreakEvenMetric({
         holdingAveragePrice: holding?.averagePrice,
         currentPrice,
         commissionRatePercent,
       }),
     [commissionRatePercent, currentPrice, holding?.averagePrice]
-  );
-
-  const orderHistoryMetric = useMemo(
-    () => buildRecentOrderActivityMetric(openOrders, closedOrders, closedOrdersUnavailable),
-    [closedOrders, closedOrdersUnavailable, openOrders]
   );
 
   const warningSummary = formatWarningSummary(warnings);
@@ -223,10 +204,7 @@ export function ChartMarketContextPanel({
         </div>
       </div>
 
-      <MetricRow
-        label="당일·변동"
-        metrics={[dayChangeMetric, ...dayPriceMetrics, atrMetric, ...supportResistanceMetrics]}
-      />
+      <MetricRow label="당일·변동" metrics={[dayChangeMetric, ...dayPriceMetrics]} />
 
       <MetricRow label="종목" metrics={stockInfoMetrics} />
 
@@ -248,6 +226,14 @@ export function ChartMarketContextPanel({
               <span className="market-context__metric-label">실수익률</span>
               <span className="market-context__metric-value">{position.profitLossRateLabel}</span>
             </span>
+            {breakEvenMetric && (
+              <span
+                className={`market-context__metric ${getMetricClassName(breakEvenMetric.bias)}`}
+              >
+                <span className="market-context__metric-label">{breakEvenMetric.label}</span>
+                <span className="market-context__metric-value">{breakEvenMetric.value}</span>
+              </span>
+            )}
             <span
               className={`market-context__metric ${
                 position.distanceToTargetPercent !== undefined &&
@@ -264,8 +250,6 @@ export function ChartMarketContextPanel({
           </div>
         </div>
       )}
-
-      <MetricRow label="수수료·체결" metrics={[...commissionMetrics, orderHistoryMetric]} />
 
       {warningSummary && (
         <div className="market-context__row">
