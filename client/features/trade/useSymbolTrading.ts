@@ -60,7 +60,6 @@ import type {
   OrderSubmitOptions,
   OrderSubmitResult,
   OrderbookEntryRaw,
-  StockInfo,
   TradeRaw,
 } from '../../shared/types';
 import type { TradeSnapshotState } from '../../shared/lib/tradeSnapshot';
@@ -227,7 +226,6 @@ export function useSymbolTrading(
 
   // symbol meta load (이름, 경고) — encapsulated here
   const [stockName, setStockName] = useState<string>();
-  const [stockInfo, setStockInfo] = useState<StockInfo>();
   const [previousClose, setPreviousClose] = useState<number>();
   const [warnings, setWarnings] = useState<string[]>([]);
 
@@ -544,7 +542,6 @@ export function useSymbolTrading(
 
         const stock = unwrapResult(stockRes)[0];
         setStockName(stock?.englishName ?? stock?.name);
-        setStockInfo(stock);
 
         const warningsRes = await api
           .getWarnings(symbol)
@@ -555,7 +552,6 @@ export function useSymbolTrading(
       } catch {
         if (!cancelled) {
           setStockName(undefined);
-          setStockInfo(undefined);
           setWarnings([]);
         }
       }
@@ -954,7 +950,6 @@ export function useSymbolTrading(
     () => ({
       symbol,
       stockName,
-      stockInfo,
       previousClose,
       bids: marketPolling.data?.bids,
       asks: marketPolling.data?.asks,
@@ -986,7 +981,6 @@ export function useSymbolTrading(
     [
       symbol,
       stockName,
-      stockInfo,
       previousClose,
       marketPolling.data,
       candlesData.candles,
