@@ -59,6 +59,14 @@ interface HoveredCandleOhlc {
   high: number;
   low: number;
   close: number;
+  volume?: number;
+}
+
+function formatVolume(value: number) {
+  if (value >= 1e9) return `${(value / 1e9).toFixed(2)}B`;
+  if (value >= 1e6) return `${(value / 1e6).toFixed(2)}M`;
+  if (value >= 1e3) return `${(value / 1e3).toFixed(2)}K`;
+  return value.toLocaleString('en-US');
 }
 
 function formatChartPrice(value: number) {
@@ -575,11 +583,22 @@ export function CandleChart({
       }
 
       const candle = data as HoveredCandleOhlc;
+
+      // 거래량 히스토그램 시리즈에서 같은 시점의 value(거래량)를 읽는다.
+      let volume: number | undefined;
+      const volSeries = volumeSeriesRef.current;
+      const volData = volSeries ? param.seriesData.get(volSeries) : undefined;
+      if (volData && typeof volData === 'object' && 'value' in volData) {
+        const v = (volData as { value: unknown }).value;
+        if (typeof v === 'number') volume = v;
+      }
+
       setHoveredCandle({
         open: candle.open,
         high: candle.high,
         low: candle.low,
         close: candle.close,
+        volume,
       });
     };
 
@@ -863,6 +882,11 @@ export function CandleChart({
           <span className={`chart-ohlc-legend__item${isUpCandle ? ' up' : ' down'}`}>
             종가 <strong>{formatOhlcLegendValue(hoveredCandle.close, hoveredCandle.open)}</strong>
           </span>
+          {hoveredCandle.volume !== undefined && (
+            <span className="chart-ohlc-legend__item">
+              거래량 <strong>{formatVolume(hoveredCandle.volume)}</strong>
+            </span>
+          )}
         </div>
       )}
       <div ref={containerRef} className="candle-chart" />
