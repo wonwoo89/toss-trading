@@ -16,6 +16,10 @@ import {
   setStoredDetailsExpanded,
 } from '../shared/lib/detailsExpandedPreference';
 import {
+  getStoredBollingerVisible,
+  setStoredBollingerVisible,
+} from '../shared/lib/bollingerVisiblePreference';
+import {
   CANDLE_INTERVALS,
   type CandleInterval,
   type ChartCandle,
@@ -108,6 +112,12 @@ export function MarketPanel({
   onRealtimePollingForcedChange,
 }: MarketPanelProps) {
   const [orderbookExpanded, setOrderbookExpanded] = useState(false);
+  const [bollingerVisible, setBollingerVisible] = useState(getStoredBollingerVisible);
+
+  const handleBollingerVisibleChange = (visible: boolean) => {
+    setBollingerVisible(visible);
+    setStoredBollingerVisible(visible);
+  };
 
   // 데스크톱(>1100px)은 항상 펼침. 모바일은 사용자가 토글한 펼침/접힘 상태를 localStorage 에
   // 영속해, 종목이 바뀌어 MarketPanel 이 리마운트돼도 유지한다.
@@ -190,6 +200,14 @@ export function MarketPanel({
                 <span>실시간</span>
               </label>
             )}
+            <label className="bollinger-toggle" title="볼린저밴드 표시 켜기/끄기">
+              <input
+                type="checkbox"
+                checked={bollingerVisible}
+                onChange={(e) => handleBollingerVisibleChange(e.target.checked)}
+              />
+              <span>볼린저</span>
+            </label>
             <select
               className="chart-interval"
               value={candleInterval}
@@ -221,6 +239,7 @@ export function MarketPanel({
               fitKey={`${symbol}:${candleInterval}`}
               hasMoreHistory={hasMoreHistory}
               onLoadOlder={onLoadOlderCandles}
+              showBollinger={bollingerVisible}
             />
           </Suspense>
         </div>

@@ -1531,7 +1531,8 @@ select:focus-visible {
   gap: 0.5rem;
 }
 
-.realtime-toggle {
+.realtime-toggle,
+.bollinger-toggle {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
@@ -1542,7 +1543,8 @@ select:focus-visible {
   white-space: nowrap;
 }
 
-.realtime-toggle input {
+.realtime-toggle input,
+.bollinger-toggle input {
   cursor: pointer;
   margin: 0;
   accent-color: var(--accent, #3182f6);

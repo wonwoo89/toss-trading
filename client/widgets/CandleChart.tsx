@@ -34,6 +34,7 @@ interface CandleChartProps {
   hasMoreHistory?: boolean;
   loadingOlder?: boolean;
   onLoadOlder?: () => void;
+  showBollinger?: boolean;
 }
 
 const HISTORY_LOAD_THRESHOLD = 15;
@@ -352,6 +353,7 @@ export function CandleChart({
   hasMoreHistory = false,
   loadingOlder = false,
   onLoadOlder,
+  showBollinger = true,
 }: CandleChartProps) {
   const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -650,6 +652,14 @@ export function CandleChart({
       getChartThemeColors()
     );
   }, [theme]);
+
+  // 볼린저밴드 on/off — 라인 3종 + 채움 primitive 의 표시 여부만 토글(데이터는 유지).
+  useEffect(() => {
+    bbUpperSeriesRef.current?.applyOptions({ visible: showBollinger });
+    bbMiddleSeriesRef.current?.applyOptions({ visible: showBollinger });
+    bbLowerSeriesRef.current?.applyOptions({ visible: showBollinger });
+    bbFillPrimitiveRef.current?.setVisible(showBollinger);
+  }, [showBollinger]);
 
   useEffect(() => {
     if (!seriesRef.current) return;
