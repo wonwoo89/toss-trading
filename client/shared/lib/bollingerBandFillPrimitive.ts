@@ -85,6 +85,7 @@ class BollingerBandFillPaneView implements IPrimitivePaneView {
 export class BollingerBandFillPrimitive implements ISeriesPrimitive {
   private bands: BollingerBandPoint[] = [];
   private fillColor = 'rgba(245, 213, 71, 0.08)';
+  private visible = true;
   private chart: IChartApi | null = null;
   private series: ISeriesApi<'Line'> | null = null;
   private requestUpdate: (() => void) | null = null;
@@ -116,8 +117,13 @@ export class BollingerBandFillPrimitive implements ISeriesPrimitive {
     this.requestUpdate?.();
   }
 
+  setVisible(visible: boolean) {
+    this.visible = visible;
+    this.requestUpdate?.();
+  }
+
   createRenderer(): IPrimitivePaneRenderer | null {
-    if (!this.chart || !this.series || this.bands.length < 2) return null;
+    if (!this.visible || !this.chart || !this.series || this.bands.length < 2) return null;
     return new BollingerBandFillRenderer(this.bands, this.series, this.chart, this.fillColor);
   }
 }
