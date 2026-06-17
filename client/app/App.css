@@ -164,6 +164,96 @@ textarea {
   line-height: 1.2;
 }
 
+/* 모바일 전용 '내 계좌' 드롭다운 — 데스크톱은 숨기고 header-right 인라인 표시를 사용 */
+.header-account-menu {
+  display: none;
+  position: relative;
+  align-items: center;
+}
+
+.header-account-menu__trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  height: var(--header-control-size);
+  padding: 0 0.55rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.header-account-menu__caret {
+  transition: transform 0.15s ease;
+}
+
+.header-account-menu__trigger[aria-expanded='true'] .header-account-menu__caret {
+  transform: rotate(180deg);
+}
+
+.header-account-menu__trigger:hover,
+.header-account-menu__trigger[aria-expanded='true'] {
+  color: var(--text-primary);
+  border-color: var(--border-default);
+}
+
+.header-account-menu__panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 60;
+  min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-panel);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}
+
+.header-account-menu__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.9rem;
+}
+
+.header-account-menu__label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.header-account-menu__rate {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.header-account-menu__amount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.08rem;
+}
+
+.header-account-menu__usd {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.header-account-menu__krw {
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  line-height: 1.2;
+}
+
 .theme-toggle {
   box-sizing: border-box;
   width: var(--header-control-size);
@@ -3012,11 +3102,14 @@ select:focus-visible {
     gap: 0.4rem;
   }
 
+  /* 모바일: 헤더를 한 줄로. 우측 총 계좌 인라인 표시는 숨기고
+     '내 계좌' 드롭다운(header-left-actions 내, 화면꺼짐 방지 버튼 옆)으로 대체 */
   .header-right {
-    width: 100%;
-    display: flex;
-    justify-content: flex-end;
-    align-items: center;
+    display: none;
+  }
+
+  .header-account-menu {
+    display: inline-flex;
   }
 
   /* 모바일 검색바: ID 직접 타겟으로 width/padding 적용 (폰트 건드리지 않음) */
