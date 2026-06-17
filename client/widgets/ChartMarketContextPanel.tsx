@@ -11,11 +11,7 @@ import {
   resolveUsCommissionRatePercent,
 } from '../shared/lib/commissionBreakEven';
 import { buildHoldingPositionSnapshot } from '../shared/lib/holdingTarget';
-import {
-  buildSpreadSnapshot,
-  buildTradeFlowSnapshot,
-  type MicrostructureBias,
-} from '../shared/lib/marketMicrostructure';
+import { type MicrostructureBias } from '../shared/lib/marketMicrostructure';
 import { buildOrderExecutionMetrics } from '../shared/lib/orderExecutionContext';
 import { buildRecentOrderActivityMetric } from '../shared/lib/orderHistoryContext';
 import { formatUsd } from '../shared/lib/formatHoldings';
@@ -31,24 +27,10 @@ import type {
   UsMarketCalendarRaw,
 } from '../shared/types';
 
-interface OrderbookEntry {
-  price: number;
-  quantity: number;
-}
-
-interface TradeEntry {
-  price: number;
-  quantity: number;
-  timestamp: string;
-}
-
 interface ChartMarketContextPanelProps {
   marketCalendar?: UsMarketCalendarRaw | null;
   calendarError?: string | null;
   calendarLoading?: boolean;
-  bids?: OrderbookEntry[];
-  asks?: OrderbookEntry[];
-  trades?: TradeEntry[];
   candles?: ChartCandle[];
   candleInterval?: CandleInterval;
   currentPrice?: number;
@@ -130,9 +112,6 @@ export function ChartMarketContextPanel({
   marketCalendar,
   calendarError,
   calendarLoading = false,
-  bids = [],
-  asks = [],
-  trades = [],
   candles = [],
   candleInterval = '1m',
   currentPrice,
@@ -160,9 +139,6 @@ export function ChartMarketContextPanel({
     () => resolveUsMarketSession(marketCalendar, now),
     [marketCalendar, now]
   );
-
-  const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids]);
-  const tradeFlow = useMemo(() => buildTradeFlowSnapshot(trades, bids, asks), [asks, bids, trades]);
 
   const position = useMemo(
     () =>
@@ -246,8 +222,6 @@ export function ChartMarketContextPanel({
           <span className="market-context__detail">{sessionDetail}</span>
         </div>
       </div>
-
-      <MetricRow label="호가·체결" metrics={[spread, tradeFlow]} />
 
       <MetricRow
         label="당일·변동"

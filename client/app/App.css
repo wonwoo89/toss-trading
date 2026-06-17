@@ -1389,6 +1389,17 @@ select:focus-visible {
   margin-top: 0.55rem;
 }
 
+.orderbook-detail h3 {
+  font-size: 0.8rem;
+  margin-bottom: 0.35rem;
+}
+
+.orderbook-detail th,
+.orderbook-detail td {
+  padding: 0.25rem 0.3rem;
+  font-size: 0.72rem;
+}
+
 .chart-toolbar {
   display: flex;
   flex-shrink: 0;
@@ -2638,6 +2649,17 @@ select:focus-visible {
   .market-panel__orderbook {
     max-height: none;
     overflow-y: visible;
+  }
+
+  /* 호가 상세: 좁은 화면에서 3열 그리드는 가로로 화면을 벗어난다.
+     매도호가·매수호가는 2열로 나란히 두고, 체결(3열 데이터)은 전체 폭으로 내린다.
+     minmax(0,1fr) 로 트랙이 콘텐츠보다 줄어들 수 있게 해 오버플로를 막는다. */
+  .orderbook-detail {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .orderbook-detail > div:nth-child(3) {
+    grid-column: 1 / -1;
   }
 
   .candle-chart {
