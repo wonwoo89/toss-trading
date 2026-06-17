@@ -250,9 +250,6 @@ export function MarketPanel({
             marketCalendar={usMarketCalendar}
             calendarError={usMarketCalendarError}
             calendarLoading={usMarketCalendarLoading}
-            bids={bids}
-            asks={asks}
-            trades={trades}
             candles={candles}
             candleInterval={candleInterval}
             currentPrice={currentPrice}
