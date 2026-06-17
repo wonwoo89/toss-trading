@@ -4,6 +4,7 @@ import { AppProvider, useAppContext } from './providers/AppContext';
 import { ThemeProvider } from './providers/ThemeContext';
 import { ToastProvider } from './providers/ToastContext';
 import { StockPage } from '../pages/trading/StockPage';
+import { BacktestPage } from '../pages/backtest/BacktestPage';
 import './App.css';
 
 function AppShell() {
@@ -19,6 +20,7 @@ function AppShell() {
         <Route path="/" element={<StockPage />} />
         <Route path="/portfolio" element={<StockPage />} />
         <Route path="/stock/:symbol" element={<StockPage />} />
+        <Route path="/backtest" element={<BacktestPage />} />
       </Routes>
     </div>
   );

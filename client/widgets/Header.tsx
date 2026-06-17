@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { HeaderAccountBalance } from './HeaderAccountBalance';
 import { HeaderAccountMenu } from './HeaderAccountMenu';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
@@ -16,6 +17,9 @@ export function Header() {
           <SymbolSearch />
           <ThemeToggle />
           <WakeLockToggle />
+          <Link to="/backtest" className="header-backtest-link" title="신호 백테스트">
+            백테스트
+          </Link>
           {/* 모바일 전용: 화면꺼짐 방지 버튼 옆 '내 계좌' 드롭다운 (데스크톱은 CSS 로 숨김) */}
           <HeaderAccountMenu />
           <KeyboardShortcutsHelp />
