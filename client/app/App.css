@@ -2746,10 +2746,9 @@ input[type='checkbox']:focus-visible {
 }
 
 @media (max-width: 1100px) {
-  /* 단축키 안내·번호 뱃지·백테스트 링크는 데스크톱 전용(모바일 헤더 공간 절약) */
+  /* 단축키 안내·번호 뱃지는 데스크톱 전용(모바일 헤더 공간 절약) */
   .order-shortcuts,
-  .portfolio-holding-item__hotkey,
-  .header-backtest-link {
+  .portfolio-holding-item__hotkey {
     display: none;
   }
 
@@ -3326,6 +3325,15 @@ input[type='checkbox']:focus-visible {
 .header-backtest-link:hover {
   color: var(--text-primary);
   border-color: var(--border-default);
+}
+
+/* 헤더 백테스트 링크는 데스크톱 전용. 위 기본 규칙(.header-backtest-link)이 상단 모바일
+   미디어쿼리보다 뒤에 정의돼 display 를 덮어쓰므로, 기본 규칙 '다음'에 다시 숨겨
+   모바일에서 확실히 사라지게 한다(소스 순서로 우선). */
+@media (max-width: 1100px) {
+  .header-backtest-link {
+    display: none;
+  }
 }
 
 .backtest-page {
