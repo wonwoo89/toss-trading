@@ -1046,6 +1046,36 @@ textarea {
   color: var(--color-down);
 }
 
+/* 주문폼 최상단 시세 블록: 현재가(크게) + 전일대비(색상) */
+.order-form__quote {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.1rem 0 0.5rem;
+}
+
+.order-form__quote-price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--text-primary);
+}
+
+.order-form__quote-change {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.order-form__quote-change.kr-profit {
+  color: var(--color-up);
+}
+
+.order-form__quote-change.kr-loss {
+  color: var(--color-down);
+}
+
 .portfolio-stats--sidebar .stat--primary strong {
   font-size: 1.35rem;
 }
