@@ -3390,8 +3390,10 @@ input[type='checkbox']:focus-visible {
 
 .backtest-controls input,
 .backtest-controls select {
+  box-sizing: border-box;
+  height: 2.4rem;
   width: 6.5rem;
-  padding: 0.4rem 0.5rem;
+  padding: 0 0.5rem;
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
   background: var(--bg-input);
@@ -3403,7 +3405,8 @@ input[type='checkbox']:focus-visible {
 }
 
 .backtest-run {
-  height: 2.1rem;
+  box-sizing: border-box;
+  height: 2.4rem;
   padding: 0 1.1rem;
   border-radius: 8px;
   border: 1px solid transparent;
