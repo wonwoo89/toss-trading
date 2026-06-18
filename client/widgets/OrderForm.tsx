@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
-import { formatUsd } from '../shared/lib/formatHoldings';
+import { formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
+import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
 import { useOrderRecommendations } from '../shared/hooks/useRecommendations';
@@ -20,6 +21,7 @@ const PRICE_MODES = ['limit', 'current', 'market'] as const satisfies readonly P
 interface OrderFormProps {
   symbol: string;
   currentPrice?: number;
+  previousClose?: number;
   buyingPower?: number;
   sellableQuantity?: number;
   holdingQuantity?: number;
@@ -126,6 +128,7 @@ function focusNextOrderFormField(form: HTMLFormElement, reverse: boolean) {
 export function OrderForm({
   symbol,
   currentPrice,
+  previousClose,
   buyingPower,
   sellableQuantity,
   holdingQuantity,
@@ -181,6 +184,16 @@ export function OrderForm({
     if (!Number.isFinite(rate) || rate <= 0) return;
     onTakeProfitRateChange?.(rate);
   };
+
+  // 전일대비 당일 변동(주문폼 최상단 시세 블록). 색상은 KR 관례(상승 빨강/하락 파랑).
+  const dayChange = useMemo(
+    () => buildDayChangeMetric(previousClose, currentPrice),
+    [previousClose, currentPrice]
+  );
+  const dayChangeDiff =
+    previousClose !== undefined && previousClose > 0 && currentPrice !== undefined
+      ? currentPrice - previousClose
+      : undefined;
 
   const isPriceInputDisabled = priceMode === 'current' || priceMode === 'market';
 
@@ -685,6 +698,19 @@ export function OrderForm({
       </div>
 
       <div className="order-form__body">
+        <div className="order-form__quote">
+          <strong className="order-form__quote-price">
+            {currentPrice !== undefined ? formatUsd(currentPrice) : '—'}
+          </strong>
+          <span
+            className={`order-form__quote-change${
+              getKrProfitLossClass(dayChangeDiff) ? ` ${getKrProfitLossClass(dayChangeDiff)}` : ''
+            }`}
+          >
+            {dayChange.value}
+          </span>
+        </div>
+
         <StockHoldingSummary
           variant="order"
           quantity={holdingQuantity}

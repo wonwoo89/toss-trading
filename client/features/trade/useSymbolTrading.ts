@@ -1019,6 +1019,7 @@ export function useSymbolTrading(
     () => ({
       symbol,
       currentPrice: marketPolling.data?.price,
+      previousClose,
       buyingPower: contextBuyingPower,
       sellableQuantity: effectiveSellableQuantity,
       holdingQuantity: effectiveHolding?.quantity,
@@ -1041,6 +1042,7 @@ export function useSymbolTrading(
     [
       symbol,
       marketPolling.data,
+      previousClose,
       contextBuyingPower,
       effectiveSellableQuantity,
       effectiveHolding,
