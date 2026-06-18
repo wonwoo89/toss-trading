@@ -3560,7 +3560,7 @@ input[type='checkbox']:focus-visible {
 
 .backtest-modal {
   width: 100%;
-  max-width: 720px;
+  max-width: 740px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
