@@ -435,7 +435,13 @@ export function useSymbolTrading(
   );
 
   const portfolioTotals = useMemo(() => {
+    // 총 투자 금액(사이드바 요약)은 숨김 종목을 제외한 visible 기준.
     const totalMarketValue = visibleHoldings.reduce(
+      (sum, item) => sum + (item.marketValue ?? 0),
+      0
+    );
+    // 총 계좌(헤더)는 숨김 종목까지 포함한 전체 평가금액 기준.
+    const totalMarketValueAll = portfolioHoldings.reduce(
       (sum, item) => sum + (item.marketValue ?? 0),
       0
     );
@@ -452,15 +458,15 @@ export function useSymbolTrading(
         ? totalProfitLoss / totalPurchaseAmount
         : undefined;
 
-    return { totalMarketValue, totalProfitLoss, totalProfitLossRate };
-  }, [visibleHoldings]);
+    return { totalMarketValue, totalMarketValueAll, totalProfitLoss, totalProfitLossRate };
+  }, [visibleHoldings, portfolioHoldings]);
 
-  // portfolio total 동기화 to context (for header etc)
+  // 총 계좌(헤더)는 숨김 포함 전체 평가금액을 context 로 동기화한다.
   useEffect(() => {
     if (setTotalMarketValue) {
-      setTotalMarketValue(portfolioTotals.totalMarketValue);
+      setTotalMarketValue(portfolioTotals.totalMarketValueAll);
     }
-  }, [portfolioTotals.totalMarketValue, setTotalMarketValue]);
+  }, [portfolioTotals.totalMarketValueAll, setTotalMarketValue]);
 
   const tradeRefreshSeqRef = useRef(0);
 
