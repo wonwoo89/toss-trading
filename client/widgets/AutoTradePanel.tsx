@@ -222,7 +222,8 @@ export function AutoTradePanel({
       pushLog('block', action.side, `차단(일일 한도 ${dailyLimit}회 초과): ${action.label}`);
       return false;
     }
-    if (Date.now() - lastExecRef.current < COOLDOWN_MS) {
+    // 쿨다운은 무인 자동(오토) 연사 방지용 — 사람이 직접 누르는 세미오토 '실행'에는 적용하지 않는다.
+    if (mode === 'auto' && Date.now() - lastExecRef.current < COOLDOWN_MS) {
       const wait = Math.ceil((COOLDOWN_MS - (Date.now() - lastExecRef.current)) / 1000);
       pushLog('block', action.side, `차단(쿨다운 ${wait}s 남음): ${action.label}`);
       return false;
