@@ -2609,6 +2609,10 @@ input[type='checkbox']:focus-visible {
   color: var(--text-secondary);
   background: var(--bg-subtle);
 }
+.auto-trade__badge.is-auto {
+  color: #fff;
+  background: var(--color-down);
+}
 .auto-trade__modes {
   display: inline-flex;
   gap: 0.2rem;
@@ -2626,6 +2630,19 @@ input[type='checkbox']:focus-visible {
   color: #fff;
   background: var(--accent, #3182f6);
   border-color: var(--accent, #3182f6);
+}
+/* 오토는 위험 단계 — 켜졌을 때 빨강으로 경고 */
+.auto-trade__mode.is-auto.is-on {
+  background: var(--color-down);
+  border-color: var(--color-down);
+}
+.auto-trade__paused {
+  margin: 0.4rem 0 0;
+  padding: 0.3rem 0.45rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  color: var(--color-down);
+  background: color-mix(in srgb, var(--color-down) 12%, transparent);
 }
 .auto-trade__controls {
   display: flex;
