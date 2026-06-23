@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
+import { calculateTakeProfitSellPrice } from '../shared/lib/takeProfitSell';
 import { formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
 import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
@@ -296,16 +297,33 @@ export function OrderForm({
     sellLimitPriceRec,
   } = useOrderRecommendations(recommendationInput);
 
-  // 추천 카드용 예상 금액 (해당 추천의 수량 × 추천 지정가)
-  const recommendedBuyAmount =
-    buyQuantityRec.available &&
-    buyQuantityRec.quantity !== undefined &&
+  // ── 0단계: 목표수익률(takeProfitRatePercent) 기반 추천 ─────────────────────
+  // 추천 매수: 신호 기반 진입가 + 추천 수량은 그대로, "목표 매도가"(+목표%, 수수료 반영)를 함께 표시.
+  const buyEntryPrice =
     buyLimitPriceRec.available &&
     buyLimitPriceRec.price !== undefined &&
     Number.isFinite(buyLimitPriceRec.price)
-      ? buyQuantityRec.quantity * buyLimitPriceRec.price
+      ? buyLimitPriceRec.price
+      : currentPrice;
+
+  const buyTargetSellPrice =
+    buyQuantityRec.available &&
+    buyQuantityRec.recommended &&
+    buyQuantityRec.quantity !== undefined &&
+    buyEntryPrice !== undefined &&
+    buyEntryPrice > 0
+      ? calculateTakeProfitSellPrice(buyEntryPrice, buyQuantityRec.quantity, takeProfitRatePercent)
       : undefined;
 
+  const recommendedBuyAmount =
+    buyQuantityRec.available &&
+    buyQuantityRec.quantity !== undefined &&
+    buyEntryPrice !== undefined &&
+    Number.isFinite(buyEntryPrice)
+      ? buyQuantityRec.quantity * buyEntryPrice
+      : undefined;
+
+  // 추천 매도: (수동) 기존 신호 기반 일부 매도 유지. 목표 도달 전량매도는 자동매매에서만 사용 예정.
   const recommendedSellAmount =
     sellQuantityRec.available &&
     sellQuantityRec.quantity !== undefined &&
@@ -314,6 +332,18 @@ export function OrderForm({
     Number.isFinite(sellLimitPriceRec.price)
       ? sellQuantityRec.quantity * sellLimitPriceRec.price
       : undefined;
+
+  // 추천 카드 활성(클릭 가능) 조건 — 매수·매도 모두 신호 기반 추천 수량 기준.
+  const buyRecEnabled =
+    buyQuantityRec.available &&
+    buyQuantityRec.recommended &&
+    buyQuantityRec.quantity !== undefined &&
+    buyQuantityRec.quantity > 0;
+  const sellRecEnabled =
+    sellQuantityRec.available &&
+    sellQuantityRec.recommended &&
+    sellQuantityRec.quantity !== undefined &&
+    sellQuantityRec.quantity > 0;
 
   const getDisplayedPrice = (
     limitRec: LimitPriceRecommendation | undefined,
@@ -328,41 +358,30 @@ export function OrderForm({
     return null;
   };
 
-  // 추천 정보로 간편 실행 (해당 사이드의 추천 수량 + 지정가 자동 적용 후 제출)
-  const executeWithRecommendation = (intendedSide: 'BUY' | 'SELL') => {
+  // 추천 정보로 간편 실행. 호출부에서 계산한 수량·지정가를 받아 ref 로 동기 전달한 뒤 제출한다.
+  // (수량/지정가를 인자로 받으므로 매수=신호 기반, 매도=목표 도달 기반 등 사이드별 기준을 호출부가 결정.)
+  const executeWithRecommendation = (
+    intendedSide: 'BUY' | 'SELL',
+    quantity: number | undefined,
+    limitPrice: number | undefined
+  ) => {
     if (submitting) return;
-    const isBuy = intendedSide === 'BUY';
-    const qtyRec = isBuy ? buyQuantityRec : sellQuantityRec;
-    const priceRec = isBuy ? buyLimitPriceRec : sellLimitPriceRec;
-
-    // 추천 수량이 없으면 실행하지 않는다(버튼도 비활성). 토스트로 빠지지 않게 가드.
-    if (
-      !(
-        qtyRec.available &&
-        qtyRec.recommended &&
-        qtyRec.quantity !== undefined &&
-        qtyRec.quantity > 0
-      )
-    ) {
-      return;
-    }
+    // 수량이 없으면 실행하지 않는다(버튼도 비활성). 토스트로 빠지지 않게 가드.
+    if (quantity === undefined || quantity <= 0) return;
 
     const recPrice =
-      priceRec.available && priceRec.price !== undefined && Number.isFinite(priceRec.price)
-        ? priceRec.price
-        : null;
+      limitPrice !== undefined && Number.isFinite(limitPrice) && limitPrice > 0 ? limitPrice : null;
 
     // 제출에 쓸 값은 ref 로 동기 전달 → requestSubmit 이 곧바로 handleSubmit 을 호출해도
     // state flush 를 기다리지 않아 "비율 선택" 토스트로 잘못 빠지지 않는다.
-    pendingQuantityRef.current = qtyRec.quantity;
+    pendingQuantityRef.current = quantity;
     pendingLimitPriceRef.current = recPrice;
     pendingSideRef.current = intendedSide;
     skipTakeProfitRef.current = true; // 추천 실행은 목표수익률 자동 매도 건너뜀
 
     // 폼 표시 반영(시각적): 적용된 사이드·수량·지정가를 보여준다. 제출 값은 위 ref 가 결정.
     setSide(intendedSide);
-    setQuantity(formatOrderQuantity(qtyRec.quantity));
-    if (qtyRec.snapPercent) setSelectedQuantityPercent(qtyRec.snapPercent);
+    setQuantity(formatOrderQuantity(quantity));
     if (recPrice !== null) {
       limitPriceManualRef.current = false;
       setPriceMode('limit');
@@ -952,37 +971,50 @@ export function OrderForm({
             데이터 도착 후에야 quantity/limit rec 계산이 유효한 입력으로 동작하고, 추천 또는 합당한 '—' 를 표시. */}
         <div className="order-rec-grid">
           <div
-            className={`order-rec-row buy ${(submitting || !recInputsReady || !(buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined)) ? 'is-disabled' : ''}`}
-            onClick={() => !submitting && recInputsReady && (buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined) && executeWithRecommendation('BUY')}
+            className={`order-rec-row buy ${submitting || !recInputsReady || !buyRecEnabled ? 'is-disabled' : ''}`}
+            onClick={() =>
+              !submitting &&
+              recInputsReady &&
+              buyRecEnabled &&
+              executeWithRecommendation('BUY', buyQuantityRec.quantity, buyEntryPrice)
+            }
             role="button"
-            tabIndex={(submitting || !recInputsReady || !(buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined)) ? -1 : 0}
+            tabIndex={submitting || !recInputsReady || !buyRecEnabled ? -1 : 0}
           >
             <span className="rec-label">추천 매수</span>
             <span className="rec-info">
               {!recInputsReady
                 ? '불러오는 중...'
-                : (buyQuantityRec.available && buyQuantityRec.recommended && buyQuantityRec.quantity !== undefined
-                  ? `${formatOrderQuantity(buyQuantityRec.quantity)}주${getDisplayedPrice(buyLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(buyLimitPriceRec, currentPrice)}` : ''}`
-                  : '—')}
+                : buyRecEnabled
+                  ? `${formatOrderQuantity(buyQuantityRec.quantity!)}주${getDisplayedPrice(buyLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(buyLimitPriceRec, currentPrice)}` : ''}`
+                  : '—'}
             </span>
-            {recommendedBuyAmount !== undefined && recInputsReady && (
-              <span className="rec-expected">예상 금액 {formatUsd(recommendedBuyAmount)}</span>
+            {recInputsReady && buyTargetSellPrice !== undefined && (
+              <span className="rec-expected">
+                목표 ${buyTargetSellPrice.toFixed(2)} (+{takeProfitRatePercent}%)
+                {recommendedBuyAmount !== undefined ? ` · 예상 ${formatUsd(recommendedBuyAmount)}` : ''}
+              </span>
             )}
           </div>
 
           <div
-            className={`order-rec-row sell ${(submitting || !recInputsReady || !(sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined)) ? 'is-disabled' : ''}`}
-            onClick={() => !submitting && recInputsReady && (sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined) && executeWithRecommendation('SELL')}
+            className={`order-rec-row sell ${submitting || !recInputsReady || !sellRecEnabled ? 'is-disabled' : ''}`}
+            onClick={() =>
+              !submitting &&
+              recInputsReady &&
+              sellRecEnabled &&
+              executeWithRecommendation('SELL', sellQuantityRec.quantity, sellLimitPriceRec.price)
+            }
             role="button"
-            tabIndex={(submitting || !recInputsReady || !(sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined)) ? -1 : 0}
+            tabIndex={submitting || !recInputsReady || !sellRecEnabled ? -1 : 0}
           >
             <span className="rec-label">추천 매도</span>
             <span className="rec-info">
               {!recInputsReady
                 ? '불러오는 중...'
-                : (sellQuantityRec.available && sellQuantityRec.recommended && sellQuantityRec.quantity !== undefined
-                  ? `${formatOrderQuantity(sellQuantityRec.quantity)}주${getDisplayedPrice(sellLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(sellLimitPriceRec, currentPrice)}` : ''}`
-                  : '—')}
+                : sellRecEnabled
+                  ? `${formatOrderQuantity(sellQuantityRec.quantity!)}주${getDisplayedPrice(sellLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(sellLimitPriceRec, currentPrice)}` : ''}`
+                  : '—'}
             </span>
             {recommendedSellAmount !== undefined && recInputsReady && (
               <span className="rec-expected">예상 금액 {formatUsd(recommendedSellAmount)}</span>
