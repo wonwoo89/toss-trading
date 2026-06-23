@@ -704,6 +704,39 @@ export function OrderForm({
   // Mobile: 핸들바로 주문폼 전체 펼치기/접기
   const toggleMobileExpanded = () => setIsMobileExpanded((v) => !v);
 
+  // 핸들바 드래그(스와이프)로 열고 닫기. 위로 끌면 펼치고, 아래로 끌면 접는다.
+  // 이동량이 작으면 탭으로 간주해 토글. 포인터 이벤트로 터치·마우스 모두 지원.
+  const handlebarDragRef = useRef<{ startY: number; moved: boolean } | null>(null);
+  const DRAG_THRESHOLD = 24; // px — 이 이상 끌면 방향대로 펼침/접힘
+  const TAP_THRESHOLD = 8; // px — 이 미만이면 탭(토글)
+
+  const onHandlebarPointerDown = (e: React.PointerEvent) => {
+    handlebarDragRef.current = { startY: e.clientY, moved: false };
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
+  const onHandlebarPointerMove = (e: React.PointerEvent) => {
+    const drag = handlebarDragRef.current;
+    if (!drag) return;
+    if (Math.abs(e.clientY - drag.startY) > TAP_THRESHOLD) drag.moved = true;
+  };
+
+  const onHandlebarPointerUp = (e: React.PointerEvent) => {
+    const drag = handlebarDragRef.current;
+    handlebarDragRef.current = null;
+    if (!drag) return;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+
+    const delta = e.clientY - drag.startY; // 음수=위로(펼침), 양수=아래로(접힘)
+    if (Math.abs(delta) < TAP_THRESHOLD) {
+      toggleMobileExpanded(); // 탭
+      return;
+    }
+    if (delta <= -DRAG_THRESHOLD) setIsMobileExpanded(true); // 위로 끌기 → 펼침
+    else if (delta >= DRAG_THRESHOLD) setIsMobileExpanded(false); // 아래로 끌기 → 접힘
+    // 임계 미만의 작은 이동은 상태 유지(우발적 드래그 무시)
+  };
+
   useEffect(() => {
     const column = document.querySelector('.order-column') as HTMLElement | null;
     if (!column) return;
@@ -735,13 +768,19 @@ export function OrderForm({
         }
       }}
     >
-      {/* 모바일 플로팅 주문폼용 핸들바: 탭하면 전체 주문폼(입력/요약 등) 보였다/숨겼다 */}
+      {/* 모바일 플로팅 주문폼용 핸들바: 위/아래로 드래그(스와이프)하거나 탭하면 펼침/접힘 */}
       <div
         className="order-form__mobile-handlebar"
-        onClick={toggleMobileExpanded}
+        onPointerDown={onHandlebarPointerDown}
+        onPointerMove={onHandlebarPointerMove}
+        onPointerUp={onHandlebarPointerUp}
+        onPointerCancel={() => {
+          handlebarDragRef.current = null;
+        }}
         role="button"
         tabIndex={0}
         aria-label={isMobileExpanded ? '주문폼 접기' : '주문폼 펼치기'}
+        style={{ touchAction: 'none' }}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
