@@ -23,6 +23,8 @@ interface AutoTradePanelProps {
   submitting?: boolean;
   /** 실제 주문 실행(세미오토 '실행' 탭 시). OrderForm 의 검증된 제출 경로 재사용. */
   onAutoExecute: (side: 'BUY' | 'SELL', quantity: number, limitPrice?: number) => void;
+  /** 세미오토/오토(실주문 모드) 활성 여부 변경 알림 — OrderForm 이 주문 입력 영역을 숨기는 데 사용. */
+  onExecModeChange?: (active: boolean) => void;
 }
 
 interface LogEntry {
@@ -95,6 +97,7 @@ export function AutoTradePanel({
   buyEntryPrice,
   submitting,
   onAutoExecute,
+  onExecModeChange,
 }: AutoTradePanelProps) {
   const [mode, setMode] = useState<AutoMode>('off');
   // 자동매도 목표 수익률(실수익률 %) — 자동매매 전용 입력. 주문폼 선택값으로 초기화 후 독립 관리.
@@ -159,6 +162,12 @@ export function AutoTradePanel({
     lastSignalRef.current = { BUY: null, TP: null, SL: null };
     setPending(null);
   }, [symbol]);
+
+  // 세미오토/오토(실주문 모드) 활성 여부를 부모에 알린다(주문 입력 영역 숨김용). 언마운트 시 해제.
+  useEffect(() => {
+    onExecModeChange?.(mode === 'semi' || mode === 'auto');
+    return () => onExecModeChange?.(false);
+  }, [mode, onExecModeChange]);
 
   // 의미 있는 변동인지 판정: 첫 감지면 즉시, 최소 간격 내면 억제, 그 뒤엔 가격 변동률/수량 변화로 결정.
   const shouldFire = (kind: AutoActionKind, price: number, qty: number) => {
