@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
+import { AutoTradeDryRun } from './AutoTradeDryRun';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import { calculateTakeProfitSellPrice } from '../shared/lib/takeProfitSell';
@@ -166,6 +167,17 @@ export function OrderForm({
   const [useTakeProfitSell, setUseTakeProfitSell] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+
+  // 자동매매(드라이런)는 데스크탑 전용. 모바일에선 렌더하지 않아 로직도 돌지 않는다.
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth > 1100
+  );
+  useEffect(() => {
+    const update = () => setIsDesktop(window.innerWidth > 1100);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
   const { showToast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const limitPriceManualRef = useRef(false);
@@ -1021,6 +1033,21 @@ export function OrderForm({
             )}
           </div>
         </div>
+
+        {/* 자동매매 1단계: 드라이런(모의). 데스크탑 전용 + 렌더된 동안만 동작. */}
+        {isDesktop && (
+          <AutoTradeDryRun
+            symbol={symbol}
+            currentPrice={currentPrice}
+            holding={holding}
+            sellableQuantity={effectiveSellableQuantity}
+            takeProfitRatePercent={takeProfitRatePercent}
+            buyRecommended={buyRecEnabled}
+            buyQuantity={buyQuantityRec.quantity}
+            buyEntryPrice={buyEntryPrice}
+            buyTargetSellPrice={buyTargetSellPrice}
+          />
+        )}
 
       </div>
     </form>
