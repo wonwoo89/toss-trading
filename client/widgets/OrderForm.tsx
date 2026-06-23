@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
-import { AutoTradeDryRun } from './AutoTradeDryRun';
+import { AutoTradePanel } from './AutoTradePanel';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import { calculateTakeProfitSellPrice } from '../shared/lib/takeProfitSell';
@@ -1034,9 +1034,9 @@ export function OrderForm({
           </div>
         </div>
 
-        {/* 자동매매 1단계: 드라이런(모의). 데스크탑 전용 + 렌더된 동안만 동작. */}
+        {/* 자동매매(드라이런/세미오토). 데스크탑 전용 + 렌더된 동안만 동작. 세미오토는 확인 탭 후 실주문. */}
         {isDesktop && (
-          <AutoTradeDryRun
+          <AutoTradePanel
             symbol={symbol}
             currentPrice={currentPrice}
             holding={holding}
@@ -1046,6 +1046,8 @@ export function OrderForm({
             buyQuantity={buyQuantityRec.quantity}
             buyEntryPrice={buyEntryPrice}
             buyTargetSellPrice={buyTargetSellPrice}
+            submitting={submitting}
+            onAutoExecute={(side, qty, price) => executeWithRecommendation(side, qty, price)}
           />
         )}
 
