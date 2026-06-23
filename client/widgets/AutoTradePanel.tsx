@@ -125,6 +125,19 @@ export function AutoTradePanel({
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
 
+  // '?' 설명 툴팁 — order-column 이 overflow:hidden 이라 절대위치로는 잘린다.
+  // position:fixed + 트리거 좌표로 띄워 오버플로 밖으로 렌더(우측 넘침은 뷰포트로 클램프).
+  const helpRef = useRef<HTMLButtonElement>(null);
+  const [tipPos, setTipPos] = useState<{ top: number; left: number } | null>(null);
+  const TIP_WIDTH = 260;
+  const openTip = () => {
+    const r = helpRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - TIP_WIDTH - 8));
+    setTipPos({ top: r.bottom + 6, left });
+  };
+  const closeTip = () => setTipPos(null);
+
   // 오토 모드 켜기는 실수 방지를 위해 명시적 확인을 받는다.
   const selectMode = (next: AutoMode) => {
     if (next === mode) return;
@@ -335,19 +348,18 @@ export function AutoTradePanel({
         <span className="auto-trade__title">
           자동매매
           <span className="auto-trade__help">
-            <button type="button" className="auto-trade__help-trigger" aria-label="자동매매 설명">
+            <button
+              type="button"
+              ref={helpRef}
+              className="auto-trade__help-trigger"
+              aria-label="자동매매 설명"
+              onMouseEnter={openTip}
+              onMouseLeave={closeTip}
+              onFocus={openTip}
+              onBlur={closeTip}
+            >
               ?
             </button>
-            <span className="auto-trade__tip" role="tooltip">
-              <b>드라이런</b> 모의 기록만(실주문 없음)
-              <br />
-              <b>세미오토</b> 트리거 시 “실행” 탭해야 실주문
-              <br />
-              <b>오토</b> 트리거 시 확인 없이 자동 실주문
-              <br />
-              익절=목표 도달, 손절=손절률 도달 시 전량 매도. 일일 한도·쿨다운(60s)·탭 숨김
-              일시정지로 보호. 데스크탑·현재 종목만.
-            </span>
           </span>
         </span>
         <div className="auto-trade__modes" role="tablist">
@@ -431,6 +443,23 @@ export function AutoTradePanel({
             ))
           )}
         </ul>
+      )}
+
+      {tipPos && (
+        <div
+          className="auto-trade__tip"
+          role="tooltip"
+          style={{ position: 'fixed', top: tipPos.top, left: tipPos.left, width: TIP_WIDTH }}
+        >
+          <b>드라이런</b> 모의 기록만(실주문 없음)
+          <br />
+          <b>세미오토</b> 트리거 시 “실행” 탭해야 실주문
+          <br />
+          <b>오토</b> 트리거 시 확인 없이 자동 실주문
+          <br />
+          익절=목표 도달, 손절=손절률 도달 시 전량 매도. 일일 한도·쿨다운(60s)·탭 숨김 일시정지로
+          보호. 데스크탑·현재 종목만.
+        </div>
       )}
     </div>
   );

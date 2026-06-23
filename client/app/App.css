@@ -2617,12 +2617,10 @@ input[type='checkbox']:focus-visible {
   background: var(--bg-subtle);
   cursor: help;
 }
+/* 위치(position:fixed; top/left/width)는 JS 인라인 스타일로 지정 — order-column 의
+   overflow:hidden 에 잘리지 않게 뷰포트 기준으로 띄운다. */
 .auto-trade__tip {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  z-index: 30;
-  width: 260px;
+  z-index: 300;
   padding: 0.55rem 0.65rem;
   border-radius: 8px;
   border: 1px solid var(--border-default);
@@ -2633,19 +2631,9 @@ input[type='checkbox']:focus-visible {
   line-height: 1.55;
   color: var(--text-secondary);
   white-space: normal;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity 0.12s ease,
-    visibility 0.12s ease;
 }
 .auto-trade__tip b {
   color: var(--text-primary);
-}
-.auto-trade__help:hover .auto-trade__tip,
-.auto-trade__help:focus-within .auto-trade__tip {
-  opacity: 1;
-  visibility: visible;
 }
 
 /* 모드 세그먼티드 컨트롤 (하나로 합쳐진 레이아웃) */
