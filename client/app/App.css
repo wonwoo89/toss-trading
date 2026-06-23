@@ -2669,11 +2669,11 @@ input[type='checkbox']:focus-visible {
   justify-content: center;
   gap: 0.15rem;
   /* 좌측 그라데이션 바(::before 6px)와 텍스트가 붙지 않도록 왼쪽 패딩을 더 줌 */
-  padding: 0.55rem 0.6rem 0.55rem 0.9rem;
-  /* 데이터 유무(추천/—/불러오는 중)에 따라 행 높이가 들쑥날쑥하지 않도록 고정 */
-  height: 82px;
+  padding: 0.6rem 0.6rem 0.6rem 0.9rem;
+  /* 추천 정보(목표·예상 금액)가 늘어 3~4줄이 될 수 있어 고정 높이 대신 최소 높이로.
+     그리드가 두 카드를 같은 높이로 늘려 정렬은 유지하면서 내용이 잘리지 않게 한다. */
+  min-height: 96px;
   box-sizing: border-box;
-  overflow: hidden;
   border-radius: 12px;
   font-size: 0.82rem;
   background: var(--bg-subtle);
