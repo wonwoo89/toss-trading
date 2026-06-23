@@ -154,6 +154,8 @@ export function OrderForm({
   const skipTakeProfitRef = useRef(false);
   // 제출 직전 결정된 주문 수량(사이드별 %기준). 설정돼 있으면 handleSubmit 이 이 값을 우선 사용.
   const pendingQuantityRef = useRef<number | null>(null);
+  // 추천 실행 시 제출에 쓸 지정가를 동기 전달(상태 flush 레이스 방지). null 이면 일반 가격 로직 사용.
+  const pendingLimitPriceRef = useRef<number | null>(null);
   const [priceMode, setPriceMode] = useState<PriceMode>(getStoredPriceMode);
   const [quantity, setQuantity] = useState('');
   const [selectedQuantityPercent, setSelectedQuantityPercent] = useState<number>();
@@ -328,33 +330,46 @@ export function OrderForm({
 
   // 추천 정보로 간편 실행 (해당 사이드의 추천 수량 + 지정가 자동 적용 후 제출)
   const executeWithRecommendation = (intendedSide: 'BUY' | 'SELL') => {
+    if (submitting) return;
     const isBuy = intendedSide === 'BUY';
     const qtyRec = isBuy ? buyQuantityRec : sellQuantityRec;
     const priceRec = isBuy ? buyLimitPriceRec : sellLimitPriceRec;
 
+    // 추천 수량이 없으면 실행하지 않는다(버튼도 비활성). 토스트로 빠지지 않게 가드.
+    if (
+      !(
+        qtyRec.available &&
+        qtyRec.recommended &&
+        qtyRec.quantity !== undefined &&
+        qtyRec.quantity > 0
+      )
+    ) {
+      return;
+    }
+
+    const recPrice =
+      priceRec.available && priceRec.price !== undefined && Number.isFinite(priceRec.price)
+        ? priceRec.price
+        : null;
+
+    // 제출에 쓸 값은 ref 로 동기 전달 → requestSubmit 이 곧바로 handleSubmit 을 호출해도
+    // state flush 를 기다리지 않아 "비율 선택" 토스트로 잘못 빠지지 않는다.
+    pendingQuantityRef.current = qtyRec.quantity;
+    pendingLimitPriceRef.current = recPrice;
+    pendingSideRef.current = intendedSide;
+    skipTakeProfitRef.current = true; // 추천 실행은 목표수익률 자동 매도 건너뜀
+
+    // 폼 표시 반영(시각적): 적용된 사이드·수량·지정가를 보여준다. 제출 값은 위 ref 가 결정.
     setSide(intendedSide);
+    setQuantity(formatOrderQuantity(qtyRec.quantity));
+    if (qtyRec.snapPercent) setSelectedQuantityPercent(qtyRec.snapPercent);
+    if (recPrice !== null) {
+      limitPriceManualRef.current = false;
+      setPriceMode('limit');
+      setPrice(recPrice.toFixed(2));
+    }
 
-    setTimeout(() => {
-      // 추천 수량 적용
-      if (qtyRec.available && qtyRec.recommended && qtyRec.quantity !== undefined) {
-        setQuantity(formatOrderQuantity(qtyRec.quantity));
-        if (qtyRec.snapPercent) {
-          setSelectedQuantityPercent(qtyRec.snapPercent);
-        }
-      }
-
-      // 추천 지정가 적용
-      if (priceRec.available && priceRec.price !== undefined && Number.isFinite(priceRec.price)) {
-        limitPriceManualRef.current = false;
-        setPriceMode('limit');
-        setPrice(priceRec.price.toFixed(2));
-      }
-
-      // 제출 (추천 실행은 목표수익률 자동 매도 건너뜀)
-      pendingSideRef.current = intendedSide;
-      skipTakeProfitRef.current = true;
-      formRef.current?.requestSubmit();
-    }, 0);
+    formRef.current?.requestSubmit();
   };
 
   // 직접 입력값(수량·가격)으로 실행. 추천과 달리 목표수익률 자동 매도 설정을 그대로 따른다.
@@ -582,6 +597,9 @@ export function OrderForm({
     // 사이드별 %기준 수량(있으면) 우선, 없으면 추천 등으로 설정된 effectiveQuantity 사용.
     const pendingQuantity = pendingQuantityRef.current;
     pendingQuantityRef.current = null;
+    // 추천 실행이 지정한 지정가(있으면 priceMode/price 상태 대신 이 값을 사용).
+    const pendingLimitPrice = pendingLimitPriceRef.current;
+    pendingLimitPriceRef.current = null;
 
     const payload: CreateOrderPayload = {
       symbol: symbol.toUpperCase(),
@@ -602,7 +620,11 @@ export function OrderForm({
 
       payload.quantity = submitQuantity;
 
-      if (priceMode === 'market') {
+      if (pendingLimitPrice !== null) {
+        // 추천 실행: 추천 지정가로 LIMIT 주문 (상태 flush 와 무관하게 정확한 값 사용)
+        payload.orderType = 'LIMIT';
+        payload.price = floorToCents(pendingLimitPrice);
+      } else if (priceMode === 'market') {
         payload.orderType = 'MARKET';
       } else if (priceMode === 'current') {
         payload.orderType = 'LIMIT';
