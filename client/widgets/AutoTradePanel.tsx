@@ -45,9 +45,12 @@ interface PendingAction {
 
 const MAX_LOG = 40;
 const COOLDOWN_MS = 60_000; // 연속 실행 최소 간격
-// 같은 종류(매수/익절/손절) 트리거 재기록·재대기 최소 간격 — 추천이 추천↔비추천으로
-// 깜빡일 때 같은 신호가 도배되는 것을 막는다.
-const TRIGGER_COOLDOWN_MS = 180_000;
+// 트리거 재기록 정책: 같은 종류(매수/익절/손절) 신호는 "의미 있는 변동"이 있을 때만 다시 올린다.
+// - 최소 간격(MIN_RELOG_MS) 안에선 무조건 억제(도배 방지 바닥)
+// - 그 뒤엔 직전 기록 대비 진입가가 PRICE_RELOG_PCT 이상 움직이거나 수량이 바뀌면 즉시 갱신
+// - 신호가 사라졌다(조건 false) 다시 켜지면 새 에피소드로 즉시 기록
+const MIN_RELOG_MS = 30_000;
+const PRICE_RELOG_PCT = 0.3;
 const DAILY_LIMIT_DEFAULT = 10;
 const STOP_LOSS_DEFAULT = 2;
 const DAILY_KEY = 'autoTradeDailyCount';
@@ -100,23 +103,29 @@ export function AutoTradePanel({
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [pending, setPending] = useState<PendingAction | null>(null);
 
-  // 조건 전이(거짓→참) 감지용. 종목 변경 시 리셋.
-  const buyArmedRef = useRef(false);
-  const tpArmedRef = useRef(false);
-  const slArmedRef = useRef(false);
   const pendingRef = useRef<PendingAction | null>(null);
   const lastExecRef = useRef(0);
-  // 같은 종류 트리거의 마지막 발생 시각 — 신호 깜빡임 도배 억제(TRIGGER_COOLDOWN_MS).
-  const lastFiredRef = useRef<Record<AutoActionKind, number>>({ BUY: 0, TP: 0, SL: 0 });
+  // 종류별 마지막 기록 스냅샷(가격·수량·시각). 의미 있는 변동 판정 + 도배 억제에 사용.
+  // 조건이 false(신호 사라짐)면 null 로 리셋해, 다시 켜질 때 새 에피소드로 즉시 기록.
+  const lastSignalRef = useRef<Record<AutoActionKind, { price: number; qty: number; time: number } | null>>(
+    { BUY: null, TP: null, SL: null }
+  );
   pendingRef.current = pending;
 
   useEffect(() => {
-    buyArmedRef.current = false;
-    tpArmedRef.current = false;
-    slArmedRef.current = false;
-    lastFiredRef.current = { BUY: 0, TP: 0, SL: 0 };
+    lastSignalRef.current = { BUY: null, TP: null, SL: null };
     setPending(null);
   }, [symbol]);
+
+  // 의미 있는 변동인지 판정: 첫 감지면 즉시, 최소 간격 내면 억제, 그 뒤엔 가격 변동률/수량 변화로 결정.
+  const shouldFire = (kind: AutoActionKind, price: number, qty: number) => {
+    const last = lastSignalRef.current[kind];
+    if (!last) return true;
+    if (Date.now() - last.time < MIN_RELOG_MS) return false;
+    const priceMoved =
+      last.price > 0 && (Math.abs(price - last.price) / last.price) * 100 >= PRICE_RELOG_PCT;
+    return priceMoved || qty !== last.qty;
+  };
 
   const pushLog = (level: LogEntry['level'], side: 'BUY' | 'SELL', text: string) => {
     setLogs((prev) =>
@@ -166,19 +175,22 @@ export function AutoTradePanel({
   const active = mode !== 'off';
 
   // 트리거 처리: 드라이런=기록만, 세미오토=대기 카드 생성(종목당 1건).
-  // 같은 종류 트리거는 TRIGGER_COOLDOWN_MS 안에선 무시 — 고변동 종목에서 추천이 깜빡여도 도배 방지.
-  const fireTrigger = (action: PendingAction, dryRunText: string) => {
-    const now = Date.now();
-    if (now - lastFiredRef.current[action.kind] < TRIGGER_COOLDOWN_MS) return;
-
+  // shouldFire 로 의미 있는 변동일 때만 호출된다. 발생 시 스냅샷(가격·수량·시각) 갱신.
+  const fireTrigger = (
+    action: PendingAction,
+    dryRunText: string,
+    snapPrice: number,
+    snapQty: number
+  ) => {
+    const snap = { price: snapPrice, qty: snapQty, time: Date.now() };
     if (mode === 'dryrun') {
-      lastFiredRef.current[action.kind] = now;
+      lastSignalRef.current[action.kind] = snap;
       pushLog('trigger', action.side, dryRunText);
       return;
     }
-    // semi: 이미 대기 중이면 새로 만들지 않음(스팸 방지). 쿨다운 시각도 갱신하지 않음.
+    // semi: 이미 대기 중이면 새로 만들지 않음(스냅샷도 갱신 안 함 → 대기 해소 후 다음 변동 반영).
     if (pendingRef.current) return;
-    lastFiredRef.current[action.kind] = now;
+    lastSignalRef.current[action.kind] = snap;
     pendingRef.current = action;
     setPending(action);
     pushLog('trigger', action.side, `대기: ${action.label} — '실행'을 눌러야 주문됩니다`);
@@ -188,23 +200,17 @@ export function AutoTradePanel({
   useEffect(() => {
     if (!active) return;
     if (buyReady) {
-      if (!buyArmedRef.current) {
-        buyArmedRef.current = true;
+      if (shouldFire('BUY', buyEntryPrice!, buyQuantity!)) {
         const label = `매수 ${symbol} ${buyQuantity}주 @ $${buyEntryPrice!.toFixed(2)}${buyTargetSellPrice !== undefined ? ` → 목표 $${buyTargetSellPrice.toFixed(2)}` : ''}`;
         fireTrigger(
-          {
-            id: crypto.randomUUID(),
-            kind: 'BUY',
-            side: 'BUY',
-            quantity: buyQuantity!,
-            limitPrice: buyEntryPrice,
-            label,
-          },
-          `모의 ${label}`
+          { id: crypto.randomUUID(), kind: 'BUY', side: 'BUY', quantity: buyQuantity!, limitPrice: buyEntryPrice, label },
+          `모의 ${label}`,
+          buyEntryPrice!,
+          buyQuantity!
         );
       }
     } else {
-      buyArmedRef.current = false;
+      lastSignalRef.current.BUY = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mode, buyReady, symbol, buyQuantity, buyEntryPrice, buyTargetSellPrice]);
@@ -213,23 +219,17 @@ export function AutoTradePanel({
   useEffect(() => {
     if (!active) return;
     if (tpReached && sellQty !== undefined && currentPrice !== undefined) {
-      if (!tpArmedRef.current) {
-        tpArmedRef.current = true;
+      if (shouldFire('TP', currentPrice, sellQty)) {
         const label = `익절 매도(전량) ${symbol} ${sellQty}주 @ $${currentPrice.toFixed(2)} (목표 +${takeProfitRatePercent}%)`;
         fireTrigger(
-          {
-            id: crypto.randomUUID(),
-            kind: 'TP',
-            side: 'SELL',
-            quantity: sellQty,
-            limitPrice: currentPrice,
-            label,
-          },
-          `모의 ${label}`
+          { id: crypto.randomUUID(), kind: 'TP', side: 'SELL', quantity: sellQty, limitPrice: currentPrice, label },
+          `모의 ${label}`,
+          currentPrice,
+          sellQty
         );
       }
     } else {
-      tpArmedRef.current = false;
+      lastSignalRef.current.TP = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mode, tpReached, sellQty, currentPrice, symbol, takeProfitRatePercent]);
@@ -238,23 +238,17 @@ export function AutoTradePanel({
   useEffect(() => {
     if (!active) return;
     if (slReached && sellQty !== undefined && currentPrice !== undefined) {
-      if (!slArmedRef.current) {
-        slArmedRef.current = true;
+      if (shouldFire('SL', currentPrice, sellQty)) {
         const label = `손절 매도(전량) ${symbol} ${sellQty}주 @ $${currentPrice.toFixed(2)} (손절 -${stopLossPercent}%)`;
         fireTrigger(
-          {
-            id: crypto.randomUUID(),
-            kind: 'SL',
-            side: 'SELL',
-            quantity: sellQty,
-            limitPrice: currentPrice,
-            label,
-          },
-          `모의 ${label}`
+          { id: crypto.randomUUID(), kind: 'SL', side: 'SELL', quantity: sellQty, limitPrice: currentPrice, label },
+          `모의 ${label}`,
+          currentPrice,
+          sellQty
         );
       }
     } else {
-      slArmedRef.current = false;
+      lastSignalRef.current.SL = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mode, slReached, sellQty, currentPrice, symbol, stopLossPercent]);
