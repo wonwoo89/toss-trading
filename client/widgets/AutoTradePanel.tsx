@@ -334,9 +334,21 @@ export function AutoTradePanel({
       <div className="auto-trade__head">
         <span className="auto-trade__title">
           자동매매
-          {mode === 'auto' && <span className="auto-trade__badge is-auto">오토 · 자동 실주문</span>}
-          {mode === 'semi' && <span className="auto-trade__badge is-semi">세미오토 · 실주문</span>}
-          {mode === 'dryrun' && <span className="auto-trade__badge is-dry">드라이런 · 모의</span>}
+          <span className="auto-trade__help">
+            <button type="button" className="auto-trade__help-trigger" aria-label="자동매매 설명">
+              ?
+            </button>
+            <span className="auto-trade__tip" role="tooltip">
+              <b>드라이런</b> 모의 기록만(실주문 없음)
+              <br />
+              <b>세미오토</b> 트리거 시 “실행” 탭해야 실주문
+              <br />
+              <b>오토</b> 트리거 시 확인 없이 자동 실주문
+              <br />
+              익절=목표 도달, 손절=손절률 도달 시 전량 매도. 일일 한도·쿨다운(60s)·탭 숨김
+              일시정지로 보호. 데스크탑·현재 종목만.
+            </span>
+          </span>
         </span>
         <div className="auto-trade__modes" role="tablist">
           {(['off', 'dryrun', 'semi', 'auto'] as const).map((m) => (
@@ -379,16 +391,6 @@ export function AutoTradePanel({
           오늘 {dailyCount}/{dailyLimit}
         </span>
       </div>
-
-      <p className="auto-trade__hint">
-        {mode === 'off'
-          ? '꺼짐(킬 스위치). 드라이런=모의 기록, 세미오토=확인 탭 후 실주문, 오토=확인 없이 자동 실주문. 데스크탑·브라우저 켜둔 동안만 동작.'
-          : mode === 'dryrun'
-            ? '모의 기록만 — 실제 주문은 들어가지 않습니다.'
-            : mode === 'semi'
-              ? '트리거 시 아래 대기 카드의 “실행”을 눌러야 실제 주문이 나갑니다. 익절/손절은 전량 매도.'
-              : '⚠️ 오토: 트리거 시 확인 없이 자동으로 실제 주문이 나갑니다(취소 없음). 익절/손절 전량 매도. 일일 한도·쿨다운(60s)으로만 제한되니 한도를 낮게 두고 감시하세요. 끄려면 OFF.'}
-      </p>
 
       {mode === 'auto' && !isTabVisible && (
         <p className="auto-trade__paused">⏸ 탭이 가려져 자동 실행 일시정지 중 — 이 탭을 다시 보면 재개됩니다.</p>

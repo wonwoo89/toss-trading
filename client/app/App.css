@@ -2595,46 +2595,86 @@ input[type='checkbox']:focus-visible {
   align-items: center;
   gap: 0.35rem;
 }
-.auto-trade__badge {
-  padding: 0.05rem 0.4rem;
+/* '?' 설명 툴팁 */
+.auto-trade__help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.auto-trade__help-trigger {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
   border-radius: 999px;
   font-size: 0.62rem;
-  font-weight: 600;
-}
-.auto-trade__badge.is-semi {
-  color: var(--color-down);
-  background: color-mix(in srgb, var(--color-down) 16%, transparent);
-}
-.auto-trade__badge.is-dry {
+  font-weight: 700;
+  line-height: 1;
   color: var(--text-secondary);
   background: var(--bg-subtle);
+  cursor: help;
 }
-.auto-trade__badge.is-auto {
-  color: #fff;
-  background: var(--color-down);
+.auto-trade__tip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  width: 260px;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-panel);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 0.12s ease,
+    visibility 0.12s ease;
 }
+.auto-trade__tip b {
+  color: var(--text-primary);
+}
+.auto-trade__help:hover .auto-trade__tip,
+.auto-trade__help:focus-within .auto-trade__tip {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 모드 세그먼티드 컨트롤 (하나로 합쳐진 레이아웃) */
 .auto-trade__modes {
   display: inline-flex;
-  gap: 0.2rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
 }
 .auto-trade__mode {
-  padding: 0.15rem 0.5rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
+  padding: 0.2rem 0.6rem;
+  border: none;
+  border-left: 1px solid var(--border-subtle);
+  border-radius: 0;
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--text-secondary);
   background: var(--bg-subtle);
 }
+.auto-trade__mode:first-child {
+  border-left: none;
+}
 .auto-trade__mode.is-on {
   color: #fff;
   background: var(--accent, #3182f6);
-  border-color: var(--accent, #3182f6);
 }
 /* 오토는 위험 단계 — 켜졌을 때 빨강으로 경고 */
 .auto-trade__mode.is-auto.is-on {
   background: var(--color-down);
-  border-color: var(--color-down);
 }
 .auto-trade__paused {
   margin: 0.4rem 0 0;
@@ -2653,6 +2693,8 @@ input[type='checkbox']:focus-visible {
 }
 .auto-trade__field {
   display: inline-flex;
+  /* .order-form label 의 flex-direction:column 을 덮어 라벨·인풋·단위를 한 줄로 */
+  flex-direction: row;
   align-items: center;
   gap: 0.25rem;
   font-size: 0.72rem;
