@@ -167,6 +167,8 @@ export function OrderForm({
   const [useTakeProfitSell, setUseTakeProfitSell] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [isMobileExpanded, setIsMobileExpanded] = useState(false);
+  // 세미오토/오토 실행 중에는 주문 입력 영역을 숨기고 자동 실행 내용만 노출(AutoTradePanel 이 알림).
+  const [autoExecActive, setAutoExecActive] = useState(false);
 
   // 자동매매(드라이런)는 데스크탑 전용. 모바일에선 렌더하지 않아 로직도 돌지 않는다.
   const [isDesktop, setIsDesktop] = useState(
@@ -774,8 +776,9 @@ export function OrderForm({
         />
 
         {/* 매수/매도 구분은 상단 탭이 아닌 하단 실행 버튼으로만 결정 (UX 개선) */}
-
-        {useAmountOrder ? (
+        {/* 세미오토/오토 실행 중에는 주문 입력(가격·수량·목표매도)을 숨기고 자동 실행 내용만 노출 */}
+        {!autoExecActive &&
+          (useAmountOrder ? (
           <div className="order-form__section">
             <div className="order-form__field-header">
               <span className="order-form__field-label">주문 금액 (USD)</span>
@@ -896,7 +899,7 @@ export function OrderForm({
               )}
             </div>
           </>
-        )}
+          ))}
       </div>
 
       <div className="order-form__submit-block">
@@ -913,6 +916,8 @@ export function OrderForm({
           />
         </div>
 
+        {!autoExecActive && (
+          <>
         {/* 매수 가능·손익분기·매도 가능·예상 금액은 side(매수/매도)나 추천 상황과 무관하게 항상 노출 */}
         <div className="order-form__hints">
           <div className="order-form__buy-hints-row">
@@ -1033,6 +1038,8 @@ export function OrderForm({
             )}
           </div>
         </div>
+          </>
+        )}
 
         {/* 자동매매(드라이런/세미오토). 데스크탑 전용 + 렌더된 동안만 동작. 세미오토는 확인 탭 후 실주문. */}
         {isDesktop && (
@@ -1047,6 +1054,7 @@ export function OrderForm({
             buyEntryPrice={buyEntryPrice}
             submitting={submitting}
             onAutoExecute={(side, qty, price) => executeWithRecommendation(side, qty, price)}
+            onExecModeChange={setAutoExecActive}
           />
         )}
 
