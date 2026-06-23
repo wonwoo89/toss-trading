@@ -826,7 +826,8 @@ textarea {
 .holdings-chip.is-active {
   background: color-mix(in srgb, var(--accent, #3182f6) 16%, var(--bg-subtle));
   border-color: var(--accent, #3182f6);
-  box-shadow: 0 0 0 1px var(--accent, #3182f6);
+  /* 안쪽 링(inset)으로 강조 — 가로 스크롤(overflow) 칩 바에서 바깥 링이 위아래로 잘리는 문제 방지 */
+  box-shadow: inset 0 0 0 1px var(--accent, #3182f6);
 }
 
 .holdings-chip.is-active .holdings-chip__ticker {
