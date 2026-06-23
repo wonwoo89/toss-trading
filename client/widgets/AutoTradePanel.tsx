@@ -5,7 +5,7 @@ import {
 } from '../shared/lib/takeProfitSell';
 import type { HoldingItem } from '../shared/types';
 
-type AutoMode = 'off' | 'dryrun' | 'semi';
+type AutoMode = 'off' | 'dryrun' | 'semi' | 'auto';
 type AutoActionKind = 'BUY' | 'TP' | 'SL'; // 매수 / 익절 매도 / 손절 매도
 
 interface AutoTradePanelProps {
@@ -75,13 +75,14 @@ function writeDailyCount(count: number) {
 }
 
 /**
- * 자동매매 패널 (1~2단계 통합).
+ * 자동매매 패널 (1~3단계 통합).
  *  - OFF: 비활성(킬 스위치)
  *  - 드라이런: 추천 매수·익절/손절 신호를 감지해 "했을 주문"을 기록만(실주문 X)
  *  - 세미오토: 트리거 시 대기 카드 노출 → 사용자가 '실행' 탭해야 실제 주문(확인 탭 필수)
+ *  - 오토: 트리거 + 가드 통과 시 확인 없이 자동 실주문(켤 때 확인, 탭 숨김 시 일시정지)
  *
- * 안전장치: 킬 스위치(모드 OFF) · 손절률 · 일일 실행 한도 · 쿨다운 · 종목당 단일 대기 · 감사로그.
- * 데스크탑 전용 + 렌더된 동안만 동작(호출부에서 데스크탑일 때만 렌더).
+ * 안전장치: 킬 스위치(모드 OFF) · 손절률 · 일일 실행 한도 · 쿨다운 · 탭 가시성(오토) ·
+ * 종목당 단일 대기(세미) · 감사로그. 데스크탑 전용 + 렌더된 동안만 동작.
  */
 export function AutoTradePanel({
   symbol,
@@ -111,6 +112,32 @@ export function AutoTradePanel({
     { BUY: null, TP: null, SL: null }
   );
   pendingRef.current = pending;
+
+  // 탭 가시성 — 오토는 탭이 보일 때만 자동 실행(직접 감시 전제). 가리면 일시정지.
+  const [isTabVisible, setIsTabVisible] = useState(
+    () => typeof document === 'undefined' || document.visibilityState === 'visible'
+  );
+  const isTabVisibleRef = useRef(isTabVisible);
+  isTabVisibleRef.current = isTabVisible;
+  useEffect(() => {
+    const onVis = () => setIsTabVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, []);
+
+  // 오토 모드 켜기는 실수 방지를 위해 명시적 확인을 받는다.
+  const selectMode = (next: AutoMode) => {
+    if (next === mode) return;
+    if (next === 'auto') {
+      const ok =
+        typeof window !== 'undefined' &&
+        window.confirm(
+          '오토 모드를 켭니다.\n트리거 발생 시 확인 없이 자동으로 실제 주문이 나갑니다(취소 없음).\n탭을 가리면 일시정지되고, 끄려면 OFF 를 누르면 됩니다.\n계속할까요?'
+        );
+      if (!ok) return;
+    }
+    setMode(next);
+  };
 
   useEffect(() => {
     lastSignalRef.current = { BUY: null, TP: null, SL: null };
@@ -174,7 +201,29 @@ export function AutoTradePanel({
 
   const active = mode !== 'off';
 
-  // 트리거 처리: 드라이런=기록만, 세미오토=대기 카드 생성(종목당 1건).
+  // 실제 주문 실행 + 공통 가드(제출 중·일일 한도·쿨다운). 통과해 주문을 내면 true.
+  const runExecute = (action: PendingAction): boolean => {
+    if (submitting) return false;
+    const count = readDailyCount();
+    if (count >= dailyLimit) {
+      pushLog('block', action.side, `차단(일일 한도 ${dailyLimit}회 초과): ${action.label}`);
+      return false;
+    }
+    if (Date.now() - lastExecRef.current < COOLDOWN_MS) {
+      const wait = Math.ceil((COOLDOWN_MS - (Date.now() - lastExecRef.current)) / 1000);
+      pushLog('block', action.side, `차단(쿨다운 ${wait}s 남음): ${action.label}`);
+      return false;
+    }
+    onAutoExecute(action.side, action.quantity, action.limitPrice);
+    lastExecRef.current = Date.now();
+    const next = count + 1;
+    writeDailyCount(next);
+    setDailyCount(next);
+    pushLog('exec', action.side, `실행: ${action.label}`);
+    return true;
+  };
+
+  // 트리거 처리: 드라이런=기록만, 세미오토=대기 카드, 오토=가드 통과 시 즉시 실행.
   // shouldFire 로 의미 있는 변동일 때만 호출된다. 발생 시 스냅샷(가격·수량·시각) 갱신.
   const fireTrigger = (
     action: PendingAction,
@@ -186,6 +235,17 @@ export function AutoTradePanel({
     if (mode === 'dryrun') {
       lastSignalRef.current[action.kind] = snap;
       pushLog('trigger', action.side, dryRunText);
+      return;
+    }
+    if (mode === 'auto') {
+      // 탭이 가려져 있으면 자동 실행 일시정지(스냅샷 갱신 안 함 → 다시 보이면 곧 실행).
+      if (!isTabVisibleRef.current) {
+        pushLog('block', action.side, `자동 일시정지(탭 숨김): ${action.label}`);
+        return;
+      }
+      lastSignalRef.current[action.kind] = snap;
+      pushLog('trigger', action.side, `자동 실행 트리거: ${action.label}`);
+      runExecute(action); // 가드 통과 시 즉시 주문, 실패 시 block 로그
       return;
     }
     // semi: 이미 대기 중이면 새로 만들지 않음(스냅샷도 갱신 안 함 → 대기 해소 후 다음 변동 반영).
@@ -213,7 +273,7 @@ export function AutoTradePanel({
       lastSignalRef.current.BUY = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, mode, buyReady, symbol, buyQuantity, buyEntryPrice, buyTargetSellPrice]);
+  }, [active, mode, isTabVisible, buyReady, symbol, buyQuantity, buyEntryPrice, buyTargetSellPrice]);
 
   // 익절 매도 트리거
   useEffect(() => {
@@ -232,7 +292,7 @@ export function AutoTradePanel({
       lastSignalRef.current.TP = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, mode, tpReached, sellQty, currentPrice, symbol, takeProfitRatePercent]);
+  }, [active, mode, isTabVisible, tpReached, sellQty, currentPrice, symbol, takeProfitRatePercent]);
 
   // 손절 매도 트리거
   useEffect(() => {
@@ -251,7 +311,7 @@ export function AutoTradePanel({
       lastSignalRef.current.SL = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, mode, slReached, sellQty, currentPrice, symbol, stopLossPercent]);
+  }, [active, mode, isTabVisible, slReached, sellQty, currentPrice, symbol, stopLossPercent]);
 
   const dismissPending = () => {
     if (pending) pushLog('skip', pending.side, `무시: ${pending.label}`);
@@ -260,31 +320,11 @@ export function AutoTradePanel({
   };
 
   const executePending = () => {
-    const action = pending;
-    if (!action) return;
-    if (mode !== 'semi') return; // 킬 스위치
-    if (submitting) return;
-
-    // 한도/쿨다운 가드
-    const count = readDailyCount();
-    if (count >= dailyLimit) {
-      pushLog('block', action.side, `차단(일일 한도 ${dailyLimit}회 초과): ${action.label}`);
-      return;
+    if (!pending || mode !== 'semi') return; // 킬 스위치
+    if (runExecute(pending)) {
+      pendingRef.current = null;
+      setPending(null);
     }
-    if (Date.now() - lastExecRef.current < COOLDOWN_MS) {
-      const wait = Math.ceil((COOLDOWN_MS - (Date.now() - lastExecRef.current)) / 1000);
-      pushLog('block', action.side, `차단(쿨다운 ${wait}s 남음): ${action.label}`);
-      return;
-    }
-
-    onAutoExecute(action.side, action.quantity, action.limitPrice);
-    lastExecRef.current = Date.now();
-    const next = count + 1;
-    writeDailyCount(next);
-    setDailyCount(next);
-    pushLog('exec', action.side, `실행: ${action.label}`);
-    pendingRef.current = null;
-    setPending(null);
   };
 
   const limitReached = dailyCount >= dailyLimit;
@@ -294,18 +334,19 @@ export function AutoTradePanel({
       <div className="auto-trade__head">
         <span className="auto-trade__title">
           자동매매
+          {mode === 'auto' && <span className="auto-trade__badge is-auto">오토 · 자동 실주문</span>}
           {mode === 'semi' && <span className="auto-trade__badge is-semi">세미오토 · 실주문</span>}
           {mode === 'dryrun' && <span className="auto-trade__badge is-dry">드라이런 · 모의</span>}
         </span>
         <div className="auto-trade__modes" role="tablist">
-          {(['off', 'dryrun', 'semi'] as const).map((m) => (
+          {(['off', 'dryrun', 'semi', 'auto'] as const).map((m) => (
             <button
               key={m}
               type="button"
-              className={`auto-trade__mode ${mode === m ? 'is-on' : ''}`}
-              onClick={() => setMode(m)}
+              className={`auto-trade__mode ${mode === m ? 'is-on' : ''}${m === 'auto' ? ' is-auto' : ''}`}
+              onClick={() => selectMode(m)}
             >
-              {m === 'off' ? 'OFF' : m === 'dryrun' ? '드라이런' : '세미오토'}
+              {m === 'off' ? 'OFF' : m === 'dryrun' ? '드라이런' : m === 'semi' ? '세미오토' : '오토'}
             </button>
           ))}
         </div>
@@ -341,11 +382,17 @@ export function AutoTradePanel({
 
       <p className="auto-trade__hint">
         {mode === 'off'
-          ? '꺼짐(킬 스위치). 드라이런=모의 기록, 세미오토=확인 탭 후 실주문. 데스크탑·브라우저 켜둔 동안만 동작.'
+          ? '꺼짐(킬 스위치). 드라이런=모의 기록, 세미오토=확인 탭 후 실주문, 오토=확인 없이 자동 실주문. 데스크탑·브라우저 켜둔 동안만 동작.'
           : mode === 'dryrun'
             ? '모의 기록만 — 실제 주문은 들어가지 않습니다.'
-            : '트리거 시 아래 대기 카드의 “실행”을 눌러야 실제 주문이 나갑니다. 익절/손절은 전량 매도.'}
+            : mode === 'semi'
+              ? '트리거 시 아래 대기 카드의 “실행”을 눌러야 실제 주문이 나갑니다. 익절/손절은 전량 매도.'
+              : '⚠️ 오토: 트리거 시 확인 없이 자동으로 실제 주문이 나갑니다(취소 없음). 익절/손절 전량 매도. 일일 한도·쿨다운(60s)으로만 제한되니 한도를 낮게 두고 감시하세요. 끄려면 OFF.'}
       </p>
+
+      {mode === 'auto' && !isTabVisible && (
+        <p className="auto-trade__paused">⏸ 탭이 가려져 자동 실행 일시정지 중 — 이 탭을 다시 보면 재개됩니다.</p>
+      )}
 
       {mode === 'semi' && pending && (
         <div className={`auto-trade__pending ${pending.side === 'BUY' ? 'is-buy' : 'is-sell'}`}>
