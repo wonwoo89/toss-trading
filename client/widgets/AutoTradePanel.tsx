@@ -45,6 +45,9 @@ interface PendingAction {
 
 const MAX_LOG = 40;
 const COOLDOWN_MS = 60_000; // 연속 실행 최소 간격
+// 같은 종류(매수/익절/손절) 트리거 재기록·재대기 최소 간격 — 추천이 추천↔비추천으로
+// 깜빡일 때 같은 신호가 도배되는 것을 막는다.
+const TRIGGER_COOLDOWN_MS = 180_000;
 const DAILY_LIMIT_DEFAULT = 10;
 const STOP_LOSS_DEFAULT = 2;
 const DAILY_KEY = 'autoTradeDailyCount';
@@ -103,12 +106,15 @@ export function AutoTradePanel({
   const slArmedRef = useRef(false);
   const pendingRef = useRef<PendingAction | null>(null);
   const lastExecRef = useRef(0);
+  // 같은 종류 트리거의 마지막 발생 시각 — 신호 깜빡임 도배 억제(TRIGGER_COOLDOWN_MS).
+  const lastFiredRef = useRef<Record<AutoActionKind, number>>({ BUY: 0, TP: 0, SL: 0 });
   pendingRef.current = pending;
 
   useEffect(() => {
     buyArmedRef.current = false;
     tpArmedRef.current = false;
     slArmedRef.current = false;
+    lastFiredRef.current = { BUY: 0, TP: 0, SL: 0 };
     setPending(null);
   }, [symbol]);
 
@@ -160,13 +166,19 @@ export function AutoTradePanel({
   const active = mode !== 'off';
 
   // 트리거 처리: 드라이런=기록만, 세미오토=대기 카드 생성(종목당 1건).
+  // 같은 종류 트리거는 TRIGGER_COOLDOWN_MS 안에선 무시 — 고변동 종목에서 추천이 깜빡여도 도배 방지.
   const fireTrigger = (action: PendingAction, dryRunText: string) => {
+    const now = Date.now();
+    if (now - lastFiredRef.current[action.kind] < TRIGGER_COOLDOWN_MS) return;
+
     if (mode === 'dryrun') {
+      lastFiredRef.current[action.kind] = now;
       pushLog('trigger', action.side, dryRunText);
       return;
     }
-    // semi: 이미 대기 중이면 새로 만들지 않음(스팸 방지)
+    // semi: 이미 대기 중이면 새로 만들지 않음(스팸 방지). 쿨다운 시각도 갱신하지 않음.
     if (pendingRef.current) return;
+    lastFiredRef.current[action.kind] = now;
     pendingRef.current = action;
     setPending(action);
     pushLog('trigger', action.side, `대기: ${action.label} — '실행'을 눌러야 주문됩니다`);
