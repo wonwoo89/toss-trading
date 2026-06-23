@@ -824,8 +824,14 @@ textarea {
 }
 
 .holdings-chip.is-active {
-  background: var(--holding-item-active-bg);
-  border-color: var(--holding-item-active-border);
+  background: color-mix(in srgb, var(--accent, #3182f6) 16%, var(--bg-subtle));
+  border-color: var(--accent, #3182f6);
+  box-shadow: 0 0 0 1px var(--accent, #3182f6);
+}
+
+.holdings-chip.is-active .holdings-chip__ticker {
+  color: var(--accent, #3182f6);
+  font-weight: 700;
 }
 
 .holdings-chip__ticker {
