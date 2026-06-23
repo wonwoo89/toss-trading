@@ -2691,9 +2691,10 @@ input[type='checkbox']:focus-visible {
   margin-top: 0.5rem;
   flex-wrap: wrap;
 }
-.auto-trade__field {
+/* .order-form label (specificity 0,1,1) 이 display:flex; flex-direction:column 을 강제하므로
+   특정성을 높여(0,2,0) 덮는다 → 라벨·인풋·단위를 한 줄로 정렬. */
+.auto-trade .auto-trade__field {
   display: inline-flex;
-  /* .order-form label 의 flex-direction:column 을 덮어 라벨·인풋·단위를 한 줄로 */
   flex-direction: row;
   align-items: center;
   gap: 0.25rem;
