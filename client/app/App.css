@@ -3021,6 +3021,15 @@ input[type='checkbox']:focus-visible {
     gap: 0.5rem;
   }
 
+  /* 모바일에서 커스텀(직접) 주문 폼을 펼치면 추천 매수/매도 카드는 숨겨 직접 주문에 집중.
+     접힘 상태에서는 추천 버튼이 유일한 실행 버튼이므로 그대로 노출한다.
+     하단 안전영역(홈 인디케이터)은 .order-column 의 padding-bottom
+     (calc(12px + env(safe-area-inset-bottom)))이 sticky submit-block 아래로 이미 확보하므로,
+     직접 매수/매도 버튼이 맨 아래가 돼도 가려지지 않는다(추가 패딩 불필요). */
+  .order-form.is-mobile-expanded .order-rec-grid {
+    display: none;
+  }
+
 
 
   .order-form__mobile-handlebar {
