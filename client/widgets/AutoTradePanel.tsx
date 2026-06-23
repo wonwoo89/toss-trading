@@ -19,6 +19,8 @@ interface AutoTradePanelProps {
   buyRecommended: boolean;
   buyQuantity?: number;
   buyEntryPrice?: number;
+  /** 주문 가능 금액 — 자동매수 1회 금액 상한(10%) 계산에 사용 */
+  buyingPower?: number;
   /** 주문 제출 중 — 실행 버튼 비활성 */
   submitting?: boolean;
   /** 실제 주문 실행(세미오토 '실행' 탭 시). OrderForm 의 검증된 제출 경로 재사용. */
@@ -55,6 +57,8 @@ const PRICE_RELOG_PCT = 0.3;
 const DAILY_LIMIT_DEFAULT = 10;
 const STOP_LOSS_DEFAULT = 2;
 const TARGET_DEFAULT = 3;
+// 자동매수 1회 최대 금액 = 주문가능금액(buyingPower)의 이 비율(%). 과대 매수 방지.
+const AUTO_BUY_MAX_PCT = 10;
 const DAILY_KEY = 'autoTradeDailyCount';
 
 function todayKey() {
@@ -95,6 +99,7 @@ export function AutoTradePanel({
   buyRecommended,
   buyQuantity,
   buyEntryPrice,
+  buyingPower,
   submitting,
   onAutoExecute,
   onExecModeChange,
@@ -217,17 +222,30 @@ export function AutoTradePanel({
       : undefined;
   const slReached = slPrice !== undefined && currentPrice !== undefined && currentPrice <= slPrice;
 
+  // 자동매수 1회 금액 상한: 주문가능금액의 AUTO_BUY_MAX_PCT% 이내로 수량을 제한.
+  const buyAmountCapQty =
+    buyingPower !== undefined && buyEntryPrice !== undefined && buyEntryPrice > 0
+      ? Math.floor((buyingPower * (AUTO_BUY_MAX_PCT / 100)) / buyEntryPrice)
+      : undefined;
+  // 추천 수량과 금액 상한 중 작은 값. 상한 계산 가능 시 그 값을 적용(0이면 매수 불가).
+  const effectiveBuyQty =
+    buyQuantity !== undefined
+      ? buyAmountCapQty !== undefined
+        ? Math.min(buyQuantity, buyAmountCapQty)
+        : buyQuantity
+      : undefined;
+
   const buyReady =
     buyRecommended &&
-    buyQuantity !== undefined &&
-    buyQuantity > 0 &&
+    effectiveBuyQty !== undefined &&
+    effectiveBuyQty > 0 &&
     buyEntryPrice !== undefined &&
     buyEntryPrice > 0;
 
   // 매수 진입가 기준 목표 매도가(자동매매 목표 수익률 적용) — 매수 트리거 라벨 표시용.
   const buyTargetSell =
-    buyReady && buyEntryPrice !== undefined && buyQuantity !== undefined
-      ? calculateTakeProfitSellPrice(buyEntryPrice, buyQuantity, targetPercent)
+    buyReady && buyEntryPrice !== undefined && effectiveBuyQty !== undefined
+      ? calculateTakeProfitSellPrice(buyEntryPrice, effectiveBuyQty, targetPercent)
       : undefined;
 
   const active = mode !== 'off';
@@ -292,20 +310,20 @@ export function AutoTradePanel({
   useEffect(() => {
     if (!active) return;
     if (buyReady) {
-      if (shouldFire('BUY', buyEntryPrice!, buyQuantity!)) {
-        const label = `매수 ${symbol} ${buyQuantity}주 @ $${buyEntryPrice!.toFixed(2)}${buyTargetSell !== undefined ? ` → 목표 $${buyTargetSell.toFixed(2)} (+${targetPercent}%)` : ''}`;
+      if (shouldFire('BUY', buyEntryPrice!, effectiveBuyQty!)) {
+        const label = `매수 ${symbol} ${effectiveBuyQty}주 @ $${buyEntryPrice!.toFixed(2)}${buyTargetSell !== undefined ? ` → 목표 $${buyTargetSell.toFixed(2)} (+${targetPercent}%)` : ''}`;
         fireTrigger(
-          { id: crypto.randomUUID(), kind: 'BUY', side: 'BUY', quantity: buyQuantity!, limitPrice: buyEntryPrice, label },
+          { id: crypto.randomUUID(), kind: 'BUY', side: 'BUY', quantity: effectiveBuyQty!, limitPrice: buyEntryPrice, label },
           `모의 ${label}`,
           buyEntryPrice!,
-          buyQuantity!
+          effectiveBuyQty!
         );
       }
     } else {
       lastSignalRef.current.BUY = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, mode, isTabVisible, buyReady, symbol, buyQuantity, buyEntryPrice, buyTargetSell, targetPercent]);
+  }, [active, mode, isTabVisible, buyReady, symbol, effectiveBuyQty, buyEntryPrice, buyTargetSell, targetPercent]);
 
   // 익절 매도 트리거
   useEffect(() => {
