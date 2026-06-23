@@ -805,10 +805,11 @@ export function useSymbolTrading(
     [refreshPortfolioOpenOrders]
   );
 
-  // 매수/매도 체결 감지 → 미체결 주문 영역 1회 갱신.
-  // portfolioOpenOrders 는 인터벌 폴링이 없어 지정가/목표수익률 매도가 나중에 체결돼도
-  // 패널이 갱신되지 않는다. 보유 수량은 포트폴리오 스냅샷(2초 폴링)으로 갱신되므로,
-  // 수량 변화(=체결)를 신호로 삼아 미체결 주문을 한 번 다시 불러온다.
+  // 매수/매도 체결 감지 → 미체결 주문 + 현재 종목 보유 스냅샷 갱신.
+  // portfolioOpenOrders 와 holding(평단·수량)·sellableQuantity 는 인터벌 폴링이 없어,
+  // 지정가/목표수익률/자동매매 주문이 나중에 체결돼도 새로고침 전엔 갱신되지 않았다.
+  // 보유 수량은 포트폴리오 스냅샷(2초 폴링)으로 갱신되므로, 수량 변화(=체결)를 신호로 삼아
+  // 미체결 주문과 함께 현재 종목 trade 스냅샷도 한 번 다시 불러온다(차트 평단·주문폼 보유 갱신).
   const holdingsQtySignatureRef = useRef<string | null>(null);
   useEffect(() => {
     const signature = portfolioHoldings
@@ -823,7 +824,8 @@ export function useSymbolTrading(
     if (prev === null || prev === signature) return;
 
     void refreshPortfolioOpenOrders();
-  }, [portfolioHoldings, refreshPortfolioOpenOrders]);
+    void refreshTrade(); // 체결 시 현재 종목 평단·보유수량·매도가능도 갱신
+  }, [portfolioHoldings, refreshPortfolioOpenOrders, refreshTrade]);
 
   const refreshBuyingPower = useCallback(
     async (accSeq: string) => {
