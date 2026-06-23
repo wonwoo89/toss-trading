@@ -1045,7 +1045,6 @@ export function OrderForm({
             buyRecommended={buyRecEnabled}
             buyQuantity={buyQuantityRec.quantity}
             buyEntryPrice={buyEntryPrice}
-            buyTargetSellPrice={buyTargetSellPrice}
             submitting={submitting}
             onAutoExecute={(side, qty, price) => executeWithRecommendation(side, qty, price)}
           />

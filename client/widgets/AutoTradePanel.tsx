@@ -19,7 +19,6 @@ interface AutoTradePanelProps {
   buyRecommended: boolean;
   buyQuantity?: number;
   buyEntryPrice?: number;
-  buyTargetSellPrice?: number;
   /** 주문 제출 중 — 실행 버튼 비활성 */
   submitting?: boolean;
   /** 실제 주문 실행(세미오토 '실행' 탭 시). OrderForm 의 검증된 제출 경로 재사용. */
@@ -53,6 +52,7 @@ const MIN_RELOG_MS = 30_000;
 const PRICE_RELOG_PCT = 0.3;
 const DAILY_LIMIT_DEFAULT = 10;
 const STOP_LOSS_DEFAULT = 2;
+const TARGET_DEFAULT = 3;
 const DAILY_KEY = 'autoTradeDailyCount';
 
 function todayKey() {
@@ -93,11 +93,14 @@ export function AutoTradePanel({
   buyRecommended,
   buyQuantity,
   buyEntryPrice,
-  buyTargetSellPrice,
   submitting,
   onAutoExecute,
 }: AutoTradePanelProps) {
   const [mode, setMode] = useState<AutoMode>('off');
+  // 자동매도 목표 수익률(실수익률 %) — 자동매매 전용 입력. 주문폼 선택값으로 초기화 후 독립 관리.
+  const [targetPercent, setTargetPercent] = useState(() =>
+    takeProfitRatePercent && takeProfitRatePercent > 0 ? takeProfitRatePercent : TARGET_DEFAULT
+  );
   const [stopLossPercent, setStopLossPercent] = useState(STOP_LOSS_DEFAULT);
   const [dailyLimit, setDailyLimit] = useState(DAILY_LIMIT_DEFAULT);
   const [dailyCount, setDailyCount] = useState(() => readDailyCount());
@@ -193,7 +196,7 @@ export function AutoTradePanel({
       ? calculateTakeProfitSellPrice(
           holding!.averagePrice,
           sellQty!,
-          takeProfitRatePercent,
+          targetPercent,
           getTakeProfitCostContext(holding)
         )
       : undefined;
@@ -211,6 +214,12 @@ export function AutoTradePanel({
     buyQuantity > 0 &&
     buyEntryPrice !== undefined &&
     buyEntryPrice > 0;
+
+  // 매수 진입가 기준 목표 매도가(자동매매 목표 수익률 적용) — 매수 트리거 라벨 표시용.
+  const buyTargetSell =
+    buyReady && buyEntryPrice !== undefined && buyQuantity !== undefined
+      ? calculateTakeProfitSellPrice(buyEntryPrice, buyQuantity, targetPercent)
+      : undefined;
 
   const active = mode !== 'off';
 
@@ -275,7 +284,7 @@ export function AutoTradePanel({
     if (!active) return;
     if (buyReady) {
       if (shouldFire('BUY', buyEntryPrice!, buyQuantity!)) {
-        const label = `매수 ${symbol} ${buyQuantity}주 @ $${buyEntryPrice!.toFixed(2)}${buyTargetSellPrice !== undefined ? ` → 목표 $${buyTargetSellPrice.toFixed(2)}` : ''}`;
+        const label = `매수 ${symbol} ${buyQuantity}주 @ $${buyEntryPrice!.toFixed(2)}${buyTargetSell !== undefined ? ` → 목표 $${buyTargetSell.toFixed(2)} (+${targetPercent}%)` : ''}`;
         fireTrigger(
           { id: crypto.randomUUID(), kind: 'BUY', side: 'BUY', quantity: buyQuantity!, limitPrice: buyEntryPrice, label },
           `모의 ${label}`,
@@ -287,14 +296,14 @@ export function AutoTradePanel({
       lastSignalRef.current.BUY = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, mode, isTabVisible, buyReady, symbol, buyQuantity, buyEntryPrice, buyTargetSellPrice]);
+  }, [active, mode, isTabVisible, buyReady, symbol, buyQuantity, buyEntryPrice, buyTargetSell, targetPercent]);
 
   // 익절 매도 트리거
   useEffect(() => {
     if (!active) return;
     if (tpReached && sellQty !== undefined && currentPrice !== undefined) {
       if (shouldFire('TP', currentPrice, sellQty)) {
-        const label = `익절 매도(전량) ${symbol} ${sellQty}주 @ $${currentPrice.toFixed(2)} (목표 +${takeProfitRatePercent}%)`;
+        const label = `익절 매도(전량) ${symbol} ${sellQty}주 @ $${currentPrice.toFixed(2)} (목표 +${targetPercent}%)`;
         fireTrigger(
           { id: crypto.randomUUID(), kind: 'TP', side: 'SELL', quantity: sellQty, limitPrice: currentPrice, label },
           `모의 ${label}`,
@@ -306,7 +315,7 @@ export function AutoTradePanel({
       lastSignalRef.current.TP = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, mode, isTabVisible, tpReached, sellQty, currentPrice, symbol, takeProfitRatePercent]);
+  }, [active, mode, isTabVisible, tpReached, sellQty, currentPrice, symbol, targetPercent]);
 
   // 손절 매도 트리거
   useEffect(() => {
@@ -378,6 +387,17 @@ export function AutoTradePanel({
       </div>
 
       <div className="auto-trade__controls">
+        <label className="auto-trade__field">
+          목표 수익률
+          <input
+            type="number"
+            min={0.1}
+            step={0.1}
+            value={targetPercent}
+            onChange={(e) => setTargetPercent(Math.max(0.1, Number(e.target.value) || 0))}
+          />
+          %
+        </label>
         <label className="auto-trade__field">
           손절률
           <input
