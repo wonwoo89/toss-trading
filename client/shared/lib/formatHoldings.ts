@@ -10,6 +10,21 @@ export function formatKrw(value?: number) {
   return `₩${Math.round(value).toLocaleString('ko-KR')}`;
 }
 
+/** 통화별 금액 포맷. KRW=정수 원(₩), 그 외=USD($, 소수 2자리). 기본 USD. */
+export function formatMoney(value?: number, currency?: string) {
+  return currency === 'KRW' ? formatKrw(value) : formatUsd(value);
+}
+
+/** 부호 포함 통화별 금액 포맷(손익 등). */
+export function formatSignedMoney(value?: number, currency?: string) {
+  if (value === undefined) return '—';
+  if (currency === 'KRW') {
+    const sign = value < 0 ? '-' : '+';
+    return `${sign}₩${Math.abs(Math.round(value)).toLocaleString('ko-KR')}`;
+  }
+  return formatSignedUsd(value);
+}
+
 export function formatQuantity(value?: number) {
   if (value === undefined) return '—';
 

@@ -1,7 +1,8 @@
 import {
-  formatProfitLoss,
+  formatMoney,
   formatQuantity,
-  formatUsd,
+  formatSignedMoney,
+  formatSignedPercent,
   getKrProfitLossClass,
 } from '../shared/lib/formatHoldings';
 
@@ -12,6 +13,7 @@ interface StockHoldingSummaryProps {
   profitLoss?: number;
   profitLossRate?: number;
   variant?: 'inline' | 'order';
+  currency?: string;
 }
 
 export function StockHoldingSummary({
@@ -21,6 +23,7 @@ export function StockHoldingSummary({
   profitLoss,
   profitLossRate,
   variant = 'inline',
+  currency = 'USD',
 }: StockHoldingSummaryProps) {
   if (!quantity || quantity <= 0) return null;
 
@@ -33,14 +36,22 @@ export function StockHoldingSummary({
             <span className="stock-holding-summary__divider" aria-hidden="true">
               ·
             </span>
-            <span className="stock-holding-summary__average">평단 {formatUsd(averagePrice)}</span>
+            <span className="stock-holding-summary__average">
+              평단 {formatMoney(averagePrice, currency)}
+            </span>
           </>
         )}
       </span>
       <div className="holding-value stock-holding-summary__value">
-        <span>{formatUsd(marketValue)}</span>
+        <span>{formatMoney(marketValue, currency)}</span>
         <span className={`holding-pl ${getKrProfitLossClass(profitLoss) ?? ''}`}>
-          {formatProfitLoss(profitLoss, profitLossRate)}
+          {profitLoss === undefined && profitLossRate === undefined
+            ? '—'
+            : `${formatSignedMoney(profitLoss, currency)}${
+                formatSignedPercent(profitLossRate, profitLoss)
+                  ? ` (${formatSignedPercent(profitLossRate, profitLoss)})`
+                  : ''
+              }`}
         </span>
       </div>
     </div>

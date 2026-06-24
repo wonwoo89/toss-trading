@@ -4,7 +4,7 @@ import { AutoTradePanel } from './AutoTradePanel';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import { calculateTakeProfitSellPrice } from '../shared/lib/takeProfitSell';
-import { formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
+import { formatMoney, formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
 import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
@@ -23,6 +23,7 @@ const PRICE_MODES = ['limit', 'current', 'market'] as const satisfies readonly P
 interface OrderFormProps {
   symbol: string;
   currentPrice?: number;
+  currency?: string;
   previousClose?: number;
   buyingPower?: number;
   sellableQuantity?: number;
@@ -130,6 +131,7 @@ function focusNextOrderFormField(form: HTMLFormElement, reverse: boolean) {
 export function OrderForm({
   symbol,
   currentPrice,
+  currency = 'USD',
   previousClose,
   buyingPower,
   sellableQuantity,
@@ -184,6 +186,10 @@ export function OrderForm({
   const formRef = useRef<HTMLFormElement>(null);
   const limitPriceManualRef = useRef(false);
 
+  // 주문/자동매매는 현재 미국주식(USD)만 지원. 국내주식(KRW 등)은 조회 전용으로,
+  // 시세·차트·보유는 보여주되 주문 실행 UI 전체를 숨기고 안내만 노출한다.
+  const isOrderable = currency === 'USD';
+
   // Reset form state when symbol changes (for navigation without full reload)
   // This ensures recommendations and inputs are fresh for the new symbol's data
   useEffect(() => {
@@ -204,8 +210,8 @@ export function OrderForm({
 
   // 전일대비 당일 변동(주문폼 최상단 시세 블록). 색상은 KR 관례(상승 빨강/하락 파랑).
   const dayChange = useMemo(
-    () => buildDayChangeMetric(previousClose, currentPrice),
-    [previousClose, currentPrice]
+    () => buildDayChangeMetric(previousClose, currentPrice, currency),
+    [previousClose, currentPrice, currency]
   );
   const dayChangeDiff =
     previousClose !== undefined && previousClose > 0 && currentPrice !== undefined
@@ -794,7 +800,7 @@ export function OrderForm({
       <div className="order-form__body">
         <div className="order-form__quote">
           <strong className="order-form__quote-price">
-            {currentPrice !== undefined ? formatUsd(currentPrice) : '—'}
+            {currentPrice !== undefined ? formatMoney(currentPrice, currency) : '—'}
           </strong>
           <span
             className={`order-form__quote-change${
@@ -812,11 +818,20 @@ export function OrderForm({
           marketValue={holdingMarketValue}
           profitLoss={holdingProfitLoss}
           profitLossRate={holdingProfitLossRate}
+          currency={currency}
         />
+
+        {/* 국내주식 등 비(非)USD 종목은 조회 전용 — 주문 입력/실행 UI를 숨기고 안내만 노출 */}
+        {!isOrderable && (
+          <p className="order-form__readonly-notice hint">
+            국내주식은 현재 조회 전용입니다(주문 준비 중). 시세·차트·보유 현황만 표시됩니다.
+          </p>
+        )}
 
         {/* 매수/매도 구분은 상단 탭이 아닌 하단 실행 버튼으로만 결정 (UX 개선) */}
         {/* 세미오토/오토 실행 중에는 주문 입력(가격·수량·목표매도)을 숨기고 자동 실행 내용만 노출 */}
-        {!autoExecActive &&
+        {isOrderable &&
+          !autoExecActive &&
           (useAmountOrder ? (
           <div className="order-form__section">
             <div className="order-form__field-header">
@@ -952,10 +967,11 @@ export function OrderForm({
             marketValue={holdingMarketValue}
             profitLoss={holdingProfitLoss}
             profitLossRate={holdingProfitLossRate}
+            currency={currency}
           />
         </div>
 
-        {!autoExecActive && (
+        {isOrderable && !autoExecActive && (
           <>
         {/* 매수 가능·손익분기·매도 가능·예상 금액은 side(매수/매도)나 추천 상황과 무관하게 항상 노출 */}
         <div className="order-form__hints">
@@ -1080,8 +1096,8 @@ export function OrderForm({
           </>
         )}
 
-        {/* 자동매매(드라이런/세미오토). 데스크탑 전용 + 렌더된 동안만 동작. 세미오토는 확인 탭 후 실주문. */}
-        {isDesktop && (
+        {/* 자동매매(드라이런/세미오토). 데스크탑 전용 + USD(미국주식)만. 세미오토는 확인 탭 후 실주문. */}
+        {isDesktop && isOrderable && (
           <AutoTradePanel
             symbol={symbol}
             currentPrice={currentPrice}

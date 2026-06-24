@@ -25,15 +25,20 @@ export function resolvePreviousClose(dailyCandles: ChartCandle[], now = new Date
   return prev?.close;
 }
 
-function formatSignedUsd(value: number) {
+function formatSignedMoney(value: number, currency?: string) {
   const sign = value > 0 ? '+' : value < 0 ? '-' : '';
+  if (currency === 'KRW') {
+    return `${sign}₩${Math.abs(Math.round(value)).toLocaleString('ko-KR')}`;
+  }
   return `${sign}$${Math.abs(value).toFixed(2)}`;
 }
 
 // 전일대비 등락(전일 종가 대비 현재가). 양수=상승 색, 음수=하락 색.
+// currency 로 통화 표기(₩/$)를 분기한다(KR 조회 전용 지원). 기본 USD.
 export function buildDayChangeMetric(
   previousClose?: number,
-  currentPrice?: number
+  currentPrice?: number,
+  currency?: string
 ): MarketMetric {
   if (
     previousClose === undefined ||
@@ -48,7 +53,7 @@ export function buildDayChangeMetric(
   return {
     id: 'day-change',
     label: '전일대비',
-    value: `${formatSignedPercent(rate)} (${formatSignedUsd(diff)})`,
+    value: `${formatSignedPercent(rate)} (${formatSignedMoney(diff, currency)})`,
     bias,
   };
 }

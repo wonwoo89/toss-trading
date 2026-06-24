@@ -53,6 +53,7 @@ interface MarketPanelProps {
   onLoadOlderCandles?: () => void;
   warnings?: string[];
   currentPrice?: number;
+  currency?: string;
   holding?: HoldingItem;
   holdingProfitLossRate?: number;
   targetProfitRatePercent?: number;
@@ -67,8 +68,12 @@ interface MarketPanelProps {
   onRealtimePollingForcedChange?: (forced: boolean) => void;
 }
 
-function formatUsd(value?: number) {
+// 호가/체결 가격 포맷. KRW=정수 원(₩), 그 외=USD($, 최대 소수 4자리). 기본 USD.
+function formatMoney(value?: number, currency?: string) {
   if (value === undefined) return '—';
+  if (currency === 'KRW') {
+    return `₩${Math.round(value).toLocaleString('ko-KR')}`;
+  }
   return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 }
 
@@ -96,6 +101,7 @@ export function MarketPanel({
   onLoadOlderCandles,
   warnings = [],
   currentPrice,
+  currency = 'USD',
   holding,
   holdingProfitLossRate,
   targetProfitRatePercent = 3,
@@ -247,6 +253,7 @@ export function MarketPanel({
               hasMoreHistory={hasMoreHistory}
               onLoadOlder={onLoadOlderCandles}
               showBollinger={bollingerVisible}
+              currency={currency}
             />
           </Suspense>
         </div>
@@ -301,7 +308,7 @@ export function MarketPanel({
               <span
                 className={`orderbook-summary__metric-value ${askFlash ? `price-flash-${askFlash}` : ''}`}
               >
-                {formatUsd(spread.bestAsk)}
+                {formatMoney(spread.bestAsk, currency)}
               </span>
             </span>
             <span className="orderbook-summary__metric orderbook-summary__metric--bullish">
@@ -309,7 +316,7 @@ export function MarketPanel({
               <span
                 className={`orderbook-summary__metric-value ${bidFlash ? `price-flash-${bidFlash}` : ''}`}
               >
-                {formatUsd(spread.bestBid)}
+                {formatMoney(spread.bestBid, currency)}
               </span>
             </span>
             <span className={`orderbook-summary__metric ${getMetricBiasClass(spread.bias)}`}>
@@ -350,7 +357,7 @@ export function MarketPanel({
                   ) : (
                     asks.slice(0, 8).map((ask, index) => (
                       <tr key={`ask-${index}`}>
-                        <td className="down">{formatUsd(ask.price)}</td>
+                        <td className="down">{formatMoney(ask.price, currency)}</td>
                         <td>{ask.quantity}</td>
                       </tr>
                     ))
@@ -376,7 +383,7 @@ export function MarketPanel({
                   ) : (
                     bids.slice(0, 8).map((bid, index) => (
                       <tr key={`bid-${index}`}>
-                        <td className="up">{formatUsd(bid.price)}</td>
+                        <td className="up">{formatMoney(bid.price, currency)}</td>
                         <td>{bid.quantity}</td>
                       </tr>
                     ))
@@ -404,7 +411,7 @@ export function MarketPanel({
                     trades.slice(0, 10).map((trade, index) => (
                       <tr key={`trade-${index}`}>
                         <td>{new Date(trade.timestamp).toLocaleTimeString('ko-KR')}</td>
-                        <td>{formatUsd(trade.price)}</td>
+                        <td>{formatMoney(trade.price, currency)}</td>
                         <td>{trade.quantity}</td>
                       </tr>
                     ))

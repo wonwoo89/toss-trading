@@ -35,6 +35,15 @@ interface CandleChartProps {
   loadingOlder?: boolean;
   onLoadOlder?: () => void;
   showBollinger?: boolean;
+  currency?: string;
+}
+
+// 통화별 가격 표기 정밀도. KRW=정수(소수 0, 최소단위 1원), 그 외=USD(소수 2, 0.01). 기본 USD.
+function getPriceFormatOptions(currency?: string) {
+  if (currency === 'KRW') {
+    return { type: 'price' as const, precision: 0, minMove: 1 };
+  }
+  return { type: 'price' as const, precision: 2, minMove: 0.01 };
 }
 
 const HISTORY_LOAD_THRESHOLD = 15;
@@ -69,7 +78,10 @@ function formatVolume(value: number) {
   return value.toLocaleString('en-US');
 }
 
-function formatChartPrice(value: number) {
+function formatChartPrice(value: number, currency?: string) {
+  if (currency === 'KRW') {
+    return Math.round(value).toLocaleString('ko-KR');
+  }
   return value.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 4,
@@ -83,8 +95,8 @@ function formatPercentFromOpen(value: number, open: number) {
   return ` (${sign}${percent.toFixed(2)}%)`;
 }
 
-function formatOhlcLegendValue(value: number, open: number) {
-  return `${formatChartPrice(value)}${formatPercentFromOpen(value, open)}`;
+function formatOhlcLegendValue(value: number, open: number, currency?: string) {
+  return `${formatChartPrice(value, currency)}${formatPercentFromOpen(value, open)}`;
 }
 
 // lightweight-charts 는 시간 축/크로스헤어를 기본 UTC 로 표기한다. 한국(KST, UTC+9) 기준으로
@@ -362,8 +374,11 @@ export function CandleChart({
   loadingOlder = false,
   onLoadOlder,
   showBollinger = true,
+  currency = 'USD',
 }: CandleChartProps) {
   const { theme } = useTheme();
+  const currencyRef = useRef(currency);
+  currencyRef.current = currency;
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -448,6 +463,7 @@ export function CandleChart({
       borderVisible: false,
       wickUpColor: colors.candleUp,
       wickDownColor: colors.candleDown,
+      priceFormat: getPriceFormatOptions(currencyRef.current),
     });
 
     series.applyOptions(getCandlePriceScaleOptions());
@@ -712,6 +728,11 @@ export function CandleChart({
     avgPriceLineRef.current = seriesRef.current.createPriceLine(lineOptions);
   }, [averagePrice, theme]);
 
+  // 통화 변경(US↔KR) 시 가격축/가격선 정밀도를 갱신한다.
+  useEffect(() => {
+    seriesRef.current?.applyOptions({ priceFormat: getPriceFormatOptions(currency) });
+  }, [currency]);
+
   useEffect(() => {
     if (!seriesRef.current || !volumeSeriesRef.current) return;
 
@@ -871,16 +892,22 @@ export function CandleChart({
       {hoveredCandle && (
         <div className="chart-ohlc-legend" aria-live="polite">
           <span className="chart-ohlc-legend__item">
-            시가 <strong>{formatOhlcLegendValue(hoveredCandle.open, hoveredCandle.open)}</strong>
+            시가{' '}
+            <strong>{formatOhlcLegendValue(hoveredCandle.open, hoveredCandle.open, currency)}</strong>
           </span>
           <span className="chart-ohlc-legend__item up">
-            고가 <strong>{formatOhlcLegendValue(hoveredCandle.high, hoveredCandle.open)}</strong>
+            고가{' '}
+            <strong>{formatOhlcLegendValue(hoveredCandle.high, hoveredCandle.open, currency)}</strong>
           </span>
           <span className="chart-ohlc-legend__item down">
-            저가 <strong>{formatOhlcLegendValue(hoveredCandle.low, hoveredCandle.open)}</strong>
+            저가{' '}
+            <strong>{formatOhlcLegendValue(hoveredCandle.low, hoveredCandle.open, currency)}</strong>
           </span>
           <span className={`chart-ohlc-legend__item${isUpCandle ? ' up' : ' down'}`}>
-            종가 <strong>{formatOhlcLegendValue(hoveredCandle.close, hoveredCandle.open)}</strong>
+            종가{' '}
+            <strong>
+              {formatOhlcLegendValue(hoveredCandle.close, hoveredCandle.open, currency)}
+            </strong>
           </span>
           {hoveredCandle.volume !== undefined && (
             <span className="chart-ohlc-legend__item">
