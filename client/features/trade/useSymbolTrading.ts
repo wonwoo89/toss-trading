@@ -293,9 +293,12 @@ export function useSymbolTrading(
       if (symbol !== latestSymbolRef.current) return undefined;
       const p = snap.price?.[0];
       const ob = snap.orderbook;
-      const priceInfo = p as { lastPrice?: string; price?: string } | undefined;
+      const priceInfo = p as
+        | { lastPrice?: string; price?: string; currency?: string }
+        | undefined;
       const computedPrice = toNumber(priceInfo?.lastPrice ?? priceInfo?.price);
       return {
+        currency: priceInfo?.currency,
         bids: (ob?.bids ?? []).map((b: OrderbookEntryRaw) => ({
           price: toNumber(b.price) ?? 0,
           quantity: toNumber(b.volume) ?? 0,
@@ -965,6 +968,7 @@ export function useSymbolTrading(
       candles: candlesData.candles,
       averagePrice: holding && holding.quantity > 0 ? holding.averagePrice : undefined,
       currentPrice: marketPolling.data?.price,
+      currency: marketPolling.data?.currency ?? 'USD',
       holding: effectiveHolding && effectiveHolding.quantity > 0 ? effectiveHolding : undefined,
       holdingProfitLossRate: holdingSummary?.profitLossRate,
       targetProfitRatePercent: takeProfitRatePercent,
@@ -1021,6 +1025,7 @@ export function useSymbolTrading(
     () => ({
       symbol,
       currentPrice: marketPolling.data?.price,
+      currency: marketPolling.data?.currency ?? 'USD',
       previousClose,
       buyingPower: contextBuyingPower,
       sellableQuantity: effectiveSellableQuantity,

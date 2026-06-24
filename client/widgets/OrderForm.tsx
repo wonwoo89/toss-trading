@@ -4,7 +4,7 @@ import { AutoTradePanel } from './AutoTradePanel';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import { calculateTakeProfitSellPrice } from '../shared/lib/takeProfitSell';
-import { formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
+import { formatPrice, formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
 import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
@@ -23,6 +23,7 @@ const PRICE_MODES = ['limit', 'current', 'market'] as const satisfies readonly P
 interface OrderFormProps {
   symbol: string;
   currentPrice?: number;
+  currency?: string;
   previousClose?: number;
   buyingPower?: number;
   sellableQuantity?: number;
@@ -62,10 +63,29 @@ function formatOrderQuantity(value: number) {
   return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 }
 
-// USD 지정가는 센트(0.01) 단위만 유효 → 소수점은 내림 처리한다.
-function floorToCents(value: number | undefined) {
+// US 주식 최소 호가단위(Reg NMS Rule 612): $1 이상은 $0.01, $1 미만은 $0.0001(서브-페니).
+function tickSizeFor(price: number) {
+  return price < 1 ? 0.0001 : 0.01;
+}
+
+// USD 지정가를 해당 가격대의 호가단위로 내림한다($1 이상 센트, $1 미만 서브-페니).
+function floorToTick(value: number | undefined) {
   if (value === undefined || !Number.isFinite(value)) return value;
-  return Math.floor(value * 100) / 100;
+  const inv = Math.round(1 / tickSizeFor(value)); // 0.01→100, 0.0001→10000 (부동소수 오차 방지)
+  return Math.floor(value * inv) / inv;
+}
+
+// 단가 표시용(추천가·목표가). USD 시세 정밀도에 맞춰 2~4자리(저가주 손실 방지). $ 없이 숫자만 반환.
+function formatPriceDigits(value: number) {
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
+}
+
+// 가격 입력칸(number input)용 값. 콤마 없이 최대 4자리, 불필요한 0 제거.
+function priceInputValue(value: number) {
+  return String(Number(value.toFixed(4)));
 }
 
 function getOrderFormFocusables(form: HTMLFormElement) {
@@ -130,6 +150,7 @@ function focusNextOrderFormField(form: HTMLFormElement, reverse: boolean) {
 export function OrderForm({
   symbol,
   currentPrice,
+  currency = 'USD',
   previousClose,
   buyingPower,
   sellableQuantity,
@@ -184,6 +205,10 @@ export function OrderForm({
   const formRef = useRef<HTMLFormElement>(null);
   const limitPriceManualRef = useRef(false);
 
+  // 주문/자동매매는 현재 미국주식(USD)만 지원. 국내주식(KRW 등)은 조회 전용으로,
+  // 시세·차트·보유는 보여주되 주문 실행 UI 전체를 숨기고 안내만 노출한다.
+  const isOrderable = currency === 'USD';
+
   // Reset form state when symbol changes (for navigation without full reload)
   // This ensures recommendations and inputs are fresh for the new symbol's data
   useEffect(() => {
@@ -204,8 +229,8 @@ export function OrderForm({
 
   // 전일대비 당일 변동(주문폼 최상단 시세 블록). 색상은 KR 관례(상승 빨강/하락 파랑).
   const dayChange = useMemo(
-    () => buildDayChangeMetric(previousClose, currentPrice),
-    [previousClose, currentPrice]
+    () => buildDayChangeMetric(previousClose, currentPrice, currency),
+    [previousClose, currentPrice, currency]
   );
   const dayChangeDiff =
     previousClose !== undefined && previousClose > 0 && currentPrice !== undefined
@@ -213,6 +238,12 @@ export function OrderForm({
       : undefined;
 
   const isPriceInputDisabled = priceMode === 'current' || priceMode === 'market';
+
+  // 가격 입력칸 step: $1 미만은 서브-페니(0.0001), 그 외 센트(0.01).
+  // 입력값(또는 현재가) 기준으로 정해 4자리 지정가가 HTML5 검증에 막히지 않게 한다.
+  const priceStepRef = Number(price) || currentPrice;
+  const priceInputStep =
+    priceStepRef !== undefined && priceStepRef > 0 && priceStepRef < 1 ? '0.0001' : '0.01';
 
   const effectiveOrderPrice = priceMode === 'limit' ? Number(price) || currentPrice : currentPrice;
 
@@ -364,10 +395,10 @@ export function OrderForm({
     currPrice: number | undefined
   ) => {
     if (limitRec?.available && limitRec.price !== undefined && Number.isFinite(limitRec.price)) {
-      return limitRec.price.toFixed(2);
+      return formatPriceDigits(limitRec.price);
     }
     if (currPrice !== undefined) {
-      return currPrice.toFixed(2);
+      return formatPriceDigits(currPrice);
     }
     return null;
   };
@@ -399,7 +430,7 @@ export function OrderForm({
     if (recPrice !== null) {
       limitPriceManualRef.current = false;
       setPriceMode('limit');
-      setPrice(recPrice.toFixed(2));
+      setPrice(priceInputValue(recPrice));
     }
 
     formRef.current?.requestSubmit();
@@ -656,15 +687,15 @@ export function OrderForm({
       if (pendingLimitPrice !== null) {
         // 추천 실행: 추천 지정가로 LIMIT 주문 (상태 flush 와 무관하게 정확한 값 사용)
         payload.orderType = 'LIMIT';
-        payload.price = floorToCents(pendingLimitPrice);
+        payload.price = floorToTick(pendingLimitPrice);
       } else if (priceMode === 'market') {
         payload.orderType = 'MARKET';
       } else if (priceMode === 'current') {
         payload.orderType = 'LIMIT';
-        payload.price = floorToCents(currentPrice);
+        payload.price = floorToTick(currentPrice);
       } else {
         payload.orderType = 'LIMIT';
-        payload.price = floorToCents(Number(price || currentPrice));
+        payload.price = floorToTick(Number(price || currentPrice));
       }
     }
 
@@ -794,7 +825,7 @@ export function OrderForm({
       <div className="order-form__body">
         <div className="order-form__quote">
           <strong className="order-form__quote-price">
-            {currentPrice !== undefined ? formatUsd(currentPrice) : '—'}
+            {currentPrice !== undefined ? formatPrice(currentPrice, currency) : '—'}
           </strong>
           <span
             className={`order-form__quote-change${
@@ -812,11 +843,20 @@ export function OrderForm({
           marketValue={holdingMarketValue}
           profitLoss={holdingProfitLoss}
           profitLossRate={holdingProfitLossRate}
+          currency={currency}
         />
+
+        {/* 국내주식 등 비(非)USD 종목은 조회 전용 — 주문 입력/실행 UI를 숨기고 안내만 노출 */}
+        {!isOrderable && (
+          <p className="order-form__readonly-notice hint">
+            국내주식은 현재 조회 전용입니다(주문 준비 중). 시세·차트·보유 현황만 표시됩니다.
+          </p>
+        )}
 
         {/* 매수/매도 구분은 상단 탭이 아닌 하단 실행 버튼으로만 결정 (UX 개선) */}
         {/* 세미오토/오토 실행 중에는 주문 입력(가격·수량·목표매도)을 숨기고 자동 실행 내용만 노출 */}
-        {!autoExecActive &&
+        {isOrderable &&
+          !autoExecActive &&
           (useAmountOrder ? (
           <div className="order-form__section">
             <div className="order-form__field-header">
@@ -845,7 +885,7 @@ export function OrderForm({
                 <input
                   type="number"
                   min="0"
-                  step="0.01"
+                  step={priceInputStep}
                   value={price}
                   placeholder={
                     priceMode === 'market' ? '시장가' : currentPrice ? String(currentPrice) : '0.00'
@@ -952,10 +992,11 @@ export function OrderForm({
             marketValue={holdingMarketValue}
             profitLoss={holdingProfitLoss}
             profitLossRate={holdingProfitLossRate}
+            currency={currency}
           />
         </div>
 
-        {!autoExecActive && (
+        {isOrderable && !autoExecActive && (
           <>
         {/* 매수 가능·손익분기·매도 가능·예상 금액은 side(매수/매도)나 추천 상황과 무관하게 항상 노출 */}
         <div className="order-form__hints">
@@ -1047,7 +1088,7 @@ export function OrderForm({
             </span>
             {recInputsReady && buyTargetSellPrice !== undefined && (
               <span className="rec-expected">
-                목표 ${buyTargetSellPrice.toFixed(2)} (+{takeProfitRatePercent}%)
+                목표 ${formatPriceDigits(buyTargetSellPrice)} (+{takeProfitRatePercent}%)
                 {recommendedBuyAmount !== undefined ? ` · 예상 ${formatUsd(recommendedBuyAmount)}` : ''}
               </span>
             )}
@@ -1080,8 +1121,8 @@ export function OrderForm({
           </>
         )}
 
-        {/* 자동매매(드라이런/세미오토). 데스크탑 전용 + 렌더된 동안만 동작. 세미오토는 확인 탭 후 실주문. */}
-        {isDesktop && (
+        {/* 자동매매(드라이런/세미오토). 데스크탑 전용 + USD(미국주식)만. 세미오토는 확인 탭 후 실주문. */}
+        {isDesktop && isOrderable && (
           <AutoTradePanel
             symbol={symbol}
             currentPrice={currentPrice}

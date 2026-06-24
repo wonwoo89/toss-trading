@@ -10,6 +10,34 @@ export function formatKrw(value?: number) {
   return `₩${Math.round(value).toLocaleString('ko-KR')}`;
 }
 
+/** 통화별 금액 포맷. KRW=정수 원(₩), 그 외=USD($, 소수 2자리). 기본 USD. */
+export function formatMoney(value?: number, currency?: string) {
+  return currency === 'KRW' ? formatKrw(value) : formatUsd(value);
+}
+
+/**
+ * 단가(price) 포맷. 평가금액·손익 같은 '금액'이 아니라 현재가·평단가·호가 같은 '단가'에 사용.
+ * USD=소수 2~4자리(센트 미만 정밀도 보존 → 저가주 가격 손실 방지), KRW=정수 원(₩). 기본 USD.
+ */
+export function formatPrice(value?: number, currency?: string) {
+  if (value === undefined) return '—';
+  if (currency === 'KRW') return formatKrw(value);
+  return `$${value.toLocaleString(NUMBER_LOCALE, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  })}`;
+}
+
+/** 부호 포함 통화별 금액 포맷(손익 등). */
+export function formatSignedMoney(value?: number, currency?: string) {
+  if (value === undefined) return '—';
+  if (currency === 'KRW') {
+    const sign = value < 0 ? '-' : '+';
+    return `${sign}₩${Math.abs(Math.round(value)).toLocaleString('ko-KR')}`;
+  }
+  return formatSignedUsd(value);
+}
+
 export function formatQuantity(value?: number) {
   if (value === undefined) return '—';
 

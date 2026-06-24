@@ -1083,6 +1083,16 @@ textarea {
   color: var(--color-down);
 }
 
+/* 국내주식 조회 전용 안내 (비 USD 종목에서 주문 UI 대신 노출) */
+.order-form__readonly-notice {
+  margin: 0.75rem 0 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px dashed var(--border-color, var(--border, #d0d4dc));
+  border-radius: 8px;
+  background: var(--surface-muted, rgba(127, 127, 127, 0.06));
+  line-height: 1.45;
+}
+
 .portfolio-stats--sidebar .stat--primary strong {
   font-size: 1.35rem;
 }
