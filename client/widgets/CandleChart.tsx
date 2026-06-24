@@ -38,12 +38,18 @@ interface CandleChartProps {
   currency?: string;
 }
 
-// 통화별 가격 표기 정밀도. KRW=정수(소수 0, 최소단위 1원), 그 외=USD(소수 2, 0.01). 기본 USD.
+// 통화별 가격축 표기. KRW=정수(소수 0, 최소단위 1원).
+// USD=커스텀 포매터로 2~4자리(저가주 서브-페니 보존, 큰 가격은 2자리). minMove 0.0001 로 4자리 허용.
 function getPriceFormatOptions(currency?: string) {
   if (currency === 'KRW') {
     return { type: 'price' as const, precision: 0, minMove: 1 };
   }
-  return { type: 'price' as const, precision: 2, minMove: 0.01 };
+  return {
+    type: 'custom' as const,
+    minMove: 0.0001,
+    formatter: (price: number) =>
+      price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }),
+  };
 }
 
 const HISTORY_LOAD_THRESHOLD = 15;
