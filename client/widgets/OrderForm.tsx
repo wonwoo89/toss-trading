@@ -63,10 +63,16 @@ function formatOrderQuantity(value: number) {
   return Number.isInteger(rounded) ? String(rounded) : String(rounded);
 }
 
-// USD 지정가는 센트(0.01) 단위만 유효 → 소수점은 내림 처리한다.
-function floorToCents(value: number | undefined) {
+// US 주식 최소 호가단위(Reg NMS Rule 612): $1 이상은 $0.01, $1 미만은 $0.0001(서브-페니).
+function tickSizeFor(price: number) {
+  return price < 1 ? 0.0001 : 0.01;
+}
+
+// USD 지정가를 해당 가격대의 호가단위로 내림한다($1 이상 센트, $1 미만 서브-페니).
+function floorToTick(value: number | undefined) {
   if (value === undefined || !Number.isFinite(value)) return value;
-  return Math.floor(value * 100) / 100;
+  const inv = Math.round(1 / tickSizeFor(value)); // 0.01→100, 0.0001→10000 (부동소수 오차 방지)
+  return Math.floor(value * inv) / inv;
 }
 
 // 단가 표시용(추천가·목표가). USD 시세 정밀도에 맞춰 2~4자리(저가주 손실 방지). $ 없이 숫자만 반환.
@@ -232,6 +238,12 @@ export function OrderForm({
       : undefined;
 
   const isPriceInputDisabled = priceMode === 'current' || priceMode === 'market';
+
+  // 가격 입력칸 step: $1 미만은 서브-페니(0.0001), 그 외 센트(0.01).
+  // 입력값(또는 현재가) 기준으로 정해 4자리 지정가가 HTML5 검증에 막히지 않게 한다.
+  const priceStepRef = Number(price) || currentPrice;
+  const priceInputStep =
+    priceStepRef !== undefined && priceStepRef > 0 && priceStepRef < 1 ? '0.0001' : '0.01';
 
   const effectiveOrderPrice = priceMode === 'limit' ? Number(price) || currentPrice : currentPrice;
 
@@ -675,15 +687,15 @@ export function OrderForm({
       if (pendingLimitPrice !== null) {
         // 추천 실행: 추천 지정가로 LIMIT 주문 (상태 flush 와 무관하게 정확한 값 사용)
         payload.orderType = 'LIMIT';
-        payload.price = floorToCents(pendingLimitPrice);
+        payload.price = floorToTick(pendingLimitPrice);
       } else if (priceMode === 'market') {
         payload.orderType = 'MARKET';
       } else if (priceMode === 'current') {
         payload.orderType = 'LIMIT';
-        payload.price = floorToCents(currentPrice);
+        payload.price = floorToTick(currentPrice);
       } else {
         payload.orderType = 'LIMIT';
-        payload.price = floorToCents(Number(price || currentPrice));
+        payload.price = floorToTick(Number(price || currentPrice));
       }
     }
 
@@ -873,7 +885,7 @@ export function OrderForm({
                 <input
                   type="number"
                   min="0"
-                  step="0.01"
+                  step={priceInputStep}
                   value={price}
                   placeholder={
                     priceMode === 'market' ? '시장가' : currentPrice ? String(currentPrice) : '0.00'
