@@ -18,7 +18,8 @@
     "test:wasm": "node wasm/test/indicators.test.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "preview": "vite preview",
-    "auth:test": "tsx server/scripts/test-auth.ts"
+    "auth:test": "tsx server/scripts/test-auth.ts",
+    "probe:kr": "tsx server/scripts/probe-kr.ts"
   },
   "dependencies": {
     "cors": "^2.8.6",
