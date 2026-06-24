@@ -11,9 +11,9 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       VitePWA({
-        // 새 배포 시 SW 자동 갱신(우리 update.sh 흐름과 맞음)
-        registerType: 'autoUpdate',
-        // 등록을 main.tsx 에서 직접 처리(앱 복귀 시 업데이트 체크 추가) → 자동 주입 비활성
+        // 새 배포 감지 시 '업데이트' 배너를 띄워 사용자가 적용·리로드하도록 한다(조용한 자동갱신 X).
+        registerType: 'prompt',
+        // 등록을 PwaUpdatePrompt(useRegisterSW) 에서 처리(앱 복귀 시 업데이트 체크 포함) → 자동 주입 비활성
         injectRegister: false,
         includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
         manifest: {

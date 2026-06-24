@@ -1,5 +1,6 @@
 import { Route, Routes } from 'react-router-dom';
 import { Header } from '../widgets/Header';
+import { PwaUpdatePrompt } from '../widgets/PwaUpdatePrompt';
 import { AppProvider, useAppContext } from './providers/AppContext';
 import { ThemeProvider } from './providers/ThemeContext';
 import { ToastProvider } from './providers/ToastContext';
@@ -12,6 +13,7 @@ function AppShell() {
 
   return (
     <div className="app">
+      <PwaUpdatePrompt />
       <Header />
 
       {bootstrapError && <div className="banner error">{bootstrapError}</div>}
