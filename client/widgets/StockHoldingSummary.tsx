@@ -1,5 +1,6 @@
 import {
   formatMoney,
+  formatPrice,
   formatQuantity,
   formatSignedMoney,
   formatSignedPercent,
@@ -37,7 +38,7 @@ export function StockHoldingSummary({
               ·
             </span>
             <span className="stock-holding-summary__average">
-              평단 {formatMoney(averagePrice, currency)}
+              평단 {formatPrice(averagePrice, currency)}
             </span>
           </>
         )}

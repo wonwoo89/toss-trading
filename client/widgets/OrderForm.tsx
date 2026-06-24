@@ -4,7 +4,7 @@ import { AutoTradePanel } from './AutoTradePanel';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import { calculateTakeProfitSellPrice } from '../shared/lib/takeProfitSell';
-import { formatMoney, formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
+import { formatPrice, formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
 import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
@@ -800,7 +800,7 @@ export function OrderForm({
       <div className="order-form__body">
         <div className="order-form__quote">
           <strong className="order-form__quote-price">
-            {currentPrice !== undefined ? formatMoney(currentPrice, currency) : '—'}
+            {currentPrice !== undefined ? formatPrice(currentPrice, currency) : '—'}
           </strong>
           <span
             className={`order-form__quote-change${

@@ -30,7 +30,12 @@ function formatSignedMoney(value: number, currency?: string) {
   if (currency === 'KRW') {
     return `${sign}₩${Math.abs(Math.round(value)).toLocaleString('ko-KR')}`;
   }
-  return `${sign}$${Math.abs(value).toFixed(2)}`;
+  // 단가 차액 → 센트 미만 정밀도 보존(저가주 변동이 $0.00 으로 잘리지 않도록 2~4자리).
+  const formatted = Math.abs(value).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
+  return `${sign}$${formatted}`;
 }
 
 // 전일대비 등락(전일 종가 대비 현재가). 양수=상승 색, 음수=하락 색.
