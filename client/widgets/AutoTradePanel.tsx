@@ -47,7 +47,7 @@ interface PendingAction {
 }
 
 const MAX_LOG = 40;
-const COOLDOWN_MS = 60_000; // 연속 실행 최소 간격
+const COOLDOWN_MS = 30_000; // 연속 실행 최소 간격(오토). 손절 반응성을 위해 60→30s 로 단축.
 // 트리거 재기록 정책: 같은 종류(매수/익절/손절) 신호는 "의미 있는 변동"이 있을 때만 다시 올린다.
 // - 최소 간격(MIN_RELOG_MS) 안에선 무조건 억제(도배 방지 바닥)
 // - 그 뒤엔 직전 기록 대비 진입가가 PRICE_RELOG_PCT 이상 움직이거나 수량이 바뀌면 즉시 갱신
@@ -58,7 +58,7 @@ const DAILY_LIMIT_DEFAULT = 10;
 const STOP_LOSS_DEFAULT = 2;
 const TARGET_DEFAULT = 3;
 // 자동매수 1회 최대 금액 = 주문가능금액(buyingPower)의 이 비율(%). 과대 매수 방지.
-const AUTO_BUY_MAX_PCT = 10;
+const AUTO_BUY_MAX_PCT = 5;
 const DAILY_KEY = 'autoTradeDailyCount';
 
 function todayKey() {
