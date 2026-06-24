@@ -8,6 +8,11 @@ import type { HoldingItem } from '../shared/types';
 type AutoMode = 'off' | 'dryrun' | 'semi' | 'auto';
 type AutoActionKind = 'BUY' | 'TP' | 'SL'; // 매수 / 익절 매도 / 손절 매도
 
+// 로그 라벨용 단가 표기. 저가주 정밀도 보존 위해 2~4자리($ 없이 숫자만).
+function fmtPrice(value: number) {
+  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+}
+
 interface AutoTradePanelProps {
   symbol: string;
   currentPrice?: number;
@@ -311,7 +316,7 @@ export function AutoTradePanel({
     if (!active) return;
     if (buyReady) {
       if (shouldFire('BUY', buyEntryPrice!, effectiveBuyQty!)) {
-        const label = `매수 ${symbol} ${effectiveBuyQty}주 @ $${buyEntryPrice!.toFixed(2)}${buyTargetSell !== undefined ? ` → 목표 $${buyTargetSell.toFixed(2)} (+${targetPercent}%)` : ''}`;
+        const label = `매수 ${symbol} ${effectiveBuyQty}주 @ $${fmtPrice(buyEntryPrice!)}${buyTargetSell !== undefined ? ` → 목표 $${fmtPrice(buyTargetSell)} (+${targetPercent}%)` : ''}`;
         fireTrigger(
           { id: crypto.randomUUID(), kind: 'BUY', side: 'BUY', quantity: effectiveBuyQty!, limitPrice: buyEntryPrice, label },
           `모의 ${label}`,
@@ -330,7 +335,7 @@ export function AutoTradePanel({
     if (!active) return;
     if (tpReached && sellQty !== undefined && currentPrice !== undefined) {
       if (shouldFire('TP', currentPrice, sellQty)) {
-        const label = `익절 매도(전량) ${symbol} ${sellQty}주 @ $${currentPrice.toFixed(2)} (목표 +${targetPercent}%)`;
+        const label = `익절 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (목표 +${targetPercent}%)`;
         fireTrigger(
           { id: crypto.randomUUID(), kind: 'TP', side: 'SELL', quantity: sellQty, limitPrice: currentPrice, label },
           `모의 ${label}`,
@@ -349,7 +354,7 @@ export function AutoTradePanel({
     if (!active) return;
     if (slReached && sellQty !== undefined && currentPrice !== undefined) {
       if (shouldFire('SL', currentPrice, sellQty)) {
-        const label = `손절 매도(전량) ${symbol} ${sellQty}주 @ $${currentPrice.toFixed(2)} (손절 -${stopLossPercent}%)`;
+        const label = `손절 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (손절 -${stopLossPercent}%)`;
         fireTrigger(
           { id: crypto.randomUUID(), kind: 'SL', side: 'SELL', quantity: sellQty, limitPrice: currentPrice, label },
           `모의 ${label}`,

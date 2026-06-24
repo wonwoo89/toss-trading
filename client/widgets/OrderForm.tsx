@@ -69,6 +69,19 @@ function floorToCents(value: number | undefined) {
   return Math.floor(value * 100) / 100;
 }
 
+// 단가 표시용(추천가·목표가). USD 시세 정밀도에 맞춰 2~4자리(저가주 손실 방지). $ 없이 숫자만 반환.
+function formatPriceDigits(value: number) {
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 4,
+  });
+}
+
+// 가격 입력칸(number input)용 값. 콤마 없이 최대 4자리, 불필요한 0 제거.
+function priceInputValue(value: number) {
+  return String(Number(value.toFixed(4)));
+}
+
 function getOrderFormFocusables(form: HTMLFormElement) {
   const selector = [
     'button:not([disabled])',
@@ -370,10 +383,10 @@ export function OrderForm({
     currPrice: number | undefined
   ) => {
     if (limitRec?.available && limitRec.price !== undefined && Number.isFinite(limitRec.price)) {
-      return limitRec.price.toFixed(2);
+      return formatPriceDigits(limitRec.price);
     }
     if (currPrice !== undefined) {
-      return currPrice.toFixed(2);
+      return formatPriceDigits(currPrice);
     }
     return null;
   };
@@ -405,7 +418,7 @@ export function OrderForm({
     if (recPrice !== null) {
       limitPriceManualRef.current = false;
       setPriceMode('limit');
-      setPrice(recPrice.toFixed(2));
+      setPrice(priceInputValue(recPrice));
     }
 
     formRef.current?.requestSubmit();
@@ -1063,7 +1076,7 @@ export function OrderForm({
             </span>
             {recInputsReady && buyTargetSellPrice !== undefined && (
               <span className="rec-expected">
-                목표 ${buyTargetSellPrice.toFixed(2)} (+{takeProfitRatePercent}%)
+                목표 ${formatPriceDigits(buyTargetSellPrice)} (+{takeProfitRatePercent}%)
                 {recommendedBuyAmount !== undefined ? ` · 예상 ${formatUsd(recommendedBuyAmount)}` : ''}
               </span>
             )}
