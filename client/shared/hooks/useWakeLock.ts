@@ -5,6 +5,8 @@ const STORAGE_KEY = 'toss-trading:wake-lock';
 // Wake Lock 타입은 환경별 lib 차이가 있어 최소 인터페이스로 직접 정의(빌드 안전).
 interface WakeLockSentinelLike {
   release: () => Promise<void>;
+  addEventListener: (type: 'release', listener: () => void) => void;
+  removeEventListener: (type: 'release', listener: () => void) => void;
 }
 interface WakeLockLike {
   request: (type: 'screen') => Promise<WakeLockSentinelLike>;
@@ -31,14 +33,28 @@ export function useWakeLock() {
     }
   });
   const sentinelRef = useRef<WakeLockSentinelLike | null>(null);
+  // 동시에 두 번 request 하지 않도록(enabled 효과 + visibilitychange 레이스) 진행 중 플래그.
+  const acquiringRef = useRef(false);
 
   const acquire = useCallback(async () => {
     const wl = getWakeLock();
-    if (!wl || document.visibilityState !== 'visible' || sentinelRef.current) return;
+    if (!wl || document.visibilityState !== 'visible' || sentinelRef.current || acquiringRef.current)
+      return;
+    acquiringRef.current = true;
     try {
-      sentinelRef.current = await wl.request('screen');
+      const sentinel = await wl.request('screen');
+      sentinelRef.current = sentinel;
+      // 화면이 꺼지거나 백그라운드로 가면 OS 가 lock 을 자동 해제하며 release 이벤트를 쏜다.
+      // 이때 ref 를 비워야 다시 보일 때(visibilitychange) 재획득 가드를 통과한다.
+      const onRelease = () => {
+        sentinel.removeEventListener('release', onRelease);
+        if (sentinelRef.current === sentinel) sentinelRef.current = null;
+      };
+      sentinel.addEventListener('release', onRelease);
     } catch {
       // 권한/정책으로 거부될 수 있음 — 무시(토글로 다시 시도 가능)
+    } finally {
+      acquiringRef.current = false;
     }
   }, []);
 
