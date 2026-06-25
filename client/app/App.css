@@ -4080,6 +4080,7 @@ input[type='checkbox']:focus-visible {
 }
 .pwa-update__text {
   flex: 1 1 auto;
+  white-space: nowrap;
 }
 .pwa-update__btn {
   flex: 0 0 auto;
