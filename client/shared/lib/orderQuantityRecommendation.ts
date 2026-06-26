@@ -1,4 +1,5 @@
 import { buildChartSignalSnapshot } from './chartSignals';
+import { computeCandleTrend } from './candleTrend';
 import { getIndicatorBackend } from './indicatorBackend';
 import { formatUsd } from './formatHoldings';
 import { buildSpreadSnapshot, buildTradeFlowSnapshot } from './marketMicrostructure';
@@ -237,9 +238,30 @@ export function buildOrderQuantityRecommendation(
 
   percent = clamp(percent, 0, MAX_ENTRY_PERCENT);
 
-  const recommended = percent >= MIN_ENTRY_PERCENT;
-  const snapPercent = recommended ? snapToNearestPercent(percent) : undefined;
-  const quantity = recommended ? Math.max(1, Math.floor(maxQuantity * (percent / 100))) : undefined;
+  // 추세 확정 게이트(보수적): 완성봉 음/양봉 추세가 해당 방향으로 확정될 때만 진입 추천.
+  // 미완성봉·호가·체결 노이즈로 추천 on/off 가 시시각각 뒤집히던 문제를 봉 단위로 안정화한다.
+  // (강(强)반대 신호는 추가 거부.) 마이크로구조/신호 레벨은 이제 '수량(비중)'에만 영향.
+  const trend = computeCandleTrend(candles);
+  const trendConfirmsSide = side === 'BUY' ? trend.confirmedUp : trend.confirmedDown;
+  const oppositeStrong =
+    side === 'BUY' ? signal.level === 'strong_sell' : signal.level === 'strong_buy';
+  const recommended = trendConfirmsSide && !oppositeStrong;
+
+  if (recommended) {
+    reasons.unshift(side === 'BUY' ? '상승 추세 확정' : '하락 추세 확정');
+  } else if (!trend.confirmedUp && !trend.confirmedDown) {
+    reasons.unshift('추세 미확정 → 관망');
+  }
+
+  // 추세 확정 시 최소 진입 비중 보장(노이즈로 percent 가 0이 되어 수량이 사라지는 것 방지).
+  const sizingPercent = recommended
+    ? clamp(Math.max(percent, MIN_ENTRY_PERCENT), MIN_ENTRY_PERCENT, MAX_ENTRY_PERCENT)
+    : percent;
+
+  const snapPercent = recommended ? snapToNearestPercent(sizingPercent) : undefined;
+  const quantity = recommended
+    ? Math.max(1, Math.floor(maxQuantity * (sizingPercent / 100)))
+    : undefined;
   const amountUsd =
     quantity !== undefined ? quantity * unitPrice : buyingPower !== undefined ? 0 : undefined;
 
@@ -257,11 +279,11 @@ export function buildOrderQuantityRecommendation(
   return {
     available: true,
     recommended,
-    percent,
+    percent: sizingPercent,
     quantity,
     amountUsd,
     quantityLabel: quantity !== undefined ? `${quantity.toLocaleString()}주` : '—',
-    percentLabel: recommended ? `${percent}%` : '관망',
+    percentLabel: recommended ? `${sizingPercent}%` : '관망',
     summary,
     reasons: uniqueReasons.slice(0, 4),
     snapPercent,
