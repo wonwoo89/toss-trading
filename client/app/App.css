@@ -2717,16 +2717,6 @@ input[type='checkbox']:focus-visible {
   color: var(--text-primary);
   font-size: 0.72rem;
 }
-.auto-trade__count {
-  margin-left: auto;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-.auto-trade__count.is-reached {
-  color: var(--color-down);
-  font-weight: 600;
-}
 .auto-trade__hint {
   margin: 0.45rem 0 0;
   font-size: 0.68rem;
