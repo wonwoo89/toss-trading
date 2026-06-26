@@ -138,12 +138,32 @@ export function AutoTradePanel({
     () => typeof document === 'undefined' || document.visibilityState === 'visible'
   );
   const isTabVisibleRef = useRef(isTabVisible);
+  const wasTabVisibleRef = useRef(isTabVisible);
   isTabVisibleRef.current = isTabVisible;
   useEffect(() => {
-    const onVis = () => setIsTabVisible(document.visibilityState === 'visible');
-    document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
+    // 모바일은 화면 잠금 해제·앱 전환 복귀 시 visibilitychange 가 항상 발화하지 않을 수 있어
+    // focus·pageshow 도 함께 듣고 document.visibilityState 로 동기화한다(복귀 누락 → 일시정지 갇힘 방지).
+    const sync = () => setIsTabVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', sync);
+    window.addEventListener('focus', sync);
+    window.addEventListener('pageshow', sync);
+    return () => {
+      document.removeEventListener('visibilitychange', sync);
+      window.removeEventListener('focus', sync);
+      window.removeEventListener('pageshow', sync);
+    };
   }, []);
+
+  // 백그라운드→복귀(숨김→보임) 시: 보호 매도(익절·손절) 스냅샷을 비워 조건이 여전히 충족되면
+  // 즉시 재평가·실행(일시정지 동안 놓친 출구 신호 즉시 반영). 매수는 의도치 않은 재매수 방지 위해
+  // 기존 dedup 경로를 그대로 따른다.
+  useEffect(() => {
+    if (isTabVisible && !wasTabVisibleRef.current) {
+      lastSignalRef.current.TP = null;
+      lastSignalRef.current.SL = null;
+    }
+    wasTabVisibleRef.current = isTabVisible;
+  }, [isTabVisible]);
 
   // '?' 설명 툴팁 — order-column 이 overflow:hidden 이라 절대위치로는 잘린다.
   // position:fixed + 트리거 좌표로 띄워 오버플로 밖으로 렌더(우측 넘침은 뷰포트로 클램프).
