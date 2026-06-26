@@ -191,7 +191,7 @@ export function OrderForm({
   // 세미오토/오토 실행 중에는 주문 입력 영역을 숨기고 자동 실행 내용만 노출(AutoTradePanel 이 알림).
   const [autoExecActive, setAutoExecActive] = useState(false);
 
-  // 자동매매(드라이런)는 데스크탑 전용. 모바일에선 렌더하지 않아 로직도 돌지 않는다.
+  // 자동매매는 데스크탑·모바일 모두 제공. isDesktop 은 모바일 안내(화면 꺼짐 방지) 노출 판정에 사용.
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.innerWidth > 1100
   );
@@ -1121,8 +1121,9 @@ export function OrderForm({
           </>
         )}
 
-        {/* 자동매매(드라이런/세미오토). 데스크탑 전용 + USD(미국주식)만. 세미오토는 확인 탭 후 실주문. */}
-        {isDesktop && isOrderable && (
+        {/* 자동매매(드라이런/세미오토/오토). 데스크탑·모바일 + USD(미국주식)만. 세미오토는 확인 탭 후 실주문.
+            모바일은 포그라운드+화면 켜짐에서만 동작(탭 숨김 시 일시정지) — 패널이 안내. */}
+        {isOrderable && (
           <AutoTradePanel
             symbol={symbol}
             currentPrice={currentPrice}
@@ -1136,6 +1137,7 @@ export function OrderForm({
             submitting={submitting}
             onAutoExecute={(side, qty, price) => executeWithRecommendation(side, qty, price)}
             onExecModeChange={setAutoExecActive}
+            isMobile={!isDesktop}
           />
         )}
 
