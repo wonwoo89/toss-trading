@@ -16,15 +16,23 @@ export function formatMoney(value?: number, currency?: string) {
 }
 
 /**
+ * USD 단가 최대 소수 자릿수: $1 미만(저가주)만 4자리(서브-페니 정밀도 보존),
+ * $1 이상은 2자리로 표기한다. 부호·통화와 무관하게 절대값 크기로 판정.
+ */
+export function usdMaxFractionDigits(value: number) {
+  return Math.abs(value) < 1 ? 4 : 2;
+}
+
+/**
  * 단가(price) 포맷. 평가금액·손익 같은 '금액'이 아니라 현재가·평단가·호가 같은 '단가'에 사용.
- * USD=소수 2~4자리(센트 미만 정밀도 보존 → 저가주 가격 손실 방지), KRW=정수 원(₩). 기본 USD.
+ * USD=$1 미만만 2~4자리, $1 이상은 2자리. KRW=정수 원(₩). 기본 USD.
  */
 export function formatPrice(value?: number, currency?: string) {
   if (value === undefined) return '—';
   if (currency === 'KRW') return formatKrw(value);
   return `$${value.toLocaleString(NUMBER_LOCALE, {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
+    maximumFractionDigits: usdMaxFractionDigits(value),
   })}`;
 }
 
