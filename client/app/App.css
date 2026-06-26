@@ -2682,6 +2682,15 @@ input[type='checkbox']:focus-visible {
   color: var(--color-down);
   background: color-mix(in srgb, var(--color-down) 12%, transparent);
 }
+.auto-trade__mobile-hint {
+  margin: 0.4rem 0 0;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--accent, #3182f6) 10%, transparent);
+}
 .auto-trade__controls {
   display: flex;
   align-items: center;
@@ -3246,6 +3255,13 @@ input[type='checkbox']:focus-visible {
      → 접힘 시엔 추천 실행 버튼만, 펼쳤을 때만 직접 버튼/힌트 노출. */
   .order-form:not(.is-mobile-expanded) .order-form__hints,
   .order-form:not(.is-mobile-expanded) .order-manual-actions {
+    display: none;
+  }
+
+  /* 모바일 접힘 상태: 자동매매 패널은 OFF 일 때만 숨겨 바를 간결하게 유지.
+     켜져 있으면(드라이런/세미/오토) 접힘 상태에서도 노출해 "동작 중" 표시·로그를 유지한다.
+     (숨겨도 컴포넌트는 마운트돼 트리거 로직은 계속 돈다 — 표시만 제어) */
+  .order-form:not(.is-mobile-expanded) .auto-trade:not(.is-active) {
     display: none;
   }
 

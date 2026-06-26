@@ -32,6 +32,8 @@ interface AutoTradePanelProps {
   onAutoExecute: (side: 'BUY' | 'SELL', quantity: number, limitPrice?: number) => void;
   /** 세미오토/오토(실주문 모드) 활성 여부 변경 알림 — OrderForm 이 주문 입력 영역을 숨기는 데 사용. */
   onExecModeChange?: (active: boolean) => void;
+  /** 모바일(좁은 폭) 여부 — 화면 꺼짐/백그라운드 시 멈춤 안내를 노출하기 위함. */
+  isMobile?: boolean;
 }
 
 interface LogEntry {
@@ -93,7 +95,8 @@ function writeDailyCount(count: number) {
  *  - 오토: 트리거 + 가드 통과 시 확인 없이 자동 실주문(켤 때 확인, 탭 숨김 시 일시정지)
  *
  * 안전장치: 킬 스위치(모드 OFF) · 손절률 · 일일 실행 한도 · 쿨다운 · 탭 가시성(오토) ·
- * 종목당 단일 대기(세미) · 감사로그. 데스크탑 전용 + 렌더된 동안만 동작.
+ * 종목당 단일 대기(세미) · 감사로그. 데스크탑·모바일 모두 동작하되, 렌더+포그라운드(탭 보임)
+ * 상태에서만 트리거가 돈다(탭 숨김 시 오토 일시정지). 모바일은 화면 꺼짐 방지 권장.
  */
 export function AutoTradePanel({
   symbol,
@@ -108,6 +111,7 @@ export function AutoTradePanel({
   submitting,
   onAutoExecute,
   onExecModeChange,
+  isMobile = false,
 }: AutoTradePanelProps) {
   const [mode, setMode] = useState<AutoMode>('off');
   // 자동매도 목표 수익률(실수익률 %) — 자동매매 전용 입력. 주문폼 선택값으로 초기화 후 독립 관리.
@@ -457,6 +461,13 @@ export function AutoTradePanel({
         </span>
       </div>
 
+      {isMobile && active && (
+        <p className="auto-trade__mobile-hint">
+          📱 모바일에선 화면이 꺼지거나 앱을 벗어나면 자동 실행이 멈춰요. 상단 👁(화면 꺼짐 방지)를
+          켜고 이 화면을 포그라운드로 유지하세요.
+        </p>
+      )}
+
       {mode === 'auto' && !isTabVisible && (
         <p className="auto-trade__paused">⏸ 탭이 가려져 자동 실행 일시정지 중 — 이 탭을 다시 보면 재개됩니다.</p>
       )}
@@ -510,8 +521,8 @@ export function AutoTradePanel({
           <br />
           <b>오토</b> 트리거 시 확인 없이 자동 실주문
           <br />
-          익절=목표 도달, 손절=손절률 도달 시 전량 매도. 일일 한도·쿨다운(60s)·탭 숨김 일시정지로
-          보호. 데스크탑·현재 종목만.
+          익절=목표 도달, 손절=손절률 도달 시 전량 매도. 일일 한도·쿨다운(30s)·탭 숨김 일시정지로
+          보호. 현재 종목만. 모바일은 앱을 포그라운드로 유지(화면 꺼짐 방지 권장)해야 동작.
         </div>
       )}
     </div>
