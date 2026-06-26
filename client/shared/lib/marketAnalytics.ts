@@ -1,5 +1,6 @@
 import type { CandleInterval, ChartCandle } from '../types';
 import type { MicrostructureBias } from './marketMicrostructure';
+import { usdMaxFractionDigits } from './formatHoldings';
 
 export interface MarketMetric {
   id: string;
@@ -30,10 +31,10 @@ function formatSignedMoney(value: number, currency?: string) {
   if (currency === 'KRW') {
     return `${sign}₩${Math.abs(Math.round(value)).toLocaleString('ko-KR')}`;
   }
-  // 단가 차액 → 센트 미만 정밀도 보존(저가주 변동이 $0.00 으로 잘리지 않도록 2~4자리).
+  // 단가 차액 → $1 미만(저가주)만 2~4자리(서브-페니 변동 보존), $1 이상은 2자리.
   const formatted = Math.abs(value).toLocaleString('en-US', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
+    maximumFractionDigits: usdMaxFractionDigits(value),
   });
   return `${sign}$${formatted}`;
 }

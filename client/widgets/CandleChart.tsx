@@ -23,6 +23,7 @@ import {
   type ChartViewport,
 } from '../shared/lib/chartViewportPreference';
 import { getChartThemeColors } from '../shared/lib/chartTheme';
+import { usdMaxFractionDigits } from '../shared/lib/formatHoldings';
 import type { ChartCandle } from '../shared/types';
 
 interface CandleChartProps {
@@ -48,7 +49,10 @@ function getPriceFormatOptions(currency?: string) {
     type: 'custom' as const,
     minMove: 0.0001,
     formatter: (price: number) =>
-      price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }),
+      price.toLocaleString('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: usdMaxFractionDigits(price),
+      }),
   };
 }
 
@@ -90,7 +94,7 @@ function formatChartPrice(value: number, currency?: string) {
   }
   return value.toLocaleString('en-US', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
+    maximumFractionDigits: usdMaxFractionDigits(value),
   });
 }
 

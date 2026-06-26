@@ -4,7 +4,12 @@ import { AutoTradePanel } from './AutoTradePanel';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import { calculateTakeProfitSellPrice } from '../shared/lib/takeProfitSell';
-import { formatPrice, formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
+import {
+  formatPrice,
+  formatUsd,
+  getKrProfitLossClass,
+  usdMaxFractionDigits,
+} from '../shared/lib/formatHoldings';
 import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
@@ -75,17 +80,17 @@ function floorToTick(value: number | undefined) {
   return Math.floor(value * inv) / inv;
 }
 
-// 단가 표시용(추천가·목표가). USD 시세 정밀도에 맞춰 2~4자리(저가주 손실 방지). $ 없이 숫자만 반환.
+// 단가 표시용(추천가·목표가). $1 미만만 2~4자리(저가주 정밀도), $1 이상은 2자리. $ 없이 숫자만 반환.
 function formatPriceDigits(value: number) {
   return value.toLocaleString('en-US', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
+    maximumFractionDigits: usdMaxFractionDigits(value),
   });
 }
 
-// 가격 입력칸용 값. 콤마 없이 최대 4자리, 불필요한 0 제거.
+// 가격 입력칸용 값. 콤마 없이 $1 미만은 4자리·그 외 2자리까지, 불필요한 0 제거.
 function priceInputValue(value: number) {
-  return String(Number(value.toFixed(4)));
+  return String(Number(value.toFixed(usdMaxFractionDigits(value))));
 }
 
 // 숫자(소수) 입력 정제 — 숫자와 점 1개만 허용. 빈 값 허용(가격은 비우면 현재가 사용).

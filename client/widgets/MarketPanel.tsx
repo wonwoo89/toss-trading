@@ -12,6 +12,7 @@ import {
   buildTradeFlowSnapshot,
   type MicrostructureBias,
 } from '../shared/lib/marketMicrostructure';
+import { usdMaxFractionDigits } from '../shared/lib/formatHoldings';
 import {
   getStoredDetailsExpanded,
   setStoredDetailsExpanded,
@@ -68,13 +69,16 @@ interface MarketPanelProps {
   onRealtimePollingForcedChange?: (forced: boolean) => void;
 }
 
-// 호가/체결 가격 포맷. KRW=정수 원(₩), 그 외=USD($, 최대 소수 4자리). 기본 USD.
+// 호가/체결 가격 포맷. KRW=정수 원(₩), USD=$1 미만만 2~4자리·그 외 2자리. 기본 USD.
 function formatMoney(value?: number, currency?: string) {
   if (value === undefined) return '—';
   if (currency === 'KRW') {
     return `₩${Math.round(value).toLocaleString('ko-KR')}`;
   }
-  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
+  return `$${value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: usdMaxFractionDigits(value),
+  })}`;
 }
 
 function getMetricBiasClass(bias: MicrostructureBias) {

@@ -4,14 +4,18 @@ import {
   calculateTakeProfitSellPrice,
   getTakeProfitCostContext,
 } from '../shared/lib/takeProfitSell';
+import { usdMaxFractionDigits } from '../shared/lib/formatHoldings';
 import type { HoldingItem } from '../shared/types';
 
 type AutoMode = 'off' | 'dryrun' | 'semi' | 'auto';
 type AutoActionKind = 'BUY' | 'TP' | 'SL'; // 매수 / 익절 매도 / 손절 매도
 
-// 로그 라벨용 단가 표기. 저가주 정밀도 보존 위해 2~4자리($ 없이 숫자만).
+// 로그 라벨용 단가 표기. $1 미만만 2~4자리(저가주 정밀도), $1 이상은 2자리($ 없이 숫자만).
 function fmtPrice(value: number) {
-  return value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: usdMaxFractionDigits(value),
+  });
 }
 
 interface AutoTradePanelProps {
