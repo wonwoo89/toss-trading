@@ -2693,6 +2693,41 @@ input[type='checkbox']:focus-visible {
   color: var(--text-secondary);
   background: color-mix(in srgb, var(--accent, #3182f6) 10%, transparent);
 }
+.auto-trade__ai-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.auto-trade__ai {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0.4rem 0 0;
+  padding: 0.4rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  background: color-mix(in srgb, var(--accent, #3182f6) 8%, transparent);
+}
+.auto-trade__ai-head {
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.auto-trade__ai-decision.is-buy {
+  color: var(--color-up);
+}
+.auto-trade__ai-decision.is-sell {
+  color: var(--color-down);
+}
+.auto-trade__ai-decision.is-hold,
+.auto-trade__ai-decision.is-fallback {
+  color: var(--text-secondary);
+}
 .auto-trade__controls {
   display: flex;
   align-items: center;

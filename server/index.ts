@@ -7,6 +7,7 @@ import { getLastAuthError, getTokenCacheStatus, warmUpAuth } from './lib/auth.js
 import { warmUpStockSearchIndex } from './lib/stock-search.js';
 import { TossApiError } from './lib/toss-client.js';
 import { accountRouter } from './routes/account.js';
+import { aiRouter } from './routes/ai.js';
 import { marketRouter } from './routes/market.js';
 import { ordersRouter } from './routes/orders.js';
 
@@ -59,6 +60,7 @@ app.post('/api/auth/test', async (_req, res, next) => {
 app.use('/api/market', marketRouter);
 app.use('/api/account', accountRouter);
 app.use('/api/orders', ordersRouter);
+app.use('/api/ai', aiRouter);
 
 // 운영 모드: 빌드된 프론트(dist)를 정적 서빙하고, /api 가 아닌 GET 은 SPA 진입점으로
 // 폴백한다(클라이언트 라우팅). 개발 모드(NODE_ENV !== production)에서는 Vite dev 서버가
