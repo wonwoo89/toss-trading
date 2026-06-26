@@ -3711,7 +3711,9 @@ input[type='checkbox']:focus-visible {
   color: var(--text-primary);
 }
 
-.backtest-controls input[type='number'] {
+.backtest-controls input[type='number'],
+.backtest-controls input[inputmode='decimal'],
+.backtest-controls input[inputmode='numeric'] {
   width: 5rem;
 }
 

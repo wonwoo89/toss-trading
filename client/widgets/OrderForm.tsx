@@ -83,9 +83,18 @@ function formatPriceDigits(value: number) {
   });
 }
 
-// 가격 입력칸(number input)용 값. 콤마 없이 최대 4자리, 불필요한 0 제거.
+// 가격 입력칸용 값. 콤마 없이 최대 4자리, 불필요한 0 제거.
 function priceInputValue(value: number) {
   return String(Number(value.toFixed(4)));
+}
+
+// 숫자(소수) 입력 정제 — 숫자와 점 1개만 허용. 빈 값 허용(가격은 비우면 현재가 사용).
+// type="number" 의 강제 변환/스피너 없이 자유 편집 + 소수 키보드(inputMode)를 쓰기 위함.
+function sanitizeDecimalInput(raw: string) {
+  let s = raw.replace(/[^0-9.]/g, '');
+  const dot = s.indexOf('.');
+  if (dot !== -1) s = s.slice(0, dot + 1) + s.slice(dot + 1).replace(/\./g, '');
+  return s;
 }
 
 function getOrderFormFocusables(form: HTMLFormElement) {
@@ -238,12 +247,6 @@ export function OrderForm({
       : undefined;
 
   const isPriceInputDisabled = priceMode === 'current' || priceMode === 'market';
-
-  // 가격 입력칸 step: $1 미만은 서브-페니(0.0001), 그 외 센트(0.01).
-  // 입력값(또는 현재가) 기준으로 정해 4자리 지정가가 HTML5 검증에 막히지 않게 한다.
-  const priceStepRef = Number(price) || currentPrice;
-  const priceInputStep =
-    priceStepRef !== undefined && priceStepRef > 0 && priceStepRef < 1 ? '0.0001' : '0.01';
 
   const effectiveOrderPrice = priceMode === 'limit' ? Number(price) || currentPrice : currentPrice;
 
@@ -865,11 +868,10 @@ export function OrderForm({
             </div>
             <label>
               <input
-                type="number"
-                min="0"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
                 value={orderAmount}
-                onChange={(e) => setOrderAmount(e.target.value)}
+                onChange={(e) => setOrderAmount(sanitizeDecimalInput(e.target.value))}
                 required
               />
             </label>
@@ -883,16 +885,15 @@ export function OrderForm({
               </div>
               <label>
                 <input
-                  type="number"
-                  min="0"
-                  step={priceInputStep}
+                  type="text"
+                  inputMode="decimal"
                   value={price}
                   placeholder={
                     priceMode === 'market' ? '시장가' : currentPrice ? String(currentPrice) : '0.00'
                   }
                   onChange={(e) => {
                     limitPriceManualRef.current = true;
-                    setPrice(e.target.value);
+                    setPrice(sanitizeDecimalInput(e.target.value));
                   }}
                   disabled={isPriceInputDisabled}
                   required={priceMode === 'limit'}
