@@ -66,26 +66,6 @@ const STOP_LOSS_DEFAULT = 2;
 const TARGET_DEFAULT = 3;
 // 자동매수 1회 최대 금액 = 주문가능금액(buyingPower)의 이 비율(%). 과대 매수 방지.
 const AUTO_BUY_MAX_PCT = 5;
-const DAILY_KEY = 'autoTradeDailyCount';
-
-function todayKey() {
-  return new Date().toLocaleDateString('en-CA');
-}
-function readDailyCount(): number {
-  try {
-    const raw = JSON.parse(localStorage.getItem(DAILY_KEY) ?? '{}');
-    return raw.date === todayKey() ? Number(raw.count) || 0 : 0;
-  } catch {
-    return 0;
-  }
-}
-function writeDailyCount(count: number) {
-  try {
-    localStorage.setItem(DAILY_KEY, JSON.stringify({ date: todayKey(), count }));
-  } catch {
-    /* noop */
-  }
-}
 
 /**
  * 자동매매 패널 (1~3단계 통합).
@@ -119,8 +99,6 @@ export function AutoTradePanel({
     takeProfitRatePercent && takeProfitRatePercent > 0 ? takeProfitRatePercent : TARGET_DEFAULT
   );
   const [stopLossPercent, setStopLossPercent] = useState(STOP_LOSS_DEFAULT);
-  // 일일 실행 횟수 — 감사/참고용 표시만(상한 없음, 사용자 직접 감독 전제).
-  const [dailyCount, setDailyCount] = useState(() => readDailyCount());
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [pending, setPending] = useState<PendingAction | null>(null);
 
@@ -282,7 +260,6 @@ export function AutoTradePanel({
   // 실제 주문 실행 + 공통 가드(제출 중·쿨다운). 통과해 주문을 내면 true.
   const runExecute = (action: PendingAction): boolean => {
     if (submitting) return false;
-    const count = readDailyCount();
     // 쿨다운은 무인 자동(오토) 연사 방지용 — 사람이 직접 누르는 세미오토 '실행'에는 적용하지 않는다.
     if (mode === 'auto' && Date.now() - lastExecRef.current < COOLDOWN_MS) {
       const wait = Math.ceil((COOLDOWN_MS - (Date.now() - lastExecRef.current)) / 1000);
@@ -291,9 +268,6 @@ export function AutoTradePanel({
     }
     onAutoExecute(action.side, action.quantity, action.limitPrice);
     lastExecRef.current = Date.now();
-    const next = count + 1;
-    writeDailyCount(next);
-    setDailyCount(next);
     pushLog('exec', action.side, `실행: ${action.label}`);
     return true;
   };
@@ -447,7 +421,6 @@ export function AutoTradePanel({
           <NumberField min={0.1} value={stopLossPercent} onChange={setStopLossPercent} />
           %
         </label>
-        <span className="auto-trade__count">오늘 {dailyCount}회</span>
       </div>
 
       {isMobile && active && (
