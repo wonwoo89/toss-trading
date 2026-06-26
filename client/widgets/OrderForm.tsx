@@ -1144,6 +1144,13 @@ export function OrderForm({
             onAutoExecute={(side, qty, price) => executeWithRecommendation(side, qty, price)}
             onExecModeChange={setAutoExecActive}
             isMobile={!isDesktop}
+            candles={candles}
+            candleInterval={candleInterval}
+            bids={bids}
+            asks={asks}
+            previousClose={previousClose}
+            maxBuyQuantity={maxBuyQuantity}
+            currency={currency}
           />
         )}
 

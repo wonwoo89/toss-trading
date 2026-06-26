@@ -22,6 +22,7 @@
     "probe:kr": "tsx server/scripts/probe-kr.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.106.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",

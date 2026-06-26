@@ -5,7 +5,10 @@ import {
   getTakeProfitCostContext,
 } from '../shared/lib/takeProfitSell';
 import { usdMaxFractionDigits } from '../shared/lib/formatHoldings';
-import type { HoldingItem } from '../shared/types';
+import { buildChartSignalSnapshot } from '../shared/lib/chartSignals';
+import { computeCandleTrend } from '../shared/lib/candleTrend';
+import { api, type AiDecision } from '../shared/api/client';
+import type { ChartCandle, HoldingItem } from '../shared/types';
 
 type AutoMode = 'off' | 'dryrun' | 'semi' | 'auto';
 type AutoActionKind = 'BUY' | 'TP' | 'SL'; // 매수 / 익절 매도 / 손절 매도
@@ -39,6 +42,14 @@ interface AutoTradePanelProps {
   onExecModeChange?: (active: boolean) => void;
   /** 모바일(좁은 폭) 여부 — 화면 꺼짐/백그라운드 시 멈춤 안내를 노출하기 위함. */
   isMobile?: boolean;
+  // AI(LLM) 판단용 추가 입력. 봉 마감·의미있는 변동 시 서버로 스냅샷을 보내 BUY/SELL/HOLD 를 받는다.
+  candles?: ChartCandle[];
+  candleInterval?: string;
+  bids?: { price: number; quantity: number }[];
+  asks?: { price: number; quantity: number }[];
+  previousClose?: number;
+  maxBuyQuantity?: number;
+  currency?: string;
 }
 
 interface LogEntry {
@@ -70,6 +81,9 @@ const STOP_LOSS_DEFAULT = 2;
 const TARGET_DEFAULT = 3;
 // 자동매수 1회 최대 금액 = 주문가능금액(buyingPower)의 이 비율(%). 과대 매수 방지.
 const AUTO_BUY_MAX_PCT = 5;
+// AI 판단 호출 최소 간격(과호출·비용 방지) + 봉 마감 외 추가 호출 임계(의미있는 가격 변동 %).
+const AI_MIN_INTERVAL_MS = 20_000;
+const AI_PRICE_MOVE_PCT = 0.3;
 
 /**
  * 자동매매 패널 (1~3단계 통합).
@@ -96,6 +110,13 @@ export function AutoTradePanel({
   onAutoExecute,
   onExecModeChange,
   isMobile = false,
+  candles = [],
+  candleInterval = '1m',
+  bids = [],
+  asks = [],
+  previousClose,
+  maxBuyQuantity,
+  currency = 'USD',
 }: AutoTradePanelProps) {
   const [mode, setMode] = useState<AutoMode>('off');
   // 자동매도 목표 수익률(실수익률 %) — 자동매매 전용 입력. 주문폼 선택값으로 초기화 후 독립 관리.
@@ -105,6 +126,16 @@ export function AutoTradePanel({
   const [stopLossPercent, setStopLossPercent] = useState(STOP_LOSS_DEFAULT);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [pending, setPending] = useState<PendingAction | null>(null);
+
+  // AI(LLM) 판단 모드: 봉 마감·의미있는 변동 시 서버에 스냅샷을 보내 BUY/SELL/HOLD 를 받아 실행한다.
+  // 안전: 손절/쿨다운/탭가시성/킬스위치 등 가드는 그대로 적용되고, AI 는 그 안에서 '방향'만 정한다.
+  const [useAi, setUseAi] = useState(false);
+  const [aiDecision, setAiDecision] = useState<AiDecision | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const aiInFlightRef = useRef(false);
+  const aiLastCallRef = useRef(0);
+  const aiLastClosedKeyRef = useRef<number | null>(null);
+  const aiLastPriceRef = useRef<number | null>(null);
 
   const pendingRef = useRef<PendingAction | null>(null);
   const lastExecRef = useRef(0);
@@ -177,6 +208,9 @@ export function AutoTradePanel({
   useEffect(() => {
     lastSignalRef.current = { BUY: null, TP: null, SL: null };
     setPending(null);
+    setAiDecision(null);
+    aiLastClosedKeyRef.current = null;
+    aiLastPriceRef.current = null;
   }, [symbol]);
 
   // 세미오토/오토(실주문 모드) 활성 여부를 부모에 알린다(주문 입력 영역 숨김용). 언마운트 시 해제.
@@ -309,10 +343,10 @@ export function AutoTradePanel({
     pushLog('trigger', action.side, `대기: ${action.label} — '실행'을 눌러야 주문됩니다`);
   };
 
-  // 매수 트리거
+  // 매수 트리거 (AI 모드에선 AI 가 매수를 결정하므로 지표 기반 매수는 끈다. TP/SL 보호는 유지.)
   useEffect(() => {
     if (!active) return;
-    if (buyReady) {
+    if (buyReady && !useAi) {
       if (shouldFire('BUY', buyEntryPrice!, effectiveBuyQty!)) {
         const label = `매수 ${symbol} ${effectiveBuyQty}주 @ $${fmtPrice(buyEntryPrice!)}${buyTargetSell !== undefined ? ` → 목표 $${fmtPrice(buyTargetSell)} (+${targetPercent}%)` : ''}`;
         fireTrigger(
@@ -326,7 +360,7 @@ export function AutoTradePanel({
       lastSignalRef.current.BUY = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, mode, isTabVisible, buyReady, symbol, effectiveBuyQty, buyEntryPrice, buyTargetSell, targetPercent]);
+  }, [active, mode, isTabVisible, buyReady, useAi, symbol, effectiveBuyQty, buyEntryPrice, buyTargetSell, targetPercent]);
 
   // 익절 매도 트리거
   useEffect(() => {
@@ -365,6 +399,163 @@ export function AutoTradePanel({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mode, isTabVisible, slReached, sellQty, currentPrice, symbol, stopLossPercent]);
+
+  // AI 결정 실행: BUY/SELL 을 기존 모드 정책(드라이런=기록, 세미=대기, 오토=즉시)·가드로 라우팅.
+  const executeAiDecision = (decision: AiDecision) => {
+    if (mode === 'off') return;
+    if (decision.action === 'HOLD' || decision.fallback) {
+      if (mode === 'dryrun') {
+        pushLog('skip', 'BUY', `AI 관망: ${decision.reason || '근거 없음'}`);
+      }
+      return;
+    }
+
+    let action: PendingAction;
+    if (decision.action === 'BUY') {
+      // AI 매수 수량은 지표 추천과 독립적으로 '주문가능금액의 상한 비율(AUTO_BUY_MAX_PCT)'로 산정.
+      const price = buyEntryPrice ?? currentPrice;
+      if (price === undefined || price <= 0 || buyingPower === undefined || buyingPower <= 0) {
+        pushLog('block', 'BUY', `AI 매수 보류 — 가격/주문가능 부족: ${decision.reason}`);
+        return;
+      }
+      let qty = Math.floor((buyingPower * (AUTO_BUY_MAX_PCT / 100)) / price);
+      if (maxBuyQuantity !== undefined) qty = Math.min(qty, maxBuyQuantity);
+      if (qty <= 0) {
+        pushLog('block', 'BUY', `AI 매수 보류 — 수량 0(주문가능 부족): ${decision.reason}`);
+        return;
+      }
+      action = {
+        id: crypto.randomUUID(),
+        kind: 'BUY',
+        side: 'BUY',
+        quantity: qty,
+        limitPrice: price,
+        label: `AI 매수 ${symbol} ${qty}주 @ $${fmtPrice(price)} — ${decision.reason}`,
+      };
+    } else {
+      // SELL: 보유분 전량 청산 제안. (TP/SL 보호와 별개의 재량 매도)
+      if (sellQty === undefined || sellQty <= 0 || currentPrice === undefined) {
+        pushLog('block', 'SELL', `AI 매도 보류 — 보유 없음: ${decision.reason}`);
+        return;
+      }
+      action = {
+        id: crypto.randomUUID(),
+        kind: 'TP',
+        side: 'SELL',
+        quantity: sellQty,
+        limitPrice: currentPrice,
+        label: `AI 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} — ${decision.reason}`,
+      };
+    }
+
+    if (mode === 'dryrun') {
+      pushLog('trigger', action.side, `모의 ${action.label}`);
+      return;
+    }
+    if (mode === 'auto') {
+      if (!isTabVisibleRef.current) {
+        pushLog('block', action.side, `자동 일시정지(탭 숨김): ${action.label}`);
+        return;
+      }
+      pushLog('trigger', action.side, `AI 자동 실행: ${action.label}`);
+      runExecute(action);
+      return;
+    }
+    // semi: 종목당 단일 대기
+    if (pendingRef.current) return;
+    pendingRef.current = action;
+    setPending(action);
+    pushLog('trigger', action.side, `AI 대기: ${action.label} — '실행'을 눌러야 주문됩니다`);
+  };
+
+  // AI 트리거: 봉 마감(완성봉 변경) 또는 의미있는 가격 변동 시(최소 간격 내 억제) 서버에 판단 요청.
+  useEffect(() => {
+    if (!useAi || !active) return;
+    if (candles.length < 2 || currentPrice === undefined || currentPrice <= 0) return;
+
+    const sorted = candles.slice().sort((a, b) => a.time - b.time);
+    const closedKey = sorted[sorted.length - 2]?.time ?? null; // 마지막은 형성 중 → 직전 완성봉
+    const now = Date.now();
+    const newBar = closedKey !== null && closedKey !== aiLastClosedKeyRef.current;
+    const lastP = aiLastPriceRef.current;
+    const moved =
+      lastP !== null && lastP > 0 && (Math.abs(currentPrice - lastP) / lastP) * 100 >= AI_PRICE_MOVE_PCT;
+    const intervalOk = now - aiLastCallRef.current >= AI_MIN_INTERVAL_MS;
+
+    if (aiInFlightRef.current) return;
+    if (!(newBar || (moved && intervalOk))) return;
+    if (!intervalOk && !newBar) return;
+
+    aiInFlightRef.current = true;
+    aiLastCallRef.current = now;
+    aiLastClosedKeyRef.current = closedKey;
+    aiLastPriceRef.current = currentPrice;
+    setAiLoading(true);
+
+    const signal = buildChartSignalSnapshot({ candles: sorted, bids, asks });
+    const trend = computeCandleTrend(sorted);
+    const recent = sorted.slice(-40).map((c) => ({
+      t: c.time,
+      o: c.open,
+      h: c.high,
+      l: c.low,
+      c: c.close,
+      v: c.volume,
+    }));
+    const bidTotal = bids.reduce((s, b) => s + b.quantity, 0);
+    const askTotal = asks.reduce((s, a) => s + a.quantity, 0);
+    const dayChangePct =
+      previousClose && previousClose > 0
+        ? ((currentPrice - previousClose) / previousClose) * 100
+        : undefined;
+
+    void api
+      .getAiDecision({
+        symbol,
+        interval: candleInterval,
+        currency,
+        currentPrice,
+        previousClose,
+        dayChangePct,
+        position:
+          holding && holding.quantity > 0 && holding.averagePrice
+            ? {
+                quantity: holding.quantity,
+                averagePrice: holding.averagePrice,
+                profitLossPct:
+                  holding.averagePrice > 0
+                    ? ((currentPrice - holding.averagePrice) / holding.averagePrice) * 100
+                    : undefined,
+              }
+            : undefined,
+        buyingPower,
+        maxBuyQuantity,
+        sellableQuantity: sellQty,
+        targetProfitPct: targetPercent,
+        stopLossPct: stopLossPercent,
+        signal: { level: signal.level, score: signal.score },
+        trend: { state: trend.state, confirmedBars: trend.confirmedBars },
+        orderbook: {
+          bestBid: bids[0]?.price,
+          bestAsk: asks[0]?.price,
+          bidRatio: bidTotal + askTotal > 0 ? bidTotal / (bidTotal + askTotal) : undefined,
+        },
+        candles: recent,
+      })
+      .then((res) => {
+        const decision = res.result;
+        setAiDecision(decision);
+        executeAiDecision(decision);
+      })
+      .catch((err: unknown) => {
+        pushLog('block', 'BUY', `AI 호출 실패: ${err instanceof Error ? err.message : '오류'}`);
+      })
+      .finally(() => {
+        aiInFlightRef.current = false;
+        setAiLoading(false);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [useAi, active, mode, isTabVisible, candles, currentPrice]);
 
   const dismissPending = () => {
     if (pending) pushLog('skip', pending.side, `무시: ${pending.label}`);
@@ -425,7 +616,27 @@ export function AutoTradePanel({
           <NumberField min={0.1} value={stopLossPercent} onChange={setStopLossPercent} />
           %
         </label>
+        <label className="auto-trade__ai-toggle" title="AI(LLM)가 봉 마감·의미있는 변동 시 매수/매도/관망을 판단합니다. 손절·쿨다운 등 가드는 그대로 적용됩니다.">
+          <input type="checkbox" checked={useAi} onChange={(e) => setUseAi(e.target.checked)} />
+          AI 판단
+        </label>
       </div>
+
+      {useAi && (
+        <div className="auto-trade__ai">
+          <span className="auto-trade__ai-head">
+            🤖 AI {aiLoading ? '판단 중…' : aiDecision ? '' : '대기'}
+          </span>
+          {aiDecision && (
+            <span
+              className={`auto-trade__ai-decision is-${aiDecision.action.toLowerCase()}${aiDecision.fallback ? ' is-fallback' : ''}`}
+            >
+              {aiDecision.action === 'BUY' ? '매수' : aiDecision.action === 'SELL' ? '매도' : '관망'}
+              {aiDecision.confidence ? ` ${(aiDecision.confidence * 100).toFixed(0)}%` : ''} — {aiDecision.reason}
+            </span>
+          )}
+        </div>
+      )}
 
       {isMobile && active && (
         <p className="auto-trade__mobile-hint">

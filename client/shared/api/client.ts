@@ -23,6 +23,45 @@ import type {
 
 const API_BASE = '/api';
 
+export type AiAction = 'BUY' | 'SELL' | 'HOLD';
+
+export interface AiDecisionCandle {
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+}
+
+export interface AiDecisionRequest {
+  symbol: string;
+  interval: string;
+  currency?: string;
+  currentPrice: number;
+  previousClose?: number;
+  dayChangePct?: number;
+  position?: { quantity: number; averagePrice: number; profitLossPct?: number };
+  buyingPower?: number;
+  maxBuyQuantity?: number;
+  sellableQuantity?: number;
+  targetProfitPct?: number;
+  stopLossPct?: number;
+  signal?: { level?: string; score?: number; rsi?: number; sma20?: number; sma50?: number; atr?: number };
+  trend?: { state?: string; confirmedBars?: number };
+  orderbook?: { bestBid?: number; bestAsk?: number; bidRatio?: number };
+  candles: AiDecisionCandle[];
+}
+
+export interface AiDecision {
+  action: AiAction;
+  sizePct: number;
+  confidence: number;
+  reason: string;
+  model: string;
+  fallback?: boolean;
+}
+
 export class ApiRequestError extends Error {
   status: number;
   code?: string;
@@ -173,5 +212,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({}),
       accountSeq,
+    }),
+  getAiStatus: () => request<ApiEnvelope<{ configured: boolean }>>('/ai/status'),
+  getAiDecision: (payload: AiDecisionRequest) =>
+    request<ApiEnvelope<AiDecision>>('/ai/decision', {
+      method: 'POST',
+      body: JSON.stringify(payload),
     }),
 };
