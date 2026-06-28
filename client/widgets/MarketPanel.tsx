@@ -139,9 +139,6 @@ export function MarketPanel({
         </div>
       )}
 
-      <div className="market-panel__layout">
-        <div className="market-panel__main">
-
       <div className="chart-panel">
         <div className="chart-toolbar">
           <StockLabel symbol={symbol} name={stockName} as="heading" />
@@ -213,6 +210,9 @@ export function MarketPanel({
         </div>
       </div>
 
+      {/* 차트 아래: 좌(지표·시장정보) / 우(호가) 좌우 배치 */}
+      <div className="market-panel__below">
+        <div className="market-panel__below-info">
       {/* Indicators below the chart */}
       <div className="market-indicators">
         <ChartSignalPanel
