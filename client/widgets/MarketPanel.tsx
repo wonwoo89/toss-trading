@@ -1,18 +1,13 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 // lightweight-charts(차트 청크)를 지연 로드 → 주문폼/시세가 먼저 그려진다.
 const CandleChart = lazy(() =>
   import('./CandleChart').then((m) => ({ default: m.CandleChart }))
 );
 import { ChartMarketContextPanel } from './ChartMarketContextPanel';
 import { ChartSignalPanel } from './ChartSignalPanel';
+import { OrderbookPanel } from './OrderbookPanel';
 import { StockLabel } from './StockLabel';
 import { BacktestModal } from './BacktestModal';
-import {
-  buildSpreadSnapshot,
-  buildTradeFlowSnapshot,
-  type MicrostructureBias,
-} from '../shared/lib/marketMicrostructure';
-import { usdMaxFractionDigits } from '../shared/lib/formatHoldings';
 import {
   getStoredDetailsExpanded,
   setStoredDetailsExpanded,
@@ -67,24 +62,6 @@ interface MarketPanelProps {
   commissions?: CommissionRaw[];
   realtimePollingForced?: boolean;
   onRealtimePollingForcedChange?: (forced: boolean) => void;
-}
-
-// 호가/체결 가격 포맷. KRW=정수 원(₩), USD=$1 미만만 2~4자리·그 외 2자리. 기본 USD.
-function formatMoney(value?: number, currency?: string) {
-  if (value === undefined) return '—';
-  if (currency === 'KRW') {
-    return `₩${Math.round(value).toLocaleString('ko-KR')}`;
-  }
-  return `$${value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: usdMaxFractionDigits(value),
-  })}`;
-}
-
-function getMetricBiasClass(bias: MicrostructureBias) {
-  if (bias === 'bullish') return 'orderbook-summary__metric--bullish';
-  if (bias === 'bearish') return 'orderbook-summary__metric--bearish';
-  return 'orderbook-summary__metric--neutral';
 }
 
 export function MarketPanel({
@@ -152,36 +129,6 @@ export function MarketPanel({
     });
   };
 
-  const spread = useMemo(() => buildSpreadSnapshot(bids, asks), [asks, bids]);
-
-  // 가격 변동 flash (UI/UX) — best bid/ask 실시간 변화 하이라이트
-  const [prevBestBid, setPrevBestBid] = useState<number | undefined>();
-  const [prevBestAsk, setPrevBestAsk] = useState<number | undefined>();
-  const [bidFlash, setBidFlash] = useState<'up' | 'down' | null>(null);
-  const [askFlash, setAskFlash] = useState<'up' | 'down' | null>(null);
-
-  const bestBid = spread.bestBid;
-  const bestAsk = spread.bestAsk;
-
-  useEffect(() => {
-    if (bestBid != null && prevBestBid != null && bestBid !== prevBestBid) {
-      setBidFlash(bestBid > prevBestBid ? 'up' : 'down');
-      const t = setTimeout(() => setBidFlash(null), 700);
-      return () => clearTimeout(t);
-    }
-    if (bestBid != null) setPrevBestBid(bestBid);
-  }, [bestBid]);
-
-  useEffect(() => {
-    if (bestAsk != null && prevBestAsk != null && bestAsk !== prevBestAsk) {
-      setAskFlash(bestAsk > prevBestAsk ? 'up' : 'down');
-      const t = setTimeout(() => setAskFlash(null), 700);
-      return () => clearTimeout(t);
-    }
-    if (bestAsk != null) setPrevBestAsk(bestAsk);
-  }, [bestAsk]);
-  const tradeFlow = useMemo(() => buildTradeFlowSnapshot(trades, bids, asks), [asks, bids, trades]);
-
   return (
     <section className="panel market-panel">
       {warnings.length > 0 && (
@@ -191,6 +138,9 @@ export function MarketPanel({
           ))}
         </div>
       )}
+
+      <div className="market-panel__layout">
+        <div className="market-panel__main">
 
       <div className="chart-panel">
         <div className="chart-toolbar">
@@ -298,133 +248,19 @@ export function MarketPanel({
           />
         </div>
       </div>
-
-      {/* Divider separating indicators from orderbook */}
-      <div className="market-divider" />
-
-      <div
-        className={`market-panel__orderbook${orderbookExpanded ? ' market-panel__orderbook--expanded' : ''}`}
-      >
-        <div className="orderbook-summary">
-          <div className="orderbook-summary__metrics" aria-live="polite">
-            <span className="orderbook-summary__metric orderbook-summary__metric--bearish">
-              <span className="orderbook-summary__metric-label">매도 1호가</span>
-              <span
-                className={`orderbook-summary__metric-value ${askFlash ? `price-flash-${askFlash}` : ''}`}
-              >
-                {formatMoney(spread.bestAsk, currency)}
-              </span>
-            </span>
-            <span className="orderbook-summary__metric orderbook-summary__metric--bullish">
-              <span className="orderbook-summary__metric-label">매수 1호가</span>
-              <span
-                className={`orderbook-summary__metric-value ${bidFlash ? `price-flash-${bidFlash}` : ''}`}
-              >
-                {formatMoney(spread.bestBid, currency)}
-              </span>
-            </span>
-            <span className={`orderbook-summary__metric ${getMetricBiasClass(spread.bias)}`}>
-              <span className="orderbook-summary__metric-label">{spread.label}</span>
-              <span className="orderbook-summary__metric-value">{spread.value}</span>
-            </span>
-            <span className={`orderbook-summary__metric ${getMetricBiasClass(tradeFlow.bias)}`}>
-              <span className="orderbook-summary__metric-label">{tradeFlow.label}</span>
-              <span className="orderbook-summary__metric-value">{tradeFlow.value}</span>
-            </span>
-          </div>
-          <button
-            type="button"
-            className="orderbook-summary__toggle"
-            aria-expanded={orderbookExpanded}
-            onClick={() => setOrderbookExpanded((expanded) => !expanded)}
-          >
-            {orderbookExpanded ? '접기' : '호가 상세'}
-          </button>
         </div>
 
-        {orderbookExpanded && (
-          <div className="market-grid orderbook-detail">
-            <div>
-              <h3>매도호가</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>가격</th>
-                    <th>수량</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {asks.length === 0 ? (
-                    <tr>
-                      <td colSpan={2}>호가 없음</td>
-                    </tr>
-                  ) : (
-                    asks.slice(0, 8).map((ask, index) => (
-                      <tr key={`ask-${index}`}>
-                        <td className="down">{formatMoney(ask.price, currency)}</td>
-                        <td>{ask.quantity}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div>
-              <h3>매수호가</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>가격</th>
-                    <th>수량</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bids.length === 0 ? (
-                    <tr>
-                      <td colSpan={2}>호가 없음</td>
-                    </tr>
-                  ) : (
-                    bids.slice(0, 8).map((bid, index) => (
-                      <tr key={`bid-${index}`}>
-                        <td className="up">{formatMoney(bid.price, currency)}</td>
-                        <td>{bid.quantity}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            <div>
-              <h3>체결</h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>시간</th>
-                    <th>가격</th>
-                    <th>수량</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trades.length === 0 ? (
-                    <tr>
-                      <td colSpan={3}>체결 없음</td>
-                    </tr>
-                  ) : (
-                    trades.slice(0, 10).map((trade, index) => (
-                      <tr key={`trade-${index}`}>
-                        <td>{new Date(trade.timestamp).toLocaleTimeString('ko-KR')}</td>
-                        <td>{formatMoney(trade.price, currency)}</td>
-                        <td>{trade.quantity}</td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <div className="market-panel__side">
+          <OrderbookPanel
+            bids={bids}
+            asks={asks}
+            trades={trades}
+            currency={currency}
+            expanded={isDesktop || orderbookExpanded}
+            showToggle={!isDesktop}
+            onToggle={() => setOrderbookExpanded((v) => !v)}
+          />
+        </div>
       </div>
 
       {backtestOpen && (

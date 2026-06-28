@@ -1538,6 +1538,208 @@ select:focus-visible {
   font-size: 0.72rem;
 }
 
+/* ── 마켓 패널 좌우 레이아웃: 좌(차트+지표) / 우(호가) ── */
+.market-panel__layout {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.market-panel__main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+.market-panel__side {
+  min-width: 0;
+}
+
+@media (min-width: 1101px) {
+  .market-panel__layout {
+    flex-direction: row;
+    align-items: stretch;
+  }
+  .market-panel__main {
+    flex: 1 1 0;
+  }
+  /* 데스크톱: 호가를 우측 고정폭 컬럼으로 항상 표시(스크롤). */
+  .market-panel__side {
+    flex: 0 0 300px;
+    width: 300px;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  /* 좌측 차트는 우측 호가와 별개로 마진 제거(레이아웃 gap 사용). */
+  .market-panel__main .chart-panel {
+    margin-bottom: 0.75rem;
+  }
+}
+
+/* ── 호가 패널(OrderbookPanel) ── */
+.orderbook {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.orderbook-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.7rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+}
+.orderbook-stat {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.orderbook-stat__label {
+  font-size: 0.64rem;
+  color: var(--text-secondary);
+}
+.orderbook-stat__value {
+  font-size: 0.74rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.orderbook-stat__value.up,
+.orderbook-stat__value .up {
+  color: var(--color-up);
+}
+.orderbook-stat__value.down,
+.orderbook-stat__value .down {
+  color: var(--color-down);
+}
+
+.orderbook-depth {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.orderbook-depth__head {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.64rem;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
+}
+.orderbook-depth__head span:nth-child(2) {
+  text-align: center;
+}
+.orderbook-depth__head span:nth-child(3) {
+  text-align: right;
+}
+.orderbook-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.3rem;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+}
+.orderbook-row__bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  opacity: 0.16;
+  pointer-events: none;
+}
+.orderbook-row__bar.is-ask {
+  background: var(--color-down);
+}
+.orderbook-row__bar.is-bid {
+  background: var(--color-up);
+}
+.orderbook-row__cum,
+.orderbook-row__qty,
+.orderbook-row__price {
+  position: relative;
+  z-index: 1;
+}
+.orderbook-row__cum {
+  color: var(--text-secondary);
+}
+.orderbook-row__qty {
+  text-align: center;
+}
+.orderbook-row__price {
+  text-align: right;
+  font-weight: 600;
+}
+.orderbook-row__price.down {
+  color: var(--color-down);
+}
+.orderbook-row__price.up {
+  color: var(--color-up);
+}
+.orderbook-depth__mid {
+  display: flex;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.66rem;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-panel) 96%, transparent);
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+.orderbook-depth__empty {
+  padding: 0.45rem 0.55rem;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.orderbook-trades {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  overflow: hidden auto;
+  max-height: 240px;
+  overscroll-behavior: contain;
+}
+.orderbook-trades__head {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.3rem;
+  padding: 0.25rem 0.55rem;
+  font-size: 0.64rem;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
+  position: sticky;
+  top: 0;
+}
+.orderbook-trades__head span:nth-child(2),
+.orderbook-trades__head span:nth-child(3) {
+  text-align: right;
+}
+.orderbook-trade {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 0.3rem;
+  padding: 0.16rem 0.55rem;
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+.orderbook-trade span:nth-child(2),
+.orderbook-trade span:nth-child(3) {
+  text-align: right;
+}
+
 .chart-toolbar {
   display: flex;
   flex-shrink: 0;
