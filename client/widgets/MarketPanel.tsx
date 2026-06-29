@@ -17,6 +17,10 @@ import {
   setStoredBollingerVisible,
 } from '../shared/lib/bollingerVisiblePreference';
 import {
+  getStoredSupertrendVisible,
+  setStoredSupertrendVisible,
+} from '../shared/lib/supertrendVisiblePreference';
+import {
   CANDLE_INTERVALS,
   type CandleInterval,
   type ChartCandle,
@@ -105,6 +109,12 @@ export function MarketPanel({
     setStoredBollingerVisible(visible);
   };
 
+  const [supertrendVisible, setSupertrendVisible] = useState(getStoredSupertrendVisible);
+  const handleSupertrendVisibleChange = (visible: boolean) => {
+    setSupertrendVisible(visible);
+    setStoredSupertrendVisible(visible);
+  };
+
   // 데스크톱(>1100px)은 항상 펼침. 모바일은 사용자가 토글한 펼침/접힘 상태를 localStorage 에
   // 영속해, 종목이 바뀌어 MarketPanel 이 리마운트돼도 유지한다.
   const [isDesktop, setIsDesktop] = useState(
@@ -164,6 +174,17 @@ export function MarketPanel({
               />
               <span>볼린저</span>
             </label>
+            <label
+              className="bollinger-toggle"
+              title="슈퍼트렌드(ATR 추세선) 표시 켜기/끄기 — 상승=빨강, 하락=파랑"
+            >
+              <input
+                type="checkbox"
+                checked={supertrendVisible}
+                onChange={(e) => handleSupertrendVisibleChange(e.target.checked)}
+              />
+              <span>슈퍼트렌드</span>
+            </label>
             <select
               className="chart-interval"
               value={candleInterval}
@@ -204,6 +225,7 @@ export function MarketPanel({
               hasMoreHistory={hasMoreHistory}
               onLoadOlder={onLoadOlderCandles}
               showBollinger={bollingerVisible}
+              showSupertrend={supertrendVisible}
               currency={currency}
             />
           </Suspense>
