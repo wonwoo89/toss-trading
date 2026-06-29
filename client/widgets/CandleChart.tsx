@@ -15,6 +15,7 @@ import {
   type UTCTimestamp,
 } from 'lightweight-charts';
 import { calculateBollingerBandSeries } from '../shared/lib/bollingerBands';
+import { calculateSupertrendSeries } from '../shared/lib/supertrend';
 import { BollingerBandFillPrimitive } from '../shared/lib/bollingerBandFillPrimitive';
 import { useTheme } from '../app/providers/ThemeContext';
 import {
@@ -36,6 +37,7 @@ interface CandleChartProps {
   loadingOlder?: boolean;
   onLoadOlder?: () => void;
   showBollinger?: boolean;
+  showSupertrend?: boolean;
   currency?: string;
 }
 
@@ -384,6 +386,7 @@ export function CandleChart({
   loadingOlder = false,
   onLoadOlder,
   showBollinger = true,
+  showSupertrend = false,
   currency = 'USD',
 }: CandleChartProps) {
   const { theme } = useTheme();
@@ -397,6 +400,9 @@ export function CandleChart({
   const bbMiddleSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbFillPrimitiveRef = useRef<BollingerBandFillPrimitive | null>(null);
+  // 슈퍼트렌드: 상승/하락 구간을 색으로 구분하기 위해 두 라인 시리즈로 분리(상승=빨강/하락=파랑).
+  const stUpSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const stDownSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const avgPriceLineRef = useRef<IPriceLine | null>(null);
   const prevFirstTimeRef = useRef<number | null>(null);
   const prevDataLengthRef = useRef<number | null>(null);
@@ -497,6 +503,25 @@ export function CandleChart({
     bbFillPrimitive.setFillColor(colors.bollingerFill);
     bbMiddleSeries.attachPrimitive(bbFillPrimitive);
 
+    // 슈퍼트렌드 — 상승(빨강)/하락(파랑) 두 라인. 색만 다르고 동일 스타일.
+    const stLineOptions = {
+      lineWidth: 2 as const,
+      lastValueVisible: false,
+      priceLineVisible: false,
+      crosshairMarkerVisible: false,
+      visible: showSupertrend,
+    };
+    const stUpSeries = chart.addSeries(
+      LineSeries,
+      { ...stLineOptions, color: colors.candleUp, title: '슈퍼트렌드' },
+      0
+    );
+    const stDownSeries = chart.addSeries(
+      LineSeries,
+      { ...stLineOptions, color: colors.candleDown, title: '' },
+      0
+    );
+
     const volumeSeries = chart.addSeries(
       HistogramSeries,
       {
@@ -526,6 +551,8 @@ export function CandleChart({
     bbMiddleSeriesRef.current = bbMiddleSeries;
     bbLowerSeriesRef.current = bbLowerSeries;
     bbFillPrimitiveRef.current = bbFillPrimitive;
+    stUpSeriesRef.current = stUpSeries;
+    stDownSeriesRef.current = stDownSeries;
     volumeSeriesRef.current = volumeSeries;
 
     const saveViewportIfReady = (targetChart: IChartApi = chart) => {
@@ -678,6 +705,8 @@ export function CandleChart({
       bbMiddleSeriesRef.current = null;
       bbLowerSeriesRef.current = null;
       bbFillPrimitiveRef.current = null;
+      stUpSeriesRef.current = null;
+      stDownSeriesRef.current = null;
       volumeSeriesRef.current = null;
       avgPriceLineRef.current = null;
     };
@@ -705,6 +734,12 @@ export function CandleChart({
     bbLowerSeriesRef.current?.applyOptions({ visible: showBollinger });
     bbFillPrimitiveRef.current?.setVisible(showBollinger);
   }, [showBollinger]);
+
+  // 슈퍼트렌드 on/off — 상승/하락 라인 표시 토글(데이터는 유지).
+  useEffect(() => {
+    stUpSeriesRef.current?.applyOptions({ visible: showSupertrend });
+    stDownSeriesRef.current?.applyOptions({ visible: showSupertrend });
+  }, [showSupertrend]);
 
   useEffect(() => {
     if (!seriesRef.current) return;
@@ -820,6 +855,27 @@ export function CandleChart({
     bbMiddleSeriesRef.current?.setData(middleBandData);
     bbLowerSeriesRef.current?.setData(lowerBandData);
     bbFillPrimitiveRef.current?.setBands(bollingerBands);
+
+    // 슈퍼트렌드: 상승/하락을 두 라인으로 분리(상승=빨강, 하락=파랑). 비활성 구간은 whitespace 로
+    // 끊고, 추세 전환봉에선 이전 봉 점을 새 라인에도 넣어 색 경계가 끊기지 않게 연결한다.
+    const supertrend = calculateSupertrendSeries(sortedCandles);
+    type StDatum = { time: UTCTimestamp; value: number } | { time: UTCTimestamp };
+    const stUp: StDatum[] = supertrend.map((p) => ({ time: p.time as UTCTimestamp }));
+    const stDown: StDatum[] = supertrend.map((p) => ({ time: p.time as UTCTimestamp }));
+    for (let i = 0; i < supertrend.length; i += 1) {
+      const p = supertrend[i];
+      const point = { time: p.time as UTCTimestamp, value: p.value };
+      if (p.dir === 'up') stUp[i] = point;
+      else stDown[i] = point;
+      if (i > 0 && supertrend[i].dir !== supertrend[i - 1].dir) {
+        const prev = supertrend[i - 1];
+        const prevPoint = { time: prev.time as UTCTimestamp, value: prev.value };
+        if (p.dir === 'up') stUp[i - 1] = prevPoint;
+        else stDown[i - 1] = prevPoint;
+      }
+    }
+    stUpSeriesRef.current?.setData(stUp);
+    stDownSeriesRef.current?.setData(stDown);
 
     if (visibleRange && prependedCount > 0) {
       const from = Math.max(0, visibleRange.from + prependedCount);
