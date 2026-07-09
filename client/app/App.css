@@ -3384,10 +3384,10 @@ input[type='checkbox']:focus-visible {
     position: sticky;
     bottom: 0;
     z-index: 250;
-    /* 반투명 + 블러(프로스티드 글래스) — 뒤 차트가 비치되 텍스트 가독성은 유지. */
-    background: color-mix(in srgb, var(--bg-panel) 74%, transparent);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+    /* 반투명 + 블러(프로스티드 글래스) — 뒤 차트가 더 잘 비치게 불투명도 낮춤(가독성은 블러로 보완). */
+    background: color-mix(in srgb, var(--bg-panel) 52%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border-top: 1px solid var(--border-subtle);
     box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
     /* 핸들바 영역을 자연스럽게: 모바일에서는 상단 패딩 0 */
