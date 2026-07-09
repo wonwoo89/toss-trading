@@ -1083,43 +1083,6 @@ textarea {
   color: var(--color-down);
 }
 
-/* 주문폼 미니차트(모바일 펼침 전용 스파크라인) */
-.order-form__mini-chart {
-  margin: 0.5rem 0 0.25rem;
-}
-.mini-chart {
-  height: 64px;
-}
-.mini-chart svg {
-  display: block;
-  width: 100%;
-  height: 100%;
-}
-.mini-chart.is-up {
-  color: var(--color-up);
-}
-.mini-chart.is-down {
-  color: var(--color-down);
-}
-.mini-chart__area {
-  fill: currentColor;
-  opacity: 0.12;
-}
-.mini-chart__line {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5px;
-}
-.mini-chart__avg {
-  stroke: var(--text-secondary);
-  stroke-width: 1px;
-  opacity: 0.75;
-}
-@media (min-width: 1101px) {
-  .order-form__mini-chart {
-    display: none;
-  }
-}
 
 /* 국내주식 조회 전용 안내 (비 USD 종목에서 주문 UI 대신 노출) */
 .order-form__readonly-notice {
@@ -3417,8 +3380,8 @@ button.orderbook-price-btn:hover {
   }
 
   .candle-chart {
-    min-height: 320px;
-    flex: 1 0 auto;
+    min-height: 220px;
+    flex: 1 1 auto;
   }
 
   .trading-layout {
@@ -3437,12 +3400,26 @@ button.orderbook-price-btn:hover {
     gap: 0.75rem;
   }
 
-  /* 모바일(column)에서는 order 초기화 → DOM 순서(main → portfolio-sidebar → order-column) 유지.
-     주문폼의 자연스러운 반응형 플로팅/ sticky 를 위해 분리된 위치를 활용. */
-  .trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main,
-  .trading-layout:not(.trading-layout--portfolio-only) .order-column,
-  .trading-layout:not(.trading-layout--portfolio-only) .portfolio-sidebar {
+  /* 모바일 재구성(시트 제거): 래퍼(main·market-panel)를 display:contents 로 풀어
+     래퍼 안 요소들을 .trading-layout 의 직접 flex 자식으로 만들고, order 로
+     [칩바 → 차트(고정) → 주문폼 → 지표·호가 → 자산] 순서로 배치한다. */
+  .trading-layout:not(.trading-layout--portfolio-only) .holdings-chip-bar {
     order: 0;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .warning-box {
+    order: 1;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .chart-panel {
+    order: 2;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column {
+    order: 3;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .market-panel__below {
+    order: 4;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .portfolio-sidebar {
+    order: 5;
   }
 
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
@@ -3463,7 +3440,7 @@ button.orderbook-price-btn:hover {
     margin-bottom: 8px;
   }
 
-  .trading-layout:not(.trading-layout--portfolio-only) .order-form.is-mobile-expanded .order-insight {
+  .trading-layout:not(.trading-layout--portfolio-only) .order-form .order-insight {
     margin-top: 8px;
   }
 
@@ -3473,33 +3450,20 @@ button.orderbook-price-btn:hover {
 
   /* === 통합 모바일 규칙 (1100px 이하) === */
 
-  /* 하단 플로팅 주문폼 (추천 우선) */
+  /* 주문폼: 시트(열고닫기) 제거 — 고정 차트 바로 아래 인라인으로 항상 펼쳐 표시 */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
-    position: sticky;
-    bottom: 0;
-    z-index: 250;
-    /* 뒤 차트가 선명하게 비치도록 불투명도만 낮춤(블러 제거 — 블러는 오히려 뿌옇고 불투명하게 보임). */
-    background: color-mix(in srgb, var(--bg-panel) 40%, transparent);
-    border-top: 1px solid var(--border-subtle);
-    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35);
-    /* 핸들바 영역을 자연스럽게: 모바일에서는 상단 패딩 0 */
-    padding: 0 0.5rem calc(12px + env(safe-area-inset-bottom));
-    overflow-y: auto;
-    border-radius: 18px 18px 0 0;
-
-    /* 모바일에서 전체 폭 bleed (부모의 16px padding 무시) */
-    margin: 0 -1rem;
-    width: calc(100% + 2rem);
-
-    /* 모바일에서 sticky bottom 바 (자연스러운 플로팅/스크롤 동작) */
-    /* 데스크톱에서 오버라이드된 width/max-width 등 리셋 */
+    position: static;
+    z-index: auto;
+    background: transparent;
+    border-top: none;
+    box-shadow: none;
+    padding: 0.25rem 0 calc(12px + env(safe-area-inset-bottom));
+    overflow: visible;
+    border-radius: 0;
+    margin: 0;
+    width: auto;
     flex: none;
     max-width: none;
-  }
-
-  /* 모바일에서 주문폼 오픈 시 상단 라운드 (높이는 내용에 맞춰 자동) */
-  .trading-layout:not(.trading-layout--portfolio-only) .order-column.order-column--mobile-expanded {
-    border-radius: 18px 18px 0 0;
   }
 
   /* 모바일 expanded 시 차트 시그널과 마켓 지표 사이 구분선 표시 */
@@ -3517,26 +3481,26 @@ button.orderbook-price-btn:hover {
     border-radius: 4px;
   }
 
+  /* 래퍼 해체: main·market-panel 은 레이아웃 상자에서 제외(자식들이 trading-layout 에 직접 배치) */
   .trading-layout__main {
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
+    display: contents;
   }
 
   .trading-layout:not(.trading-layout--portfolio-only) .market-panel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
+    display: contents;
   }
 
+  /* 컴팩트 차트를 상단에 고정(sticky) — 주문폼·지표를 스크롤해도 차트는 항상 보인다 */
   .trading-layout:not(.trading-layout--portfolio-only) .chart-panel {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    background: var(--bg-base) !important;
+    border-bottom: 1px solid var(--border-subtle) !important;
     flex: 0 0 auto;
-    height: 380px;
-    min-height: 300px;
-    max-height: 48vh;
+    height: 340px;
+    min-height: 260px;
+    max-height: 42vh;
     display: flex;
     flex-direction: column;
   }
@@ -3555,42 +3519,19 @@ button.orderbook-price-btn:hover {
     transform: translateX(-50%);
   }
 
-  /* 모바일 접힘 상태: order-form__body 전체를 숨겨서 추천 rec grid만 보이게 함 */
-  .order-form:not(.is-mobile-expanded) .order-form__body {
-    display: none;
-  }
-
-  /* 모바일 접힘 상태: 보유 요약(수량/평단/총가치)은 항상 노출 (추천 버튼과 함께).
-     펼침 상태에서는 body 의 요약이 보이므로 여기선 숨겨 중복 방지. */
-  .order-form:not(.is-mobile-expanded) .order-form__sticky-holding {
-    display: block;
-  }
-
-  /* 모바일 접힘 상태: 힌트(매수가능·손익분기·예상 금액)는 숨김.
-     직접 매수/매도 버튼은 접힘 상태에서도 노출 — 기억된 수량 비율(%)로 원탭 주문. */
-  .order-form:not(.is-mobile-expanded) .order-form__hints {
-    display: none;
-  }
-
-  /* 모바일 접힘 상태: 자동매매 패널은 OFF 일 때만 숨겨 바를 간결하게 유지.
-     켜져 있으면(드라이런/세미/오토) 접힘 상태에서도 노출해 "동작 중" 표시·로그를 유지한다.
-     (숨겨도 컴포넌트는 마운트돼 트리거 로직은 계속 돈다 — 표시만 제어) */
-  .order-form:not(.is-mobile-expanded) .auto-trade:not(.is-active) {
-    display: none;
-  }
-
-  /* 모바일에서 .order-form 이 펼쳐졌을 때 (.is-mobile-expanded) gap: 1rem 적용 */
-  .trading-layout:not(.trading-layout--portfolio-only) .order-form.is-mobile-expanded {
+  /* 인라인 폼 (항상 펼침): 접힘/펼침 상태 규칙 제거됨. 폼 요소 간 간격만 지정. */
+  .trading-layout:not(.trading-layout--portfolio-only) .order-form {
     gap: 1rem;
   }
 
-  /* 오픈된 상태에서 submit-block (추천 rec + 실행 영역)을 하단에 sticky 로 고정 */
-  .trading-layout:not(.trading-layout--portfolio-only) .order-form.is-mobile-expanded .order-form__submit-block {
+  /* 매수/매도 실행 영역은 폼이 화면에 있는 동안 하단에 sticky — 스크롤 중에도 즉시 주문 가능 */
+  .trading-layout:not(.trading-layout--portfolio-only) .order-form .order-form__submit-block {
     position: sticky;
     bottom: 0;
     margin-bottom: 0;
-    /* 배경은 base 스타일에서 var(--bg-panel) 로 이미 설정되어 있음 */
     z-index: 1;
+    background: var(--bg-base);
+    padding-top: 0.5rem;
   }
 
   .order-form .order-rec-grid {
@@ -3605,37 +3546,6 @@ button.orderbook-price-btn:hover {
     margin: 0;
     padding: 0;
     gap: 0.5rem;
-  }
-
-  /* 모바일에서 커스텀(직접) 주문 폼을 펼치면 추천 매수/매도 카드는 숨겨 직접 주문에 집중.
-     접힘 상태에서는 추천 버튼이 유일한 실행 버튼이므로 그대로 노출한다.
-     하단 안전영역(홈 인디케이터)은 .order-column 의 padding-bottom
-     (calc(12px + env(safe-area-inset-bottom)))이 sticky submit-block 아래로 이미 확보하므로,
-     직접 매수/매도 버튼이 맨 아래가 돼도 가려지지 않는다(추가 패딩 불필요). */
-  .order-form.is-mobile-expanded .order-rec-grid {
-    display: none;
-  }
-
-
-
-  .order-form__mobile-handlebar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 10px 0 10px; /* 터치 영역 확대 (하단 체크박스와 간섭 방지) */
-    cursor: pointer;
-    user-select: none;
-  }
-
-  .order-form__mobile-handlebar-grip {
-    width: 36px;
-    height: 4px;
-    background: var(--border-subtle);
-    border-radius: 2px;
-  }
-
-  .order-form__mobile-handlebar:active {
-    opacity: 0.6;
   }
 
   /* 모바일에서도 .order-rec-row (추천 매수/매도 실행 버튼)은 데스크톱 스타일 그대로 적용
@@ -3743,25 +3653,6 @@ button.orderbook-price-btn:hover {
   }
 
 
-
-  /* 플로팅 주문폼 바 스타일 유지 */
-  .trading-layout:not(.trading-layout--portfolio-only) .order-column {
-    background: var(--bg-panel);
-    border-top: 1px solid var(--border-subtle);
-    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35);
-    padding-left: 16px;
-    padding-right: 16px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
-    border-radius: 18px 18px 0 0;
-
-    /* 전체 폭 bleed (부모의 16px padding 무시) */
-    margin: 0 -1rem;
-    width: calc(100% + 2rem);
-
-    /* 데스크톱에서 오버라이드된 width/max-width 등 리셋 */
-    flex: none;
-    max-width: none;
-  }
 
   /* 헤더 모바일: 브랜드 그룹(좌측)에서 앱이름 좌 / 검색+테마 우 */
   .header {

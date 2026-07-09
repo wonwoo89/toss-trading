@@ -18,7 +18,6 @@ import {
   getStoredQuantityPercent,
   setStoredQuantityPercent,
 } from '../shared/lib/quantityPercentPreference';
-import { MiniChart } from './MiniChart';
 import { useOrderRecommendations } from '../shared/hooks/useRecommendations';
 import type { CandleInterval, ChartCandle, HoldingItem, Order } from '../shared/types';
 import { formatOrderSuccessMessage } from '../shared/lib/formatOrderToast';
@@ -210,7 +209,6 @@ export function OrderForm({
   const [useAmountOrder, setUseAmountOrder] = useState(false);
   const [useTakeProfitSell, setUseTakeProfitSell] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [isMobileExpanded, setIsMobileExpanded] = useState(false);
   // 세미오토/오토 실행 중에는 주문 입력 영역을 숨기고 자동 실행 내용만 노출(AutoTradePanel 이 알림).
   const [autoExecActive, setAutoExecActive] = useState(false);
 
@@ -776,48 +774,6 @@ export function OrderForm({
     }
   };
 
-  // Mobile: 핸들바로 주문폼 전체 펼치기/접기
-  const toggleMobileExpanded = () => setIsMobileExpanded((v) => !v);
-
-  // 핸들바 드래그(스와이프)로 열고 닫기. 위로 끌면 펼치고, 아래로 끌면 접는다.
-  // 이동량이 작으면 탭으로 간주해 토글. 포인터 이벤트로 터치·마우스 모두 지원.
-  const handlebarDragRef = useRef<{ startY: number; moved: boolean } | null>(null);
-  const DRAG_THRESHOLD = 24; // px — 이 이상 끌면 방향대로 펼침/접힘
-  const TAP_THRESHOLD = 8; // px — 이 미만이면 탭(토글)
-
-  const onHandlebarPointerDown = (e: React.PointerEvent) => {
-    handlebarDragRef.current = { startY: e.clientY, moved: false };
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-  };
-
-  const onHandlebarPointerMove = (e: React.PointerEvent) => {
-    const drag = handlebarDragRef.current;
-    if (!drag) return;
-    if (Math.abs(e.clientY - drag.startY) > TAP_THRESHOLD) drag.moved = true;
-  };
-
-  const onHandlebarPointerUp = (e: React.PointerEvent) => {
-    const drag = handlebarDragRef.current;
-    handlebarDragRef.current = null;
-    if (!drag) return;
-    e.currentTarget.releasePointerCapture?.(e.pointerId);
-
-    const delta = e.clientY - drag.startY; // 음수=위로(펼침), 양수=아래로(접힘)
-    if (Math.abs(delta) < TAP_THRESHOLD) {
-      toggleMobileExpanded(); // 탭
-      return;
-    }
-    if (delta <= -DRAG_THRESHOLD) setIsMobileExpanded(true); // 위로 끌기 → 펼침
-    else if (delta >= DRAG_THRESHOLD) setIsMobileExpanded(false); // 아래로 끌기 → 접힘
-    // 임계 미만의 작은 이동은 상태 유지(우발적 드래그 무시)
-  };
-
-  useEffect(() => {
-    const column = document.querySelector('.order-column') as HTMLElement | null;
-    if (!column) return;
-    column.classList.toggle('order-column--mobile-expanded', isMobileExpanded);
-  }, [isMobileExpanded]);
-
   // 가격/주문금액 라벨과 같은 줄(우측)에 두는 금액 주문 토글 (두 모드 공통)
   const amountOrderToggle = (
     <label className="checkbox order-form__amount-toggle">
@@ -833,7 +789,7 @@ export function OrderForm({
   return (
     <form
       ref={formRef}
-      className={`panel order-form ${isMobileExpanded ? 'is-mobile-expanded' : ''}`}
+      className="panel order-form"
       onSubmit={handleSubmit}
       onKeyDown={(event) => {
         // Enter 로는 주문을 실행하지 않는다(버튼 또는 A/S 단축키로만).
@@ -843,29 +799,6 @@ export function OrderForm({
         }
       }}
     >
-      {/* 모바일 플로팅 주문폼용 핸들바: 위/아래로 드래그(스와이프)하거나 탭하면 펼침/접힘 */}
-      <div
-        className="order-form__mobile-handlebar"
-        onPointerDown={onHandlebarPointerDown}
-        onPointerMove={onHandlebarPointerMove}
-        onPointerUp={onHandlebarPointerUp}
-        onPointerCancel={() => {
-          handlebarDragRef.current = null;
-        }}
-        role="button"
-        tabIndex={0}
-        aria-label={isMobileExpanded ? '주문폼 접기' : '주문폼 펼치기'}
-        style={{ touchAction: 'none' }}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            toggleMobileExpanded();
-          }
-        }}
-      >
-        <div className="order-form__mobile-handlebar-grip" />
-      </div>
-
       <div className="order-form__body">
         <div className="order-form__quote">
           <strong className="order-form__quote-price">
@@ -879,19 +812,6 @@ export function OrderForm({
             {dayChange.value}
           </span>
         </div>
-
-        {/* 모바일 펼침 시 주문 시트가 본 차트를 가리므로, 폼 안에 초경량 미니차트를 상시 표시.
-            (데스크톱은 본 차트가 항상 보이므로 CSS 로 숨김) */}
-        {isMobileExpanded && candles.length > 1 && (
-          <div className="order-form__mini-chart">
-            <MiniChart
-              candles={candles}
-              averagePrice={holdingAveragePrice}
-              previousClose={previousClose}
-              currentPrice={currentPrice}
-            />
-          </div>
-        )}
 
         <StockHoldingSummary
           variant="order"
