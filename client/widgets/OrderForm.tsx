@@ -13,6 +13,11 @@ import {
 import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
+import {
+  getStoredQuantityPercent,
+  setStoredQuantityPercent,
+} from '../shared/lib/quantityPercentPreference';
+import { MiniChart } from './MiniChart';
 import { useOrderRecommendations } from '../shared/hooks/useRecommendations';
 import type { CandleInterval, ChartCandle, HoldingItem, Order } from '../shared/types';
 import { formatOrderSuccessMessage } from '../shared/lib/formatOrderToast';
@@ -195,7 +200,10 @@ export function OrderForm({
   const pendingLimitPriceRef = useRef<number | null>(null);
   const [priceMode, setPriceMode] = useState<PriceMode>(getStoredPriceMode);
   const [quantity, setQuantity] = useState('');
-  const [selectedQuantityPercent, setSelectedQuantityPercent] = useState<number>();
+  // 마지막 선택한 수량 비율을 기억(영속) → 종목 전환·재접속 후에도 미리 선택돼 1탭 주문 가능.
+  const [selectedQuantityPercent, setSelectedQuantityPercent] = useState<number | undefined>(
+    getStoredQuantityPercent
+  );
   const [price, setPrice] = useState('');
   const [orderAmount, setOrderAmount] = useState('');
   const [useAmountOrder, setUseAmountOrder] = useState(false);
@@ -228,7 +236,8 @@ export function OrderForm({
   useEffect(() => {
     if (symbol) {
       setQuantity('');
-      setSelectedQuantityPercent(undefined);
+      // 수량 비율은 리셋하지 않고 저장된 선택을 유지(빠른 주문). 직접 입력 수량만 비운다.
+      setSelectedQuantityPercent(getStoredQuantityPercent());
       setPrice('');
       setOrderAmount('');
       limitPriceManualRef.current = false;
@@ -567,7 +576,9 @@ export function OrderForm({
 
   // 수량 인풋 제거: %만 선택한다. 실제 주문 수량은 실행(직접 매수/매도) 시 사이드별로 환산.
   const applyQuantityPercent = (percent: number) => {
-    setSelectedQuantityPercent((prev) => (prev === percent ? undefined : percent));
+    const next = selectedQuantityPercent === percent ? undefined : percent;
+    setStoredQuantityPercent(next);
+    setSelectedQuantityPercent(next);
   };
 
   const clearSelectedQuantityPercent = () => {
@@ -843,6 +854,19 @@ export function OrderForm({
             {dayChange.value}
           </span>
         </div>
+
+        {/* 모바일 펼침 시 주문 시트가 본 차트를 가리므로, 폼 안에 초경량 미니차트를 상시 표시.
+            (데스크톱은 본 차트가 항상 보이므로 CSS 로 숨김) */}
+        {isMobileExpanded && candles.length > 1 && (
+          <div className="order-form__mini-chart">
+            <MiniChart
+              candles={candles}
+              averagePrice={holdingAveragePrice}
+              previousClose={previousClose}
+              currentPrice={currentPrice}
+            />
+          </div>
+        )}
 
         <StockHoldingSummary
           variant="order"

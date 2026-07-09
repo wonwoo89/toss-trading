@@ -1083,6 +1083,44 @@ textarea {
   color: var(--color-down);
 }
 
+/* 주문폼 미니차트(모바일 펼침 전용 스파크라인) */
+.order-form__mini-chart {
+  margin: 0.5rem 0 0.25rem;
+}
+.mini-chart {
+  height: 64px;
+}
+.mini-chart svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.mini-chart.is-up {
+  color: var(--color-up);
+}
+.mini-chart.is-down {
+  color: var(--color-down);
+}
+.mini-chart__area {
+  fill: currentColor;
+  opacity: 0.12;
+}
+.mini-chart__line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5px;
+}
+.mini-chart__avg {
+  stroke: var(--text-secondary);
+  stroke-width: 1px;
+  opacity: 0.75;
+}
+@media (min-width: 1101px) {
+  .order-form__mini-chart {
+    display: none;
+  }
+}
+
 /* 국내주식 조회 전용 안내 (비 USD 종목에서 주문 UI 대신 노출) */
 .order-form__readonly-notice {
   margin: 0.75rem 0 0;
