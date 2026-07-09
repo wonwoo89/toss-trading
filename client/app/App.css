@@ -2697,6 +2697,62 @@ input[type='checkbox']:focus-visible {
   filter: brightness(0.94);
 }
 
+/* 직접 매수/매도 버튼의 수량 비율 배지 — 원탭 시 몇 %가 나갈지 표시 */
+.order-manual-btn__pct {
+  margin-left: 0.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: rgba(255, 255, 255, 0.22);
+}
+
+/* 가격 입력 ± 틱 스테퍼 */
+.order-price-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.4rem;
+}
+.order-price-row input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.order-price-step {
+  flex: 0 0 auto;
+  width: 2.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
+  cursor: pointer;
+}
+.order-price-step:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-subtle));
+}
+.order-price-step:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 호가 가격 버튼(탭 → 지정가 입력) — 기존 텍스트 스타일 유지한 무장식 버튼 */
+button.orderbook-price-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  text-align: right;
+  cursor: pointer;
+}
+button.orderbook-price-btn:hover {
+  text-decoration: underline;
+}
+
 .order-manual-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -3510,10 +3566,9 @@ input[type='checkbox']:focus-visible {
     display: block;
   }
 
-  /* 모바일 접힘 상태: 힌트(매수가능·손익분기·예상 금액)와 직접 매수/매도 버튼도 숨김.
-     → 접힘 시엔 추천 실행 버튼만, 펼쳤을 때만 직접 버튼/힌트 노출. */
-  .order-form:not(.is-mobile-expanded) .order-form__hints,
-  .order-form:not(.is-mobile-expanded) .order-manual-actions {
+  /* 모바일 접힘 상태: 힌트(매수가능·손익분기·예상 금액)는 숨김.
+     직접 매수/매도 버튼은 접힘 상태에서도 노출 — 기억된 수량 비율(%)로 원탭 주문. */
+  .order-form:not(.is-mobile-expanded) .order-form__hints {
     display: none;
   }
 

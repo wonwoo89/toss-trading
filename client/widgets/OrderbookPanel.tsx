@@ -5,6 +5,7 @@ import {
   type MicrostructureBias,
 } from '../shared/lib/marketMicrostructure';
 import { formatMoney, formatQuantity } from '../shared/lib/formatHoldings';
+import { emitLimitPriceSelect } from '../shared/lib/limitPriceBus';
 
 interface OrderbookEntry {
   price: number;
@@ -130,15 +131,25 @@ export function OrderbookPanel({
         <div className="orderbook-summary__metrics" aria-live="polite">
           <span className="orderbook-summary__metric orderbook-summary__metric--bearish">
             <span className="orderbook-summary__metric-label">매도 1호가</span>
-            <span className={`orderbook-summary__metric-value ${askFlash ? `price-flash-${askFlash}` : ''}`}>
+            <button
+              type="button"
+              className={`orderbook-summary__metric-value orderbook-price-btn ${askFlash ? `price-flash-${askFlash}` : ''}`}
+              title="탭하면 지정가로 입력"
+              onClick={() => spread.bestAsk !== undefined && emitLimitPriceSelect(spread.bestAsk)}
+            >
               {formatMoney(spread.bestAsk, currency)}
-            </span>
+            </button>
           </span>
           <span className="orderbook-summary__metric orderbook-summary__metric--bullish">
             <span className="orderbook-summary__metric-label">매수 1호가</span>
-            <span className={`orderbook-summary__metric-value ${bidFlash ? `price-flash-${bidFlash}` : ''}`}>
+            <button
+              type="button"
+              className={`orderbook-summary__metric-value orderbook-price-btn ${bidFlash ? `price-flash-${bidFlash}` : ''}`}
+              title="탭하면 지정가로 입력"
+              onClick={() => spread.bestBid !== undefined && emitLimitPriceSelect(spread.bestBid)}
+            >
               {formatMoney(spread.bestBid, currency)}
-            </span>
+            </button>
           </span>
           <span className={`orderbook-summary__metric ${getMetricBiasClass(spread.bias)}`}>
             <span className="orderbook-summary__metric-label">{spread.label}</span>
@@ -212,7 +223,14 @@ export function OrderbookPanel({
                   />
                   <span className="orderbook-row__cum">{formatQuantity(r.cumulative)}</span>
                   <span className="orderbook-row__qty">{formatQuantity(r.quantity)}</span>
-                  <span className="orderbook-row__price down">{formatMoney(r.price, currency)}</span>
+                  <button
+                    type="button"
+                    className="orderbook-row__price orderbook-price-btn down"
+                    title="탭하면 지정가로 입력"
+                    onClick={() => emitLimitPriceSelect(r.price)}
+                  >
+                    {formatMoney(r.price, currency)}
+                  </button>
                 </div>
               ))
             )}
@@ -233,7 +251,14 @@ export function OrderbookPanel({
                   />
                   <span className="orderbook-row__cum">{formatQuantity(r.cumulative)}</span>
                   <span className="orderbook-row__qty">{formatQuantity(r.quantity)}</span>
-                  <span className="orderbook-row__price up">{formatMoney(r.price, currency)}</span>
+                  <button
+                    type="button"
+                    className="orderbook-row__price orderbook-price-btn up"
+                    title="탭하면 지정가로 입력"
+                    onClick={() => emitLimitPriceSelect(r.price)}
+                  >
+                    {formatMoney(r.price, currency)}
+                  </button>
                 </div>
               ))
             )}
