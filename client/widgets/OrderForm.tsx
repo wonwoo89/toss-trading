@@ -13,6 +13,7 @@ import {
 import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
+import { subscribeLimitPriceSelect } from '../shared/lib/limitPriceBus';
 import {
   getStoredQuantityPercent,
   setStoredQuantityPercent,
@@ -571,6 +572,30 @@ export function OrderForm({
     }
   };
 
+  // 가격 ± 틱 스테퍼: 현재 입력값(없으면 현재가) 기준 한 틱씩 조정. 지정가 모드로 전환.
+  const stepPrice = (dir: 1 | -1) => {
+    const base = Number(price) || currentPrice;
+    if (base === undefined || !Number.isFinite(base) || base <= 0) return;
+    const next = base + dir * tickSizeFor(base);
+    if (next <= 0) return;
+    if (priceMode !== 'limit') {
+      setPriceMode('limit');
+      setStoredPriceMode('limit');
+    }
+    limitPriceManualRef.current = true;
+    setPrice(priceInputValue(next));
+  };
+
+  // 호가 패널의 가격 탭 → 지정가 모드로 전환 + 해당 가격 입력(빠른 지정가 주문).
+  useEffect(() => {
+    return subscribeLimitPriceSelect((p) => {
+      setPriceMode('limit');
+      setStoredPriceMode('limit');
+      limitPriceManualRef.current = true;
+      setPrice(priceInputValue(p));
+    });
+  }, []);
+
   const handlePriceModeChangeRef = useRef(handlePriceModeChange);
   handlePriceModeChangeRef.current = handlePriceModeChange;
 
@@ -912,7 +937,16 @@ export function OrderForm({
                 <span className="order-form__field-label">가격</span>
                 {amountOrderToggle}
               </div>
-              <label>
+              <div className="order-price-row">
+                <button
+                  type="button"
+                  className="order-price-step"
+                  aria-label="한 틱 내리기"
+                  onClick={() => stepPrice(-1)}
+                  disabled={priceMode === 'market'}
+                >
+                  −
+                </button>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -927,7 +961,16 @@ export function OrderForm({
                   disabled={isPriceInputDisabled}
                   required={priceMode === 'limit'}
                 />
-              </label>
+                <button
+                  type="button"
+                  className="order-price-step"
+                  aria-label="한 틱 올리기"
+                  onClick={() => stepPrice(1)}
+                  disabled={priceMode === 'market'}
+                >
+                  ＋
+                </button>
+              </div>
 
               <div className="order-quick-actions order-price-modes">
                 <button
@@ -1082,6 +1125,9 @@ export function OrderForm({
             disabled={submitting}
           >
             직접 매수
+            {!quantity && selectedQuantityPercent !== undefined && (
+              <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
+            )}
           </button>
           <button
             type="button"
@@ -1090,6 +1136,9 @@ export function OrderForm({
             disabled={submitting}
           >
             직접 매도
+            {!quantity && selectedQuantityPercent !== undefined && (
+              <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
+            )}
           </button>
         </div>
 
