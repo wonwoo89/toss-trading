@@ -3,6 +3,7 @@ import {
   CandlestickSeries,
   ColorType,
   createChart,
+  createSeriesMarkers,
   HistogramSeries,
   LineSeries,
   LineStyle,
@@ -10,7 +11,9 @@ import {
   type IChartApi,
   type IPriceLine,
   type ISeriesApi,
+  type ISeriesMarkersPluginApi,
   type LogicalRange,
+  type SeriesMarker,
   type Time,
   type UTCTimestamp,
 } from 'lightweight-charts';
@@ -211,6 +214,109 @@ function isNearRealtimeViewport(viewport: ChartViewport, chart: IChartApi, barSp
   return rightOffset <= marginBars * 1.5;
 }
 
+// 최고/최저 마커 라벨용 시각 표기 — KST 'MM.DD HH:mm'
+const KST_MARKER_TIME = new Intl.DateTimeFormat('ko-KR', {
+  timeZone: CHART_TZ,
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
+function formatMarkerTime(timeSec: number) {
+  const parts = KST_MARKER_TIME.formatToParts(new Date(timeSec * 1000));
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
+  return `${get('month')}.${get('day')} ${get('hour')}:${get('minute')}`;
+}
+
+function formatMarkerPrice(value: number) {
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: usdMaxFractionDigits(value),
+  });
+}
+
+/**
+ * 보이는 범위 내 최고가/최저가 캔들에 마커(가격 · 현재가 대비 % · 시각)를 만든다.
+ * 토스 스타일: 최고=위 화살표(상승색), 최저=아래 화살표(하락색).
+ */
+function buildHighLowMarkers(
+  candles: ChartCandle[],
+  range: LogicalRange | null,
+  colors: ReturnType<typeof getChartThemeColors>
+): SeriesMarker<Time>[] {
+  if (candles.length === 0 || !range) return [];
+
+  const from = Math.max(0, Math.ceil(range.from));
+  const to = Math.min(candles.length - 1, Math.floor(range.to));
+  if (from > to || to - from < 1) return [];
+
+  let hiIdx = from;
+  let loIdx = from;
+  for (let i = from; i <= to; i += 1) {
+    if (candles[i].high > candles[hiIdx].high) hiIdx = i;
+    if (candles[i].low < candles[loIdx].low) loIdx = i;
+  }
+
+  const current = candles[candles.length - 1]?.close;
+  const pctFrom = (extreme: number) => {
+    if (!current || current <= 0 || extreme <= 0) return '';
+    const pct = ((current - extreme) / extreme) * 100;
+    return `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%, `;
+  };
+
+  const hi = candles[hiIdx];
+  const lo = candles[loIdx];
+  return [
+    {
+      time: hi.time as UTCTimestamp,
+      position: 'aboveBar',
+      shape: 'arrowDown',
+      color: colors.candleUp,
+      size: 1,
+      text: `${formatMarkerPrice(hi.high)} (${pctFrom(hi.high)}${formatMarkerTime(hi.time)})`,
+    },
+    {
+      time: lo.time as UTCTimestamp,
+      position: 'belowBar',
+      shape: 'arrowUp',
+      color: colors.candleDown,
+      size: 1,
+      text: `${formatMarkerPrice(lo.low)} (${pctFrom(lo.low)}${formatMarkerTime(lo.time)})`,
+    },
+  ];
+}
+
+/**
+ * 저장/복원해도 안전한 뷰포트인지 검증. 폭 0(숨김) 상태에서 캡처됐거나 스케일이 붕괴된
+ * 스냅샷(데이터 대비 과대한 논리 범위, 비정상 barSpacing/rightOffset)을 걸러낸다 —
+ * 이런 값이 저장·복원되면 캔들이 한 줄로 뭉개진 상태가 재현된다.
+ */
+function isUsableViewport(viewport: ChartViewport, lastBarIndex: number) {
+  const span = viewport.logicalTo - viewport.logicalFrom;
+  if (!Number.isFinite(span) || span < 2) return false;
+
+  const bars = Math.max(1, lastBarIndex + 1);
+  if (span > bars * 4 + 240) return false; // 데이터 대비 과대 축소(스케일 붕괴) 스냅샷
+
+  if (
+    viewport.barSpacing !== undefined &&
+    (!Number.isFinite(viewport.barSpacing) || viewport.barSpacing <= 0 || viewport.barSpacing > 100)
+  ) {
+    return false;
+  }
+  if (
+    viewport.rightOffset !== undefined &&
+    (!Number.isFinite(viewport.rightOffset) ||
+      viewport.rightOffset < -bars ||
+      viewport.rightOffset > span * 2)
+  ) {
+    return false;
+  }
+  return true;
+}
+
 function captureChartViewport(chart: IChartApi, lastBarIndex: number): ChartViewport | null {
   const timeRange = chart.timeScale().getVisibleRange();
   const logicalRange = chart.timeScale().getVisibleLogicalRange();
@@ -406,6 +512,10 @@ export function CandleChart({
   const needsInitOnVisibleRef = useRef(false);
   const lastBarIndexRef = useRef(0);
   const chartWidthRef = useRef(0);
+  // 보이는 범위 내 최고/최저 마커 — 팬/줌 시 rAF 로 스로틀해 갱신.
+  const markersApiRef = useRef<ISeriesMarkersPluginApi<Time> | null>(null);
+  const sortedCandlesRef = useRef<ChartCandle[]>([]);
+  const markersUpdateScheduledRef = useRef(false);
   const [hoveredCandle, setHoveredCandle] = useState<HoveredCandleOhlc | null>(null);
 
   onLoadOlderRef.current = onLoadOlder;
@@ -423,20 +533,39 @@ export function CandleChart({
   // 초기 뷰포트 설정(저장된 뷰포트 복원 or 전체 fit). 반드시 차트 폭 > 0 일 때 호출한다.
   const initializeViewportNow = (chart: IChartApi, lastBarIndex: number) => {
     const pending = pendingRestoreRef.current;
-    if (pending) {
+    pendingRestoreRef.current = null;
+    viewportInitializedRef.current = true;
+    // 저장된 뷰포트가 스케일 붕괴 스냅샷(과거 버그로 저장된 오염 데이터 포함)이면 버리고
+    // 전체 fit 으로 자가 치유한다.
+    if (pending && isUsableViewport(pending, lastBarIndex)) {
       applyViewportSpacing(chart, pending);
-      pendingRestoreRef.current = null;
-      viewportInitializedRef.current = true;
       requestAnimationFrame(() => {
         enforceRealtimeRightMargin(chart, lastBarIndex);
       });
       return;
     }
     applyInitialViewport(chart, lastBarIndex);
-    viewportInitializedRef.current = true;
   };
   const initializeViewportNowRef = useRef(initializeViewportNow);
   initializeViewportNowRef.current = initializeViewportNow;
+
+  // 보이는 범위의 최고/최저 캔들 마커 갱신 (rAF 스로틀 — 팬/줌 중 과도한 재계산 방지).
+  const scheduleHighLowMarkersUpdate = () => {
+    if (markersUpdateScheduledRef.current) return;
+    markersUpdateScheduledRef.current = true;
+    requestAnimationFrame(() => {
+      markersUpdateScheduledRef.current = false;
+      const chart = chartRef.current;
+      const markersApi = markersApiRef.current;
+      if (!chart || !markersApi) return;
+      const range = chart.timeScale().getVisibleLogicalRange();
+      markersApi.setMarkers(
+        buildHighLowMarkers(sortedCandlesRef.current, range, getChartThemeColors())
+      );
+    });
+  };
+  const scheduleHighLowMarkersUpdateRef = useRef(scheduleHighLowMarkersUpdate);
+  scheduleHighLowMarkersUpdateRef.current = scheduleHighLowMarkersUpdate;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -556,6 +685,8 @@ export function CandleChart({
       borderColor: colors.border,
     });
 
+    markersApiRef.current = createSeriesMarkers(series, []);
+
     chartRef.current = chart;
     seriesRef.current = series;
     bbUpperSeriesRef.current = bbUpperSeries;
@@ -572,8 +703,11 @@ export function CandleChart({
       const currentFitKey = fitKeyRef.current;
       if (!currentFitKey) return;
 
+      // 숨김(폭 0) 상태나 스케일이 붕괴된 스냅샷은 저장하지 않는다 —
+      // 오염된 뷰포트가 저장되면 다음 방문 때 깨진 배율이 그대로 복원된다.
+      if (getTimeScaleWidth(targetChart) <= 0) return;
       const viewport = captureChartViewport(targetChart, lastBarIndexRef.current);
-      if (viewport) {
+      if (viewport && isUsableViewport(viewport, lastBarIndexRef.current)) {
         setStoredChartViewport(currentFitKey, viewport);
       }
     };
@@ -605,6 +739,9 @@ export function CandleChart({
           return;
         }
       }
+
+      // 보이는 범위가 바뀔 때마다 범위 내 최고/최저 마커 갱신
+      scheduleHighLowMarkersUpdateRef.current();
 
       if (loadingOlderRef.current || !hasMoreHistoryRef.current) return;
       if (range.from < HISTORY_LOAD_THRESHOLD) {
@@ -671,8 +808,14 @@ export function CandleChart({
     const resizeObserver = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry || !chartRef.current) return;
-      chartWidthRef.current = entry.contentRect.width;
       const newWidth = entry.contentRect.width;
+      // 숨김(display:none, 폭 0) — 0으로 리사이즈하거나 스케일 연산을 하지 않는다.
+      // 내부 시간축 상태를 보존해 다시 보일 때 기존 배율 그대로 복귀하게 한다.
+      if (newWidth <= 0) {
+        chartWidthRef.current = 0;
+        return;
+      }
+      chartWidthRef.current = newWidth;
       const newHeight = Math.max(entry.contentRect.height, CHART_MIN_HEIGHT);
 
       // resize()를 사용해 크기를 즉시 반영 (applyOptions와 동일하지만 명확)
@@ -722,6 +865,7 @@ export function CandleChart({
       setHoveredCandle(null);
       chart.remove();
       chartRef.current = null;
+      markersApiRef.current = null;
       seriesRef.current = null;
       bbUpperSeriesRef.current = null;
       bbMiddleSeriesRef.current = null;
@@ -747,6 +891,7 @@ export function CandleChart({
       },
       getChartThemeColors()
     );
+    scheduleHighLowMarkersUpdateRef.current(); // 테마 색 반영
   }, [theme]);
 
   // 볼린저밴드 on/off — 라인 3종 + 채움 primitive 의 표시 여부만 토글(데이터는 유지).
@@ -954,6 +1099,10 @@ export function CandleChart({
 
     prevFirstTimeRef.current = newFirstTime;
     prevDataLengthRef.current = data.length;
+
+    // 데이터 갱신 후 보이는 범위 기준 최고/최저 마커 갱신 (뷰포트 적용이 settle 된 뒤 rAF 로)
+    sortedCandlesRef.current = sortedCandles;
+    scheduleHighLowMarkersUpdateRef.current();
   }, [candles, fitKey]);
 
   const chartStatus = loading
