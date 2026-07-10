@@ -5,7 +5,6 @@ const CandleChart = lazy(() =>
 );
 import { ChartMarketContextPanel } from './ChartMarketContextPanel';
 import { ChartOptionsMenu } from './ChartOptionsMenu';
-import { ChartSignalPanel } from './ChartSignalPanel';
 import { OrderbookPanel } from './OrderbookPanel';
 import { StockLabel } from './StockLabel';
 import { BacktestModal } from './BacktestModal';
@@ -220,18 +219,17 @@ export function MarketPanel({
         <div className="market-panel__below-info">
       {/* Indicators below the chart */}
       <div className="market-indicators">
-        <ChartSignalPanel
-          candles={candles}
-          bids={bids}
-          asks={asks}
-          warnings={warnings}
-          loading={candlesLoading}
-          showMetrics={detailsExpanded}
-          detailsExpanded={detailsExpanded}
-          onToggleDetails={toggleDetails}
-        />
-
-        <div className={`market-divider chart-signal-divider ${detailsExpanded ? 'is-visible' : ''}`} />
+        {/* 모바일은 상세 지표(시장 정보)를 접을 수 있다. 데스크톱은 항상 펼침이라 토글 불필요. */}
+        {!isDesktop && (
+          <button
+            type="button"
+            className="details-toggle"
+            onClick={toggleDetails}
+            aria-expanded={detailsExpanded}
+          >
+            {detailsExpanded ? '상세 접기 ▲' : '상세 지표 ▼'}
+          </button>
+        )}
 
         <div className={`market-details-content ${detailsExpanded ? 'is-expanded' : ''}`}>
           <ChartMarketContextPanel

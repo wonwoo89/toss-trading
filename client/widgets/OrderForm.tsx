@@ -3,7 +3,6 @@ import { StockHoldingSummary } from './StockHoldingSummary';
 import { AutoTradePanel } from './AutoTradePanel';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
-import { calculateTakeProfitSellPrice } from '../shared/lib/takeProfitSell';
 import {
   formatPrice,
   formatUsd,
@@ -18,10 +17,8 @@ import {
   getStoredQuantityPercent,
   setStoredQuantityPercent,
 } from '../shared/lib/quantityPercentPreference';
-import { useOrderRecommendations } from '../shared/hooks/useRecommendations';
-import type { CandleInterval, ChartCandle, HoldingItem, Order } from '../shared/types';
+import type { CandleInterval, ChartCandle, HoldingItem } from '../shared/types';
 import { formatOrderSuccessMessage } from '../shared/lib/formatOrderToast';
-import type { LimitPriceRecommendation } from '../shared/lib/limitPriceRecommendation';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../shared/types';
 
 type PriceMode = 'limit' | 'current' | 'market';
@@ -49,9 +46,7 @@ interface OrderFormProps {
   candleInterval?: CandleInterval;
   bids?: { price: number; quantity: number }[];
   asks?: { price: number; quantity: number }[];
-  trades?: { price: number; quantity: number; timestamp: string }[];
   holding?: HoldingItem;
-  openOrders?: Order[];
   onSubmit: (
     payload: CreateOrderPayload,
     options?: OrderSubmitOptions
@@ -83,14 +78,6 @@ function floorToTick(value: number | undefined) {
   if (value === undefined || !Number.isFinite(value)) return value;
   const inv = Math.round(1 / tickSizeFor(value)); // 0.01→100, 0.0001→10000 (부동소수 오차 방지)
   return Math.floor(value * inv) / inv;
-}
-
-// 단가 표시용(추천가·목표가). $1 미만만 2~4자리(저가주 정밀도), $1 이상은 2자리. $ 없이 숫자만 반환.
-function formatPriceDigits(value: number) {
-  return value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: usdMaxFractionDigits(value),
-  });
 }
 
 // 가격 입력칸용 값. 콤마 없이 $1 미만은 4자리·그 외 2자리까지, 불필요한 0 제거.
@@ -185,18 +172,16 @@ export function OrderForm({
   candleInterval = '1m',
   bids = [],
   asks = [],
-  trades = [],
   holding,
-  openOrders = [],
   onSubmit,
 }: OrderFormProps) {
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
   const pendingSideRef = useRef<'BUY' | 'SELL' | null>(null);
-  // 추천 매수/매도 간편 실행 시에는 목표수익률 자동 매도를 건너뛴다(체크돼 있어도 미실행).
+  // 자동매매 실행 시에는 목표수익률 자동 매도를 건너뛴다(체크돼 있어도 미실행).
   const skipTakeProfitRef = useRef(false);
   // 제출 직전 결정된 주문 수량(사이드별 %기준). 설정돼 있으면 handleSubmit 이 이 값을 우선 사용.
   const pendingQuantityRef = useRef<number | null>(null);
-  // 추천 실행 시 제출에 쓸 지정가를 동기 전달(상태 flush 레이스 방지). null 이면 일반 가격 로직 사용.
+  // 자동매매 실행 시 제출에 쓸 지정가를 동기 전달(상태 flush 레이스 방지). null 이면 일반 가격 로직 사용.
   const pendingLimitPriceRef = useRef<number | null>(null);
   const [priceMode, setPriceMode] = useState<PriceMode>(getStoredPriceMode);
   const [quantity, setQuantity] = useState('');
@@ -231,7 +216,7 @@ export function OrderForm({
   const isOrderable = currency === 'USD';
 
   // Reset form state when symbol changes (for navigation without full reload)
-  // This ensures recommendations and inputs are fresh for the new symbol's data
+  // This ensures inputs are fresh for the new symbol's data
   useEffect(() => {
     if (symbol) {
       setQuantity('');
@@ -273,28 +258,11 @@ export function OrderForm({
 
   const effectiveSellableQuantity = sellableQuantity ?? holdingQuantity ?? undefined;
 
-  const buyMaxForRec = maxBuyQuantity;
-  const sellMaxForRec =
-    (effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0)
-      ? Math.floor(effectiveSellableQuantity)
-      : (holding && holding.quantity > 0 ? Math.floor(holding.quantity) : undefined);
-
-  const maxOrderQuantity = useMemo(() => {
-    if (side === 'BUY') return maxBuyQuantity;
-    if (effectiveSellableQuantity === undefined || effectiveSellableQuantity <= 0) return undefined;
-    return Math.floor(effectiveSellableQuantity);
-  }, [maxBuyQuantity, effectiveSellableQuantity, side]);
-
-  // Readiness for capacities and recommendations.
-  // "불러오는 중" 은 데이터 도착 전 전용. 
+  // "불러오는 중" 은 데이터 도착 전 전용.
   // capacity (buyingPower+currentPrice 또는 sellable) 가 하나라도 오면 loading 벗어나서
-  // 실제 계산(또는 '—')을 표시. candles는 rec 품질에 도움되지만 blocking 하지 않음.
+  // 실제 계산(또는 '—')을 표시.
   const buyCapacityReady = currentPrice !== undefined && currentPrice > 0 && buyingPower !== undefined;
   const sellCapacityReady = effectiveSellableQuantity !== undefined;
-
-  // rec 카드: capacity(계산에 필요한 max/price) 가 준비되면 rec 로직 실행.
-  // (candles 없어도 build*Recommendation 은 기본 추천을 낼 수 있음. candles는 보정용.)
-  const recInputsReady = buyCapacityReady || sellCapacityReady;
 
   // 손익분기는 가격·수수료만으로 결정되므로 side(매수/매도)와 무관하게 항상 계산해 노출한다.
   const buyBreakEvenHint = useMemo(() => {
@@ -304,124 +272,8 @@ export function OrderForm({
     return buildBuyBreakEvenHint(effectiveBuyPrice, commissionRatePercent);
   }, [commissionRatePercent, effectiveBuyPrice]);
 
-  // 7개 주문 추천의 입력을 한 객체로 모은다. useMemo 로 안정화해 실제 의존성이 바뀔 때만
-  // 워커에 새 계산을 요청한다.
-  const recommendationInput = useMemo(
-    () => ({
-      side,
-      currentPrice,
-      candles,
-      candleInterval,
-      bids,
-      asks,
-      trades,
-      holding,
-      takeProfitRatePercent,
-      commissionRatePercent,
-      openOrders,
-      effectiveOrderPrice,
-      maxOrderQuantity,
-      buyMaxForRec,
-      sellMaxForRec,
-      buyingPower,
-    }),
-    [
-      asks,
-      bids,
-      buyMaxForRec,
-      buyingPower,
-      candleInterval,
-      candles,
-      commissionRatePercent,
-      currentPrice,
-      effectiveOrderPrice,
-      holding,
-      maxOrderQuantity,
-      openOrders,
-      sellMaxForRec,
-      side,
-      takeProfitRatePercent,
-      trades,
-    ]
-  );
-
-  // 7개 추천(지정가·수량·익절률, BUY/SELL 각각)을 단일 Web Worker 왕복으로 계산해
-  // 메인 스레드를 계산에서 분리한다. 결과 도착 전까지는 직전 값을 유지(no-flicker)한다.
-  // 커스텀(직접) 주문 폼은 추천 정보에 따라 바뀌지 않는다.
-  // 추천 데이터는 오직 아래 '추천 매수/매도' 카드 내부 표시에만 사용한다.
-  // (takeProfitRateRecommendation 은 별도 '목표 실수익률 매도' 추천 기능에서만 사용)
-  const {
-    takeProfitRateRecommendation,
-    buyQuantityRec,
-    sellQuantityRec,
-    buyLimitPriceRec,
-    sellLimitPriceRec,
-  } = useOrderRecommendations(recommendationInput);
-
-  // ── 0단계: 목표수익률(takeProfitRatePercent) 기반 추천 ─────────────────────
-  // 추천 매수: 신호 기반 진입가 + 추천 수량은 그대로, "목표 매도가"(+목표%, 수수료 반영)를 함께 표시.
-  const buyEntryPrice =
-    buyLimitPriceRec.available &&
-    buyLimitPriceRec.price !== undefined &&
-    Number.isFinite(buyLimitPriceRec.price)
-      ? buyLimitPriceRec.price
-      : currentPrice;
-
-  const buyTargetSellPrice =
-    buyQuantityRec.available &&
-    buyQuantityRec.recommended &&
-    buyQuantityRec.quantity !== undefined &&
-    buyEntryPrice !== undefined &&
-    buyEntryPrice > 0
-      ? calculateTakeProfitSellPrice(buyEntryPrice, buyQuantityRec.quantity, takeProfitRatePercent)
-      : undefined;
-
-  const recommendedBuyAmount =
-    buyQuantityRec.available &&
-    buyQuantityRec.quantity !== undefined &&
-    buyEntryPrice !== undefined &&
-    Number.isFinite(buyEntryPrice)
-      ? buyQuantityRec.quantity * buyEntryPrice
-      : undefined;
-
-  // 추천 매도: (수동) 기존 신호 기반 일부 매도 유지. 목표 도달 전량매도는 자동매매에서만 사용 예정.
-  const recommendedSellAmount =
-    sellQuantityRec.available &&
-    sellQuantityRec.quantity !== undefined &&
-    sellLimitPriceRec.available &&
-    sellLimitPriceRec.price !== undefined &&
-    Number.isFinite(sellLimitPriceRec.price)
-      ? sellQuantityRec.quantity * sellLimitPriceRec.price
-      : undefined;
-
-  // 추천 카드 활성(클릭 가능) 조건 — 매수·매도 모두 신호 기반 추천 수량 기준.
-  const buyRecEnabled =
-    buyQuantityRec.available &&
-    buyQuantityRec.recommended &&
-    buyQuantityRec.quantity !== undefined &&
-    buyQuantityRec.quantity > 0;
-  const sellRecEnabled =
-    sellQuantityRec.available &&
-    sellQuantityRec.recommended &&
-    sellQuantityRec.quantity !== undefined &&
-    sellQuantityRec.quantity > 0;
-
-  const getDisplayedPrice = (
-    limitRec: LimitPriceRecommendation | undefined,
-    currPrice: number | undefined
-  ) => {
-    if (limitRec?.available && limitRec.price !== undefined && Number.isFinite(limitRec.price)) {
-      return formatPriceDigits(limitRec.price);
-    }
-    if (currPrice !== undefined) {
-      return formatPriceDigits(currPrice);
-    }
-    return null;
-  };
-
-  // 추천 정보로 간편 실행. 호출부에서 계산한 수량·지정가를 받아 ref 로 동기 전달한 뒤 제출한다.
-  // (수량/지정가를 인자로 받으므로 매수=신호 기반, 매도=목표 도달 기반 등 사이드별 기준을 호출부가 결정.)
-  const executeWithRecommendation = (
+  // 자동매매(AutoTradePanel)가 결정한 주문을 실행. 수량·지정가를 ref 로 동기 전달한 뒤 제출한다.
+  const executeAutoOrder = (
     intendedSide: 'BUY' | 'SELL',
     quantity: number | undefined,
     limitPrice: number | undefined
@@ -438,7 +290,7 @@ export function OrderForm({
     pendingQuantityRef.current = quantity;
     pendingLimitPriceRef.current = recPrice;
     pendingSideRef.current = intendedSide;
-    skipTakeProfitRef.current = true; // 추천 실행은 목표수익률 자동 매도 건너뜀
+    skipTakeProfitRef.current = true; // 자동매매 실행은 목표수익률 자동 매도 건너뜀
 
     // 폼 표시 반영(시각적): 적용된 사이드·수량·지정가를 보여준다. 제출 값은 위 ref 가 결정.
     setSide(intendedSide);
@@ -452,11 +304,11 @@ export function OrderForm({
     formRef.current?.requestSubmit();
   };
 
-  // 직접 입력값(수량·가격)으로 실행. 추천과 달리 목표수익률 자동 매도 설정을 그대로 따른다.
+  // 직접 입력값(수량·가격)으로 실행. 자동매매와 달리 목표수익률 자동 매도 설정을 그대로 따른다.
   const executeManual = (intendedSide: 'BUY' | 'SELL') => {
     if (submitting) return;
     // 선택된 %를 실행하려는 사이드 기준으로 환산해 주문 수량 결정
-    // (매수=주문가능 금액 기준, 매도=보유 수량 기준). 추천 등으로 설정된 수량은 effectiveQuantity 로 폴백.
+    // (매수=주문가능 금액 기준, 매도=보유 수량 기준). 직접 입력 수량은 effectiveQuantity 로 폴백.
     pendingQuantityRef.current =
       intendedSide === 'BUY' ? (buyQuantityForPercent ?? null) : (sellQuantityForPercent ?? null);
     setSide(intendedSide);
@@ -493,7 +345,7 @@ export function OrderForm({
     currentPrice,
   };
 
-  // 커스텀 폼 수량은 사용자가 입력한 값만 사용한다(추천 수량으로 폴백하지 않음).
+  // 커스텀 폼 수량은 사용자가 입력한 값만 사용한다.
   const effectiveQuantity = useMemo(() => {
     const parsed = Number(quantity);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
@@ -518,7 +370,7 @@ export function OrderForm({
     return qty > 0 ? qty : undefined;
   }, [selectedQuantityPercent, effectiveSellableQuantity]);
 
-  // 예상 금액(현재가 기준) = 예상 수량 × 현재가. (% 미선택 시 추천 등으로 설정된 수량으로 폴백)
+  // 예상 금액(현재가 기준) = 예상 수량 × 현재가. (% 미선택 시 직접 입력 수량으로 폴백)
   const buyEstimatedAmount = useMemo(() => {
     if (useAmountOrder || currentPrice === undefined || currentPrice <= 0) return undefined;
     const qty = buyQuantityForPercent ?? effectiveQuantity;
@@ -537,7 +389,7 @@ export function OrderForm({
     }
   }, [currentPrice, priceMode]);
 
-  // 지정가 기본값은 추천이 아닌 현재가(가격변동)를 따른다. 사용자가 직접 수정하면 추종 중단.
+  // 지정가 기본값은 현재가(가격변동)를 따른다. 사용자가 직접 수정하면 추종 중단.
   useEffect(() => {
     if (priceMode !== 'limit' || currentPrice === undefined || limitPriceManualRef.current) {
       return;
@@ -697,13 +549,13 @@ export function OrderForm({
     // 실행 버튼으로만 매수/매도 결정 (상단 탭 제거)
     const effectiveSide = pendingSideRef.current ?? side;
     pendingSideRef.current = null;
-    // 추천 실행 여부를 읽고 즉시 리셋 (이후 일반 제출엔 영향 없게)
+    // 자동매매 실행 여부를 읽고 즉시 리셋 (이후 일반 제출엔 영향 없게)
     const skipTakeProfit = skipTakeProfitRef.current;
     skipTakeProfitRef.current = false;
-    // 사이드별 %기준 수량(있으면) 우선, 없으면 추천 등으로 설정된 effectiveQuantity 사용.
+    // 사이드별 %기준 수량(있으면) 우선, 없으면 직접 입력한 effectiveQuantity 사용.
     const pendingQuantity = pendingQuantityRef.current;
     pendingQuantityRef.current = null;
-    // 추천 실행이 지정한 지정가(있으면 priceMode/price 상태 대신 이 값을 사용).
+    // 자동매매 실행이 지정한 지정가(있으면 priceMode/price 상태 대신 이 값을 사용).
     const pendingLimitPrice = pendingLimitPriceRef.current;
     pendingLimitPriceRef.current = null;
 
@@ -720,14 +572,14 @@ export function OrderForm({
     } else {
       const submitQuantity = pendingQuantity ?? effectiveQuantity;
       if (submitQuantity === undefined || submitQuantity <= 0) {
-        showToast('비율(%)을 선택하거나 추천 실행을 사용해 주세요.', 'error');
+        showToast('비율(%)을 선택해 주세요.', 'error');
         return;
       }
 
       payload.quantity = submitQuantity;
 
       if (pendingLimitPrice !== null) {
-        // 추천 실행: 추천 지정가로 LIMIT 주문 (상태 flush 와 무관하게 정확한 값 사용)
+        // 자동매매 실행: 지정한 지정가로 LIMIT 주문 (상태 flush 와 무관하게 정확한 값 사용)
         payload.orderType = 'LIMIT';
         payload.price = floorToTick(pendingLimitPrice);
       } else if (priceMode === 'market') {
@@ -954,13 +806,7 @@ export function OrderForm({
                       <button
                         key={rate}
                         type="button"
-                        className={
-                          takeProfitRatePercent === rate
-                            ? 'active'
-                            : takeProfitRateRecommendation.rate === rate
-                              ? 'is-suggested'
-                              : ''
-                        }
+                        className={takeProfitRatePercent === rate ? 'active' : ''}
                         onClick={() => updateTakeProfitRate(rate)}
                       >
                         {rate}%
@@ -991,7 +837,7 @@ export function OrderForm({
 
         {isOrderable && !autoExecActive && (
           <>
-        {/* 매수 가능·손익분기·매도 가능·예상 금액은 side(매수/매도)나 추천 상황과 무관하게 항상 노출 */}
+        {/* 매수 가능·손익분기·매도 가능·예상 금액은 side(매수/매도)와 무관하게 항상 노출 */}
         <div className="order-form__hints">
           <div className="order-form__buy-hints-row">
             <p className="hint order-form__footer-hint">
@@ -1035,8 +881,7 @@ export function OrderForm({
           )}
         </div>
 
-        {/* 직접 입력(수량·가격)으로 실행하는 버튼. 추천 카드와 별개로 사용자가 정한 값 그대로 주문.
-            기본적으로 추천 실행 버튼 위에 배치한다. */}
+        {/* 직접 입력(수량·가격)으로 실행하는 버튼. 사용자가 정한 값 그대로 주문. */}
         <div className="order-manual-actions">
           <button
             type="button"
@@ -1062,61 +907,6 @@ export function OrderForm({
           </button>
         </div>
 
-        {/* 추천 매수/매도 카드를 좌우 배치, 라벨 아래에 정보 세로 나열 (클릭 영역은 카드 전체) */}
-        {/* async 데이터(currentPrice, buyingPower, candles, bids/asks 등) 도착 전에는 '불러오는 중...' 표시.
-            데이터 도착 후에야 quantity/limit rec 계산이 유효한 입력으로 동작하고, 추천 또는 합당한 '—' 를 표시. */}
-        <div className="order-rec-grid">
-          <div
-            className={`order-rec-row buy ${submitting || !recInputsReady || !buyRecEnabled ? 'is-disabled' : ''}`}
-            onClick={() =>
-              !submitting &&
-              recInputsReady &&
-              buyRecEnabled &&
-              executeWithRecommendation('BUY', buyQuantityRec.quantity, buyEntryPrice)
-            }
-            role="button"
-            tabIndex={submitting || !recInputsReady || !buyRecEnabled ? -1 : 0}
-          >
-            <span className="rec-label">추천 매수</span>
-            <span className="rec-info">
-              {!recInputsReady
-                ? '불러오는 중...'
-                : buyRecEnabled
-                  ? `${formatOrderQuantity(buyQuantityRec.quantity!)}주${getDisplayedPrice(buyLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(buyLimitPriceRec, currentPrice)}` : ''}`
-                  : '—'}
-            </span>
-            {recInputsReady && buyTargetSellPrice !== undefined && (
-              <span className="rec-expected">
-                목표 ${formatPriceDigits(buyTargetSellPrice)} (+{takeProfitRatePercent}%)
-                {recommendedBuyAmount !== undefined ? ` · 예상 ${formatUsd(recommendedBuyAmount)}` : ''}
-              </span>
-            )}
-          </div>
-
-          <div
-            className={`order-rec-row sell ${submitting || !recInputsReady || !sellRecEnabled ? 'is-disabled' : ''}`}
-            onClick={() =>
-              !submitting &&
-              recInputsReady &&
-              sellRecEnabled &&
-              executeWithRecommendation('SELL', sellQuantityRec.quantity, sellLimitPriceRec.price)
-            }
-            role="button"
-            tabIndex={submitting || !recInputsReady || !sellRecEnabled ? -1 : 0}
-          >
-            <span className="rec-label">추천 매도</span>
-            <span className="rec-info">
-              {!recInputsReady
-                ? '불러오는 중...'
-                : sellRecEnabled
-                  ? `${formatOrderQuantity(sellQuantityRec.quantity!)}주${getDisplayedPrice(sellLimitPriceRec, currentPrice) ? ` @ $${getDisplayedPrice(sellLimitPriceRec, currentPrice)}` : ''}`
-                  : '—'}
-            </span>
-            {recommendedSellAmount !== undefined && recInputsReady && (
-              <span className="rec-expected">예상 금액 {formatUsd(recommendedSellAmount)}</span>
-            )}
-          </div>
-        </div>
           </>
         )}
 
@@ -1129,12 +919,9 @@ export function OrderForm({
             holding={holding}
             sellableQuantity={effectiveSellableQuantity}
             takeProfitRatePercent={takeProfitRatePercent}
-            buyRecommended={buyRecEnabled}
-            buyQuantity={buyQuantityRec.quantity}
-            buyEntryPrice={buyEntryPrice}
             buyingPower={buyingPower}
             submitting={submitting}
-            onAutoExecute={(side, qty, price) => executeWithRecommendation(side, qty, price)}
+            onAutoExecute={(side, qty, price) => executeAutoOrder(side, qty, price)}
             onExecModeChange={setAutoExecActive}
             isMobile={!isDesktop}
             candles={candles}

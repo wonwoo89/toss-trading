@@ -1810,117 +1810,6 @@ select:focus-visible {
   color: var(--text-primary);
 }
 
-.chart-signal {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-  padding: 0.55rem 0.75rem;
-  border-bottom: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-panel) 92%, transparent);
-}
-
-.chart-signal__hint {
-  margin: 0;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-}
-
-.chart-signal__header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.45rem 0.65rem;
-}
-
-.chart-signal__badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 4rem;
-  padding: 0.25rem 0.6rem;
-  border-radius: 999px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-.chart-signal__badge--strong-buy {
-  color: #fff;
-  background: var(--color-up);
-}
-
-.chart-signal__badge--weak-buy {
-  color: var(--color-up);
-  background: color-mix(in srgb, var(--color-up) 18%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-up) 35%, transparent);
-}
-
-.chart-signal__badge--neutral {
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--text-secondary) 12%, transparent);
-  border: 1px solid var(--border-subtle);
-}
-
-.chart-signal__badge--weak-sell {
-  color: var(--color-down);
-  background: color-mix(in srgb, var(--color-down) 18%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-down) 35%, transparent);
-}
-
-.chart-signal__badge--strong-sell {
-  color: #fff;
-  background: var(--color-down);
-}
-
-.chart-signal__score {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.chart-signal__summary {
-  flex: 1 1 100%;
-  margin: 0;
-  font-size: 0.76rem;
-  line-height: 1.45;
-  color: var(--text-secondary);
-}
-
-.chart-signal__metrics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-}
-
-.chart-signal__metric {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.2rem 0.45rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-  font-size: 0.72rem;
-  background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
-}
-
-.chart-signal__metric-label {
-  color: var(--text-secondary);
-}
-
-.chart-signal__metric-value {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.chart-signal__metric--bullish .chart-signal__metric-value {
-  color: var(--color-up);
-}
-
-.chart-signal__metric--bearish .chart-signal__metric-value {
-  color: var(--color-down);
-}
-
 /* 모바일용 상세 토글: 매도 점수(시그널)만 항상 보이고 나머지는 접기 */
 .details-toggle {
   width: 100%;
@@ -2589,39 +2478,6 @@ input[type='checkbox']:focus-visible {
   border-radius: 10px;
 }
 
-/* 추천 실행 요약 (하단 실행버튼 근처에 수량+지정가 종합 표시) */
-.order-rec-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.35rem 0.5rem;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  font-size: 0.78rem;
-  margin-bottom: 0.35rem;
-}
-
-.order-rec-summary__label {
-  font-weight: 600;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
-.order-rec-summary__values {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.82rem;
-  color: var(--text-primary);
-  white-space: nowrap;
-}
-
-.order-rec-summary__values .divider {
-  color: var(--text-muted);
-}
-
 /* 직접 매수/매도 실행 버튼 (사용자가 입력한 수량·가격으로 주문) */
 .order-manual-actions {
   display: grid;
@@ -2822,14 +2678,6 @@ button.orderbook-price-btn:hover {
   border-top: 1px solid var(--border-subtle);
   font-size: 0.66rem;
   color: var(--text-muted);
-}
-
-/* 추천 매수/매도 영역을 좌우 배치 + 높이 확대하여 클릭 타겟 크게 */
-.order-rec-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin: 0;
 }
 
 /* 자동매매 패널 (드라이런/세미오토) — 데스크탑 전용 */
@@ -3105,132 +2953,10 @@ button.orderbook-price-btn:hover {
   color: var(--text-primary);
 }
 
-.order-rec-row {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 0.15rem;
-  /* 좌측 그라데이션 바(::before 6px)와 텍스트가 붙지 않도록 왼쪽 패딩을 더 줌 */
-  padding: 0.6rem 0.6rem 0.6rem 0.9rem;
-  /* 추천 정보(목표·예상 금액)가 늘어 3~4줄이 될 수 있어 고정 높이 대신 최소 높이로.
-     그리드가 두 카드를 같은 높이로 늘려 정렬은 유지하면서 내용이 잘리지 않게 한다. */
-  min-height: 96px;
-  box-sizing: border-box;
-  border-radius: 12px;
-  font-size: 0.82rem;
-  background: var(--bg-subtle);
-  /* 기본 테두리 제거 → buy/sell 의 좌측 강조선(border-left)만 표시 */
-  border: none;
-  cursor: pointer;
-  transition:
-    background-color 0.1s ease,
-    border-color 0.1s ease;
-}
-
-.order-rec-row:hover:not(.is-disabled) {
-  background: var(--bg-hover);
-  border-color: var(--border-default);
-}
-
-.order-rec-row:active:not(.is-disabled) {
-  background: var(--bg-active);
-}
-
-.order-rec-row.is-disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
-}
-
-/* 좌측 강조선을 6px 그라데이션 바(::before)로 표현. border-color 는 그라데이션을 못 받으므로
-   가상요소 + linear-gradient 로 처리하고, 카드의 overflow:hidden 이 둥근 모서리에 맞춰 클립한다. */
-.order-rec-row::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 6px;
-  border-radius: 12px 0 0 12px;
-}
-
-.order-rec-row.buy::before {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-up) 60%, #ffffff),
-    var(--color-up)
-  );
-}
-
-.order-rec-row.sell::before {
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--color-down) 60%, #ffffff),
-    var(--color-down)
-  );
-}
-
-
-.order-rec-row .rec-label {
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.order-rec-row.buy .rec-label {
-  color: var(--color-up);
-}
-
-.order-rec-row.sell .rec-label {
-  color: var(--color-down);
-}
-
-.order-rec-row .rec-info {
-  font-size: 0.85rem;
-  color: var(--text-primary);
-  line-height: 1.25;
-  white-space: normal; /* 좁은 폭에서도 잘리지 않게 */
-}
-
-.order-rec-row .rec-expected {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  margin-top: 0.1rem;
-}
-
-.order-rec-row.buy .rec-expected {
-  color: var(--color-up);
-}
-
-.order-rec-row.sell .rec-expected {
-  color: var(--color-down);
-}
-
 .order-quick-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-}
-
-/* 추천 목표 수익률에 해당하는 버튼 강조 (선택 전 상태) */
-.order-quick-actions button.is-suggested {
-  position: relative;
-  border: 1px solid var(--accent, #3182f6);
-  background: color-mix(in srgb, var(--accent, #3182f6) 16%, transparent);
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-/* 우상단 작은 점으로 '추천' 표시 */
-.order-quick-actions button.is-suggested::after {
-  content: '';
-  position: absolute;
-  top: 3px;
-  right: 3px;
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--accent, #3182f6);
 }
 
 .order-price-modes {
@@ -3466,21 +3192,6 @@ button.orderbook-price-btn:hover {
     max-width: none;
   }
 
-  /* 모바일 expanded 시 차트 시그널과 마켓 지표 사이 구분선 표시 */
-  .chart-signal-divider.is-visible {
-    height: 1px;
-    background: var(--border-subtle);
-  }
-
-  /* 모바일에서 상세지표 토글 버튼을 차트 시그널 헤더 내 우측 정렬 (매도 점수 라인과 동일) */
-  .chart-signal .details-toggle {
-    width: auto;
-    margin: 0 0 0 auto;
-    padding: 0.1rem 0.3rem;
-    font-size: 0.7rem;
-    border-radius: 4px;
-  }
-
   /* 래퍼 해체: main·market-panel 은 레이아웃 상자에서 제외(자식들이 trading-layout 에 직접 배치) */
   .trading-layout__main {
     display: contents;
@@ -3534,29 +3245,17 @@ button.orderbook-price-btn:hover {
     padding-top: 0.5rem;
   }
 
-  .order-form .order-rec-grid {
-    margin: 0;
-    padding: 0;
-    /* 버튼 좌우 간격 = 행 간(세로) 간격(submit-block gap 0.5rem) 과 동일하게 */
-    gap: 0.5rem;
-  }
-
-  /* 직접 매수/매도 버튼 간격을 추천 실행 버튼(rec grid)과 동일하게 맞춤 */
+  /* 직접 매수/매도 버튼 간격을 행 간(세로) 간격과 동일하게 맞춤 */
   .order-form .order-manual-actions {
     margin: 0;
     padding: 0;
     gap: 0.5rem;
   }
 
-  /* 모바일에서도 .order-rec-row (추천 매수/매도 실행 버튼)은 데스크톱 스타일 그대로 적용
-     (크기, 패딩, 배경, 테두리, buy/sell 좌측 accent, hover/active 등) */
-
-
   /* 카드 레이아웃 완전 제거 (모바일 flat) */
   .panel,
   .market-panel,
   .order-form,
-  .chart-signal,
   .market-context,
   .orderbook-summary,
   .portfolio-sidebar,
@@ -3572,7 +3271,6 @@ button.orderbook-price-btn:hover {
   /* 좌우 16px padding + 차트 최대폭 (trading-layout__main 제외, padding:0 통합) */
   .market-panel,
   .chart-panel,
-  .chart-signal,
   .market-context,
   .orderbook-summary {
     padding-left: 16px;
@@ -3625,7 +3323,6 @@ button.orderbook-price-btn:hover {
 
   /* 모바일 차트/시그널/지표 영역 상단 여백 통일 (이전 추가 여백 설정의 들쭉날쭉 해결) */
   .chart-panel,
-  .chart-signal,
   .market-context {
     padding-top: 0.5rem;
   }
@@ -3705,17 +3402,6 @@ button.orderbook-price-btn:hover {
     .details-toggle {
       display: none;
     }
-
-    .chart-signal-divider {
-      display: none;
-    }
-  }
-
-  /* 호가 영역 구분선 */
-  .market-divider {
-    height: 1px;
-    background: var(--border-subtle);
-    margin: 1rem 0;
   }
 }
 
