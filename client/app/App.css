@@ -4385,6 +4385,42 @@ button.orderbook-price-btn:hover {
     font-size: 16px;
   }
 
+  /* 최근 검색 이력 — 칩 나열, 탭하면 주문 화면으로 */
+  .recent-searches {
+    margin-top: 1rem;
+  }
+  .recent-searches__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
+  }
+  .recent-searches__title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .recent-searches__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+  }
+  .recent-searches__chips .ui-chip {
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+  .recent-searches__name {
+    margin-left: 0.3rem;
+    font-weight: 400;
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    max-width: 9rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    vertical-align: bottom;
+  }
+
   /* 설정 탭 */
   .trading-layout.layout-v2--tab-settings .mobile-settings-panel {
     display: block;

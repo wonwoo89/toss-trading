@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { MarketPanel } from '../../widgets/MarketPanel';
 import { OrderForm } from '../../widgets/OrderForm';
 import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
@@ -8,6 +8,8 @@ import { AccountSummaryCard } from '../../widgets/AccountSummaryCard';
 import { MobileSettingsPanel } from '../../widgets/MobileSettingsPanel';
 import { MobileTabBar, type MobileTab } from '../../widgets/MobileTabBar';
 import { SymbolSearch } from '../../widgets/SymbolSearch';
+import { RecentSearchChips } from '../../widgets/RecentSearchChips';
+import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
 
 import { useAppContext } from '../../app/providers/AppContext';
 import { useToast } from '../../app/providers/ToastContext';
@@ -28,6 +30,7 @@ export function StockPage() {
   const { selectedAccountSeq, setBuyingPower, setTotalMarketValue, buyingPower } = useAppContext();
 
   const layoutRef = useRef<HTMLElement | null>(null);
+  const navigate = useNavigate();
 
   // 모바일 신규 레이아웃(v2, 하단 탭). 헤더 토글로 전환 — 커스텀 이벤트로 동기화.
   const mobileV2 = useSyncExternalStore(subscribeMobileLayout, getMobileLayoutV2);
@@ -132,9 +135,16 @@ export function StockPage() {
             <div className="mobile-assets-extras">
               <AccountSummaryCard />
             </div>
-            {/* 검색 탭: 헤더에서 이동한 종목 검색 */}
+            {/* 검색 탭: 헤더에서 이동한 종목 검색 + 최근 검색 칩(탭하면 주문 화면으로) */}
             <section className="mobile-search-panel" aria-label="종목 검색">
               <SymbolSearch />
+              <RecentSearchChips
+                onSelect={(sym) => {
+                  setMobileTab('order'); // 검색 탭 → 주문 탭 (symbol 변경 효과보다 먼저 확정)
+                  setLastSelectedSymbol(sym);
+                  navigate(`/stock/${sym}`);
+                }}
+              />
             </section>
             {/* 설정 탭: 테마·화면꺼짐방지·레이아웃 전환·백테스트 */}
             <MobileSettingsPanel />
