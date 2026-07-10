@@ -241,6 +241,11 @@ export function useSymbolTrading(
     getCachedOpenOrders(accountSeq)
   );
 
+  // 취소 성공한 주문을 목록에서 즉시 숨긴다(옵티미스틱). 토스 API 가 취소 직후에도
+  // 미체결 목록에 해당 주문을 잠시 남겨 보내는 경우가 있어, 성공 응답 후에도 내역이
+  // 사라지지 않는 문제를 해소. 재조회 결과에서 실제로 사라지면 셋에서 정리한다.
+  const [canceledOrderIds, setCanceledOrderIds] = useState<ReadonlySet<string>>(new Set());
+
   // 자산에서 제외(숨김)할 종목 — localStorage 영속. 토스 앱의 "숨김"을 WTS 에서 재현.
   const [hiddenSymbols, setHiddenSymbols] = useState<string[]>(getStoredHiddenSymbols);
 
@@ -846,6 +851,9 @@ export function useSymbolTrading(
       if (!accountSeq) return;
       await api.cancelOrder(orderId, accountSeq);
 
+      // 성공 즉시 목록에서 숨김 — 서버 목록 반영(폴링)을 기다리지 않는다.
+      setCanceledOrderIds((prev) => new Set(prev).add(orderId));
+
       // cancel 후 포트폴리오/트레이드 동기화 (이전 StockPage handleCancel 로직 이동)
       await refreshPortfolioOpenOrders(accountSeq);
       await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
@@ -957,6 +965,28 @@ export function useSymbolTrading(
       ? sellableQuantity
       : (effectiveHolding?.quantity ?? undefined);
 
+  // 취소된 주문 제외한 노출용 목록. 재조회 결과에서 실제로 사라진 id 는 셋에서 정리.
+  const visibleOpenOrders = useMemo(
+    () =>
+      canceledOrderIds.size ? openOrders.filter((o) => !canceledOrderIds.has(o.orderId)) : openOrders,
+    [openOrders, canceledOrderIds]
+  );
+  const visiblePortfolioOpenOrders = useMemo(
+    () =>
+      canceledOrderIds.size
+        ? portfolioOpenOrders.filter((o) => !canceledOrderIds.has(o.orderId))
+        : portfolioOpenOrders,
+    [portfolioOpenOrders, canceledOrderIds]
+  );
+  useEffect(() => {
+    setCanceledOrderIds((prev) => {
+      if (prev.size === 0) return prev;
+      const present = new Set([...portfolioOpenOrders, ...openOrders].map((o) => o.orderId));
+      const next = new Set(Array.from(prev).filter((id) => present.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [portfolioOpenOrders, openOrders]);
+
   const marketPanelProps = useMemo(
     () => ({
       symbol,
@@ -975,7 +1005,7 @@ export function useSymbolTrading(
       usMarketCalendar,
       usMarketCalendarError,
       usMarketCalendarLoading,
-      openOrders,
+      openOrders: visibleOpenOrders,
       buyingPower: contextBuyingPower,
       sellableQuantity: effectiveSellableQuantity,
       commissions: commissionsPolling.data ?? undefined,
@@ -1002,7 +1032,7 @@ export function useSymbolTrading(
       usMarketCalendar,
       usMarketCalendarError,
       usMarketCalendarLoading,
-      openOrders,
+      visibleOpenOrders,
       contextBuyingPower,
       effectiveSellableQuantity,
       commissionsPolling.data,
@@ -1044,7 +1074,7 @@ export function useSymbolTrading(
       asks: marketPolling.data?.asks,
       trades: marketPolling.data?.trades,
       holding: effectiveHolding && effectiveHolding.quantity > 0 ? effectiveHolding : undefined,
-      openOrders,
+      openOrders: visibleOpenOrders,
     }),
     [
       symbol,
@@ -1062,7 +1092,7 @@ export function useSymbolTrading(
       marketPolling.data?.bids,
       marketPolling.data?.asks,
       marketPolling.data?.trades,
-      openOrders,
+      visibleOpenOrders,
       portfolioHoldings,
     ]
   );
@@ -1072,13 +1102,13 @@ export function useSymbolTrading(
     accountSeq,
     sellableQuantity,
     holding,
-    openOrders,
+    openOrders: visibleOpenOrders,
     portfolioHoldings,
     visibleHoldings,
     hiddenHoldings,
     hiddenSymbols,
     toggleHiddenSymbol,
-    portfolioOpenOrders,
+    portfolioOpenOrders: visiblePortfolioOpenOrders,
     getCachedHoldings: () => getCachedHoldings(accountSeq),
     getCachedOpenOrders: () => getCachedOpenOrders(accountSeq),
     refreshTrade,

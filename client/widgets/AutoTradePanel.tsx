@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NumberField } from './NumberField';
+import { Button } from '../shared/ui/Button';
+import { SegmentedControl } from '../shared/ui/SegmentedControl';
 import {
   calculateTakeProfitSellPrice,
   getTakeProfitCostContext,
@@ -744,18 +746,18 @@ export function AutoTradePanel({
             </button>
           </span>
         </span>
-        <div className="auto-trade__modes" role="tablist">
-          {(['off', 'dryrun', 'semi', 'auto'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              className={`auto-trade__mode ${mode === m ? 'is-on' : ''}${m === 'auto' ? ' is-auto' : ''}`}
-              onClick={() => selectMode(m)}
-            >
-              {m === 'off' ? 'OFF' : m === 'dryrun' ? '드라이런' : m === 'semi' ? '세미오토' : '오토'}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          className="auto-trade__modes"
+          aria-label="자동매매 모드"
+          value={mode}
+          onChange={selectMode}
+          options={[
+            { value: 'off', label: 'OFF' },
+            { value: 'dryrun', label: '드라이런' },
+            { value: 'semi', label: '세미오토' },
+            { value: 'auto', label: '오토', activeClassName: 'is-danger' },
+          ]}
+        />
       </div>
 
       <div className="auto-trade__controls">
@@ -857,17 +859,18 @@ export function AutoTradePanel({
           </span>
           <span className="auto-trade__pending-text">{pending.label}</span>
           <div className="auto-trade__pending-actions">
-            <button
-              type="button"
+            <Button
+              variant="accent"
+              size="sm"
               className="auto-trade__exec"
               onClick={executePending}
               disabled={submitting}
             >
               실행
-            </button>
-            <button type="button" className="auto-trade__dismiss" onClick={dismissPending}>
+            </Button>
+            <Button variant="ghost" size="sm" className="auto-trade__dismiss" onClick={dismissPending}>
               무시
-            </button>
+            </Button>
           </div>
         </div>
       )}
