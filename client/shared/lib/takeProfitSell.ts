@@ -148,16 +148,18 @@ export interface ExpectedSellProfit {
 
 /**
  * 주어진 매도가로 전량/일부 매도했을 때의 예상 실수익(비용 반영)을 추정한다.
- * calculateTakeProfitSellPrice(목표율→가격)의 역방향(가격→실수익률)으로, 같은 비용 모델을 사용:
- *  1) 보유 손익 스냅샷의 비용 비율(costDrag/gross)이 있으면 그 비율로 차감
- *  2) 아니면 수수료+추정 세율 모델
+ *  1) 보유 손익 스냅샷의 실제 비용(수수료+제세금)이 있으면 '매도 금액 비례'로 스케일해 차감
+ *     — referencePrice(스냅샷 기준가=현재가)로 매도가와의 비율을 보정. 손실 포지션에서도
+ *     동작하며, 매도가=현재가일 때 주문폼 상단의 실제 수익률과 일치한다.
+ *  2) 아니면(이익 포지션 한정) 비용 비율(costDrag/gross) 또는 수수료+추정 세율 모델
  *  3) 그것도 없으면 US 매도 수수료(0.1%)만 차감
  */
 export function estimateNetSellProfit(
   averagePrice: number,
   sellQuantity: number,
   sellPrice: number,
-  costContext?: TakeProfitCostContext
+  costContext?: TakeProfitCostContext,
+  referencePrice?: number
 ): ExpectedSellProfit | undefined {
   if (!(averagePrice > 0) || !(sellQuantity > 0) || !(sellPrice > 0)) return undefined;
 
@@ -174,6 +176,14 @@ export function estimateNetSellProfit(
 
   let netProfit: number;
   if (
+    costDragRef !== undefined &&
+    costDragRef >= 0 &&
+    referencePrice !== undefined &&
+    referencePrice > 0
+  ) {
+    // 스냅샷 비용(수수료·제세금)은 매도 금액에 대체로 비례 — 기준가 대비 매도가 비율로 보정 차감.
+    netProfit = grossProfit - costDragRef * (sellPrice / referencePrice);
+  } else if (
     grossRef !== undefined &&
     grossRef > MIN_GROSS_PROFIT &&
     costDragRef !== undefined &&

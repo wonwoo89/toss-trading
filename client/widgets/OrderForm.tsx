@@ -341,7 +341,8 @@ export function OrderForm({
       holdingAveragePrice,
       qty,
       sellPrice,
-      getTakeProfitCostContext(holding)
+      getTakeProfitCostContext(holding),
+      currentPrice // 비용 스냅샷의 기준가 — 매도가 비율로 수수료·제세금을 보정 차감
     );
   }, [
     useAmountOrder,
@@ -349,6 +350,7 @@ export function OrderForm({
     effectiveQuantity,
     holdingAveragePrice,
     effectiveOrderPrice,
+    currentPrice,
     holding,
   ]);
 

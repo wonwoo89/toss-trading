@@ -4,7 +4,7 @@ import {
   buildTradeFlowSnapshot,
   type MicrostructureBias,
 } from '../shared/lib/marketMicrostructure';
-import { formatMoney, formatQuantity } from '../shared/lib/formatHoldings';
+import { formatPrice, formatQuantity } from '../shared/lib/formatHoldings';
 import { emitLimitPriceSelect } from '../shared/lib/limitPriceBus';
 
 interface OrderbookEntry {
@@ -137,7 +137,7 @@ export function OrderbookPanel({
               title="탭하면 지정가로 입력"
               onClick={() => spread.bestAsk !== undefined && emitLimitPriceSelect(spread.bestAsk)}
             >
-              {formatMoney(spread.bestAsk, currency)}
+              {formatPrice(spread.bestAsk, currency)}
             </button>
           </span>
           <span className="orderbook-summary__metric orderbook-summary__metric--bullish">
@@ -148,7 +148,7 @@ export function OrderbookPanel({
               title="탭하면 지정가로 입력"
               onClick={() => spread.bestBid !== undefined && emitLimitPriceSelect(spread.bestBid)}
             >
-              {formatMoney(spread.bestBid, currency)}
+              {formatPrice(spread.bestBid, currency)}
             </button>
           </span>
           <span className={`orderbook-summary__metric ${getMetricBiasClass(spread.bias)}`}>
@@ -194,14 +194,14 @@ export function OrderbookPanel({
             </span>
             <span className="orderbook-stat">
               <span className="orderbook-stat__label">중간값</span>
-              <span className="orderbook-stat__value">{formatMoney(depth.mid, currency)}</span>
+              <span className="orderbook-stat__value">{formatPrice(depth.mid, currency)}</span>
             </span>
             <span
               className="orderbook-stat"
               title="마이크로프라이스: 양측 잔량으로 가중한 공정가. 중간값보다 한쪽으로 치우치면 그 방향으로의 단기 압력을 시사."
             >
               <span className="orderbook-stat__label">마이크로</span>
-              <span className="orderbook-stat__value">{formatMoney(depth.micro, currency)}</span>
+              <span className="orderbook-stat__value">{formatPrice(depth.micro, currency)}</span>
             </span>
           </div>
 
@@ -229,14 +229,14 @@ export function OrderbookPanel({
                     title="탭하면 지정가로 입력"
                     onClick={() => emitLimitPriceSelect(r.price)}
                   >
-                    {formatMoney(r.price, currency)}
+                    {formatPrice(r.price, currency)}
                   </button>
                 </div>
               ))
             )}
 
             <div className="orderbook-depth__mid">
-              <span>스프레드 {spread.spread !== undefined ? formatMoney(spread.spread, currency) : '—'}</span>
+              <span>스프레드 {spread.spread !== undefined ? formatPrice(spread.spread, currency) : '—'}</span>
               {spread.spreadPercent !== undefined && <span>({spread.spreadPercent.toFixed(3)}%)</span>}
             </div>
 
@@ -257,7 +257,7 @@ export function OrderbookPanel({
                     title="탭하면 지정가로 입력"
                     onClick={() => emitLimitPriceSelect(r.price)}
                   >
-                    {formatMoney(r.price, currency)}
+                    {formatPrice(r.price, currency)}
                   </button>
                 </div>
               ))
@@ -277,7 +277,7 @@ export function OrderbookPanel({
               trades.slice(0, 12).map((t, i) => (
                 <div className="orderbook-trade" key={`trade-${i}`}>
                   <span>{new Date(t.timestamp).toLocaleTimeString('ko-KR')}</span>
-                  <span>{formatMoney(t.price, currency)}</span>
+                  <span>{formatPrice(t.price, currency)}</span>
                   <span>{formatQuantity(t.quantity)}</span>
                 </div>
               ))
