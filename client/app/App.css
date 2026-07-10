@@ -4329,3 +4329,128 @@ button.orderbook-price-btn:hover {
   color: var(--text-secondary);
   background: transparent;
 }
+
+/* ═══════════ 모바일 신규 레이아웃 v2 (하단 탭) + 탭바 ═══════════ */
+
+/* 하단 고정 탭바 — PWA 홈 인디케이터 안전영역 포함 */
+.mobile-tab-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 310;
+  display: flex;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-subtle);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.mobile-tab-bar__tab {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 0 6px;
+  border: none;
+  background: none;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.mobile-tab-bar__tab.is-active {
+  color: var(--accent, #3182f6);
+}
+
+/* 데스크톱: 탭바·레이아웃 토글 숨김 (모바일 전용 기능) */
+@media (min-width: 1101px) {
+  .mobile-tab-bar,
+  .mobile-layout-toggle {
+    display: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  /* v1·v2 공통: 상단 고정(sticky) 차트가 노치/상태바(안전영역) 아래에 붙도록 */
+  .trading-layout:not(.trading-layout--portfolio-only) .chart-panel {
+    top: env(safe-area-inset-top);
+  }
+
+  /* ── v2: 하단 탭 구조 ──
+     탭별로 영역을 표시/숨김만 한다(컴포넌트는 유지 → 폴링·자동매매·차트 상태 보존). */
+
+  /* 고정 탭바(약 52px + 안전영역)에 콘텐츠가 가리지 않게 하단 여백 확보 */
+  .trading-layout.layout-v2 {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  /* below 래퍼 해체 → 지표(info)/호가(side)를 독립 영역으로 탭에 배정.
+     contents 로 풀리면 order 가 초기화되므로 차트(2)·주문폼(3) 뒤로 명시 배치. */
+  .trading-layout.layout-v2 .market-panel__below {
+    display: contents;
+  }
+  .trading-layout.layout-v2 .market-panel__below-info {
+    order: 6;
+  }
+  .trading-layout.layout-v2 .market-panel__side {
+    order: 7;
+  }
+
+  /* 기본은 전부 숨기고 탭별로 켠다 */
+  .trading-layout.layout-v2 .chart-panel,
+  .trading-layout.layout-v2 .order-column,
+  .trading-layout.layout-v2 .market-panel__below-info,
+  .trading-layout.layout-v2 .market-panel__side,
+  .trading-layout.layout-v2 .portfolio-sidebar,
+  .trading-layout.layout-v2 .warning-box,
+  .trading-layout.layout-v2 .holdings-chip-bar {
+    display: none;
+  }
+
+  /* 차트 탭: 차트 크게(정적) + 아래 지표 스크롤 */
+  .trading-layout.layout-v2--tab-chart .holdings-chip-bar,
+  .trading-layout.layout-v2--tab-chart .warning-box {
+    display: block;
+  }
+  .trading-layout.layout-v2--tab-chart .chart-panel {
+    display: flex;
+    position: static;
+    height: 62dvh;
+    min-height: 300px;
+    max-height: none;
+  }
+  .trading-layout.layout-v2--tab-chart .market-panel__below-info {
+    display: block;
+  }
+
+  /* 주문 탭: 컴팩트 고정 차트 + 주문폼 */
+  .trading-layout.layout-v2--tab-order .holdings-chip-bar,
+  .trading-layout.layout-v2--tab-order .warning-box {
+    display: block;
+  }
+  .trading-layout.layout-v2--tab-order .chart-panel {
+    display: flex;
+    height: 300px;
+    min-height: 220px;
+    max-height: 34dvh;
+  }
+  .trading-layout.layout-v2--tab-order .order-column {
+    display: flex;
+  }
+  /* 주문 탭의 하단 sticky 실행 영역은 탭바 위에 붙도록 오프셋 */
+  .trading-layout.layout-v2--tab-order .order-form .order-form__submit-block {
+    bottom: calc(52px + env(safe-area-inset-bottom));
+  }
+
+  /* 호가 탭 */
+  .trading-layout.layout-v2--tab-book .market-panel__side {
+    display: block;
+  }
+
+  /* 자산 탭 */
+  .trading-layout.layout-v2--tab-assets .portfolio-sidebar {
+    display: flex;
+  }
+}

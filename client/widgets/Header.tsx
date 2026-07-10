@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { HeaderAccountBalance } from './HeaderAccountBalance';
 import { HeaderAccountMenu } from './HeaderAccountMenu';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
+import { MobileLayoutToggle } from './MobileLayoutToggle';
 import { SymbolSearch } from './SymbolSearch';
 import { ThemeToggle } from './ThemeToggle';
 import { WakeLockToggle } from './WakeLockToggle';
@@ -17,6 +18,8 @@ export function Header() {
           <SymbolSearch />
           <ThemeToggle />
           <WakeLockToggle />
+          {/* 모바일 전용: 신규 레이아웃(하단 탭) 전환 (데스크톱은 CSS 로 숨김) */}
+          <MobileLayoutToggle />
           <Link to="/backtest" className="header-backtest-link" title="신호 백테스트">
             백테스트
           </Link>
