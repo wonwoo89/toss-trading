@@ -5,13 +5,10 @@ const CandleChart = lazy(() =>
 );
 import { ChartMarketContextPanel } from './ChartMarketContextPanel';
 import { ChartOptionsMenu } from './ChartOptionsMenu';
+import { AutoTradePanel } from './AutoTradePanel';
 import { OrderbookPanel } from './OrderbookPanel';
 import { StockLabel } from './StockLabel';
 import { BacktestModal } from './BacktestModal';
-import {
-  getStoredDetailsExpanded,
-  setStoredDetailsExpanded,
-} from '../shared/lib/detailsExpandedPreference';
 import {
   getStoredBollingerVisible,
   setStoredBollingerVisible,
@@ -70,6 +67,12 @@ interface MarketPanelProps {
   commissions?: CommissionRaw[];
   realtimePollingForced?: boolean;
   onRealtimePollingForcedChange?: (forced: boolean) => void;
+  /** 자동매매 주문 실행(StockPage 가 createOrder 로 직결). */
+  onAutoExecute?: (side: 'BUY' | 'SELL', quantity: number, limitPrice?: number) => void;
+  /** 자동매매 주문 제출 중 여부. */
+  autoSubmitting?: boolean;
+  /** 세미오토/오토 활성 여부 변경 알림 — 주문폼의 수동 주문 잠금에 사용. */
+  onAutoExecModeChange?: (active: boolean) => void;
 }
 
 export function MarketPanel({
@@ -103,6 +106,9 @@ export function MarketPanel({
   commissions = [],
   realtimePollingForced = false,
   onRealtimePollingForcedChange,
+  onAutoExecute,
+  autoSubmitting = false,
+  onAutoExecModeChange,
 }: MarketPanelProps) {
   const [orderbookExpanded, setOrderbookExpanded] = useState(false);
   // v2(하단 탭) 레이아웃에선 호가가 전용 탭이므로 접힘/펼침 없이 항상 전체 표시.
@@ -121,12 +127,10 @@ export function MarketPanel({
     setStoredSupertrendVisible(visible);
   };
 
-  // 데스크톱(>1100px)은 항상 펼침. 모바일은 사용자가 토글한 펼침/접힘 상태를 localStorage 에
-  // 영속해, 종목이 바뀌어 MarketPanel 이 리마운트돼도 유지한다.
+  // isDesktop 은 호가 항상 펼침 판정 + 자동매매 모바일 안내 노출에 사용.
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.innerWidth > 1100
   );
-  const [mobileDetailsExpanded, setMobileDetailsExpanded] = useState(getStoredDetailsExpanded);
 
   useEffect(() => {
     const update = () => setIsDesktop(window.innerWidth > 1100);
@@ -135,15 +139,11 @@ export function MarketPanel({
     return () => window.removeEventListener('resize', update);
   }, []);
 
-  const detailsExpanded = isDesktop ? true : mobileDetailsExpanded;
-
-  const toggleDetails = () => {
-    setMobileDetailsExpanded((prev) => {
-      const next = !prev;
-      setStoredDetailsExpanded(next);
-      return next;
-    });
-  };
+  // 자동매매(AI) 매수 수량 상한 계산용 — 현재가 기준 최대 매수 가능 수량.
+  const maxBuyQuantity =
+    buyingPower !== undefined && buyingPower > 0 && currentPrice !== undefined && currentPrice > 0
+      ? Math.floor(buyingPower / currentPrice)
+      : undefined;
 
   return (
     <section className="panel market-panel">
@@ -217,21 +217,36 @@ export function MarketPanel({
       {/* 차트 아래: 좌(지표·시장정보) / 우(호가) 좌우 배치 */}
       <div className="market-panel__below">
         <div className="market-panel__below-info">
-      {/* Indicators below the chart */}
-      <div className="market-indicators">
-        {/* 모바일은 상세 지표(시장 정보)를 접을 수 있다. 데스크톱은 항상 펼침이라 토글 불필요. */}
-        {!isDesktop && (
-          <button
-            type="button"
-            className="details-toggle"
-            onClick={toggleDetails}
-            aria-expanded={detailsExpanded}
-          >
-            {detailsExpanded ? '상세 접기 ▲' : '상세 지표 ▼'}
-          </button>
-        )}
+      {/* 자동매매 — 차트 페이지에 상주. 탭을 오가도(종목이 같으면) 마운트가 유지돼 상태 보존.
+          주문 실행은 StockPage 의 createOrder 직결 경로(onAutoExecute)를 사용. */}
+      {currency === 'USD' && onAutoExecute && (
+        <div className="market-auto-trade">
+          <AutoTradePanel
+            symbol={symbol}
+            currentPrice={currentPrice}
+            holding={holding}
+            sellableQuantity={sellableQuantity}
+            takeProfitRatePercent={targetProfitRatePercent}
+            buyingPower={buyingPower}
+            submitting={autoSubmitting}
+            onAutoExecute={onAutoExecute}
+            onExecModeChange={onAutoExecModeChange}
+            isMobile={!isDesktop}
+            candles={candles}
+            candleInterval={candleInterval}
+            bids={bids}
+            asks={asks}
+            previousClose={previousClose}
+            maxBuyQuantity={maxBuyQuantity}
+            openOrders={openOrders}
+            currency={currency}
+          />
+        </div>
+      )}
 
-        <div className={`market-details-content ${detailsExpanded ? 'is-expanded' : ''}`}>
+      {/* Indicators below the chart — 상세정보는 항상 펼침(접기 기능 제거) */}
+      <div className="market-indicators">
+        <div className="market-details-content is-expanded">
           <ChartMarketContextPanel
             marketCalendar={usMarketCalendar}
             calendarError={usMarketCalendarError}

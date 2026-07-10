@@ -1810,27 +1810,6 @@ select:focus-visible {
   color: var(--text-primary);
 }
 
-/* 모바일용 상세 토글: 매도 점수(시그널)만 항상 보이고 나머지는 접기 */
-.details-toggle {
-  width: 100%;
-  margin: 0.25rem 0 0.5rem;
-  padding: 0.35rem 0.5rem;
-  font-size: 0.76rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 0.1s ease;
-}
-
-.details-toggle:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
 /* 시그널 패널 내 칩(메트릭) 토글 */
 .signal-metrics-toggle {
   width: 100%;
@@ -2680,7 +2659,12 @@ button.orderbook-price-btn:hover {
   color: var(--text-muted);
 }
 
-/* 자동매매 패널 (드라이런/세미오토) — 데스크탑 전용 */
+/* 자동매매 래퍼 — 차트 아래(below-info) 상주. */
+.market-auto-trade {
+  margin: 0.25rem 0 0.5rem;
+}
+
+/* 자동매매 패널 (드라이런/세미오토/오토) */
 .auto-trade {
   margin-top: 0.75rem;
   padding: 0.6rem 0.7rem;
@@ -3376,6 +3360,10 @@ button.orderbook-price-btn:hover {
     flex-shrink: 0;
   }
 
+  .market-auto-trade {
+    padding: 0 16px;
+  }
+
   /* 모바일 차트/시그널/지표 영역 상단 여백 통일 (이전 추가 여백 설정의 들쭉날쭉 해결) */
   .chart-panel,
   .market-context {
@@ -3441,29 +3429,9 @@ button.orderbook-price-btn:hover {
     padding: 0 8px;
   }
 
-  /* 차트 아래 indicators 아코디언 (모바일) */
+  /* 차트 아래 상세정보(시장 지표)는 항상 펼침 — 접기 기능 제거 */
   .market-details-content {
-    display: none;
-  }
-  .market-details-content.is-expanded {
     display: block;
-  }
-
-  /* 데스크톱에서는 항상 펼침 + 토글 숨김 */
-  @media (min-width: 1101px) {
-    .market-details-content {
-      display: block;
-    }
-    .details-toggle {
-      display: none;
-    }
-  }
-}
-
-/* 데스크톱에서는 상세지표 토글 항상 숨김 */
-@media (min-width: 1101px) {
-  .details-toggle {
-    display: none;
   }
 }
 
@@ -4191,9 +4159,79 @@ button.orderbook-price-btn:hover {
     position: static;
   }
 
-  /* 호가 탭 */
+  /* 호가 탭: 티커칩 노출 + 영역별 카드 구분 + 가독성(폰트 확대) */
+  .trading-layout.layout-v2--tab-book .holdings-chip-bar {
+    display: flex; /* 베이스(가로 스크롤 칩 행)와 동일하게 복원 */
+  }
+  .trading-layout.layout-v2--tab-book .warning-box {
+    display: block;
+  }
   .trading-layout.layout-v2--tab-book .market-panel__side {
     display: block;
+    padding: 0.25rem 12px 0;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook {
+    gap: 0.75rem;
+  }
+  /* 요약(1호가·스프레드·체결흐름) 카드 — 모바일 flat 규칙(!important)을 되돌린다 */
+  .trading-layout.layout-v2--tab-book .orderbook-summary {
+    background: var(--bg-panel) !important;
+    border: 1px solid var(--border-subtle) !important;
+    border-radius: 14px !important;
+    padding: 0.8rem 0.85rem !important;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  /* 잔량 통계 / 뎁스 / 체결 — 자산 탭 카드와 같은 톤으로 */
+  .trading-layout.layout-v2--tab-book .orderbook-stats,
+  .trading-layout.layout-v2--tab-book .orderbook-depth,
+  .trading-layout.layout-v2--tab-book .orderbook-trades {
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-stats {
+    padding: 0.7rem 0.85rem;
+    gap: 0.45rem 1.1rem;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-trades {
+    max-height: 320px;
+  }
+  /* 폰트 확대 — 좁은 화면 가독성 */
+  .trading-layout.layout-v2--tab-book .orderbook-summary__metric-label {
+    font-size: 0.74rem;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-summary__metric-value {
+    font-size: 0.95rem;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-stat__label {
+    font-size: 0.74rem;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-stat__value {
+    font-size: 0.9rem;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-depth__head,
+  .trading-layout.layout-v2--tab-book .orderbook-trades__head {
+    font-size: 0.72rem;
+    padding: 0.35rem 0.75rem;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-row {
+    font-size: 0.88rem;
+    padding: 0.32rem 0.75rem;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-depth__mid {
+    font-size: 0.78rem;
+    padding: 0.35rem 0.75rem;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-depth__empty {
+    font-size: 0.82rem;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-trade {
+    font-size: 0.84rem;
+    padding: 0.26rem 0.75rem;
   }
 
   /* 자산 탭 */

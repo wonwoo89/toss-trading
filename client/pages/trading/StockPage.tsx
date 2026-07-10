@@ -10,11 +10,15 @@ import { MobileTabBar, type MobileTab } from '../../widgets/MobileTabBar';
 import { SymbolSearch } from '../../widgets/SymbolSearch';
 
 import { useAppContext } from '../../app/providers/AppContext';
+import { useToast } from '../../app/providers/ToastContext';
 import { HOLDINGS_POLL_MS, useTrading, useFocusOnSymbol } from '../../features/trade';
 import {
   getMobileLayoutV2,
   subscribeMobileLayout,
 } from '../../shared/lib/mobileLayoutPreference';
+import { floorToTick } from '../../shared/lib/usTick';
+import { formatOrderSuccessMessage } from '../../shared/lib/formatOrderToast';
+import type { CreateOrderPayload } from '../../shared/types';
 
 export function StockPage() {
   // 1. 상태(state) or hook
@@ -49,6 +53,37 @@ export function StockPage() {
 
   useFocusOnSymbol(symbol, layoutRef);
 
+  // 자동매매(차트 영역 상주) — 주문은 OrderForm 을 거치지 않고 createOrder 로 직결.
+  // 세미오토/오토 활성 시 수동 주문(OrderForm)을 잠근다.
+  const { showToast } = useToast();
+  const [autoTradeActive, setAutoTradeActive] = useState(false);
+  const [autoSubmitting, setAutoSubmitting] = useState(false);
+  const executeAutoOrder = async (side: 'BUY' | 'SELL', quantity: number, limitPrice?: number) => {
+    if (!symbol || autoSubmitting || quantity <= 0) return;
+    const payload: CreateOrderPayload = {
+      symbol,
+      side,
+      orderType: 'LIMIT',
+      quantity,
+      clientOrderId: crypto.randomUUID(),
+    };
+    if (limitPrice !== undefined && Number.isFinite(limitPrice) && limitPrice > 0) {
+      payload.price = floorToTick(limitPrice);
+    } else {
+      payload.orderType = 'MARKET';
+    }
+    setAutoSubmitting(true);
+    try {
+      // 목표수익률 자동 매도 옵션 없이 주문만 — 자동매매의 익절/손절 트리거가 출구를 담당.
+      await createOrder(payload);
+      showToast(formatOrderSuccessMessage(payload), 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '주문에 실패했습니다.', 'error');
+    } finally {
+      setAutoSubmitting(false);
+    }
+  };
+
   const v2Active = mobileV2 && hasSymbol;
 
   // v2 활성 시 전역(헤더 숨김 등) 스타일 스위치 — body 클래스. 언마운트/비활성 시 해제.
@@ -80,7 +115,14 @@ export function StockPage() {
           {hasSymbol && symbol ? (
             <>
               <HoldingsChipBar holdings={visibleHoldings} activeSymbol={symbol} />
-              <MarketPanel key={symbol} {...marketPanelProps} symbol={symbol} />
+              <MarketPanel
+                key={symbol}
+                {...marketPanelProps}
+                symbol={symbol}
+                onAutoExecute={executeAutoOrder}
+                autoSubmitting={autoSubmitting}
+                onAutoExecModeChange={setAutoTradeActive}
+              />
             </>
           ) : null}
         </div>
@@ -114,7 +156,13 @@ export function StockPage() {
         />
         {hasSymbol && symbol ? (
           <section className="order-column">
-            <OrderForm key={symbol} {...orderFormProps} symbol={symbol} onSubmit={createOrder} />
+            <OrderForm
+              key={symbol}
+              {...orderFormProps}
+              symbol={symbol}
+              autoTradeActive={autoTradeActive}
+              onSubmit={createOrder}
+            />
           </section>
         ) : null}
       </main>
