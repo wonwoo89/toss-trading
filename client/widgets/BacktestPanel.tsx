@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BacktestResultView } from './BacktestResultView';
+import { Typography } from '../shared/ui/Typography';
 import { NumberField } from './NumberField';
 import {
   BACKTEST_INTERVAL_OPTIONS,
@@ -81,7 +82,7 @@ export function BacktestPanel({ initialSymbol = 'AAPL' }: { initialSymbol?: stri
         </button>
       </section>
 
-      {error && <div className="banner error">{error}</div>}
+      {error && <Typography size={14} as="div" className="banner error">{error}</Typography>}
 
       {outcome && (
         <BacktestResultView result={outcome.result} usedCandles={outcome.usedCandles} />

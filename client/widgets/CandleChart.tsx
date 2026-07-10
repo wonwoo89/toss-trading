@@ -28,6 +28,7 @@ import {
 } from '../shared/lib/chartViewportPreference';
 import { getChartThemeColors } from '../shared/lib/chartTheme';
 import { usdMaxFractionDigits } from '../shared/lib/formatHoldings';
+import { Typography } from '../shared/ui/Typography';
 import type { ChartCandle } from '../shared/types';
 
 interface CandleChartProps {
@@ -1120,32 +1121,40 @@ export function CandleChart({
   return (
     <div className="chart-block">
       {chartStatus && (
-        <p className={`chart-status${error ? ' error-text' : ' hint'}`}>{chartStatus}</p>
+        <Typography as="p" size={14} className={`chart-status${error ? ' error-text' : ' hint'}`}>
+          {chartStatus}
+        </Typography>
       )}
       {hoveredCandle && (
         <div className="chart-ohlc-legend" aria-live="polite">
-          <span className="chart-ohlc-legend__item">
+          <Typography size={12} className="chart-ohlc-legend__item">
             시가{' '}
-            <strong>{formatOhlcLegendValue(hoveredCandle.open, hoveredCandle.open, currency)}</strong>
-          </span>
-          <span className="chart-ohlc-legend__item up">
+            <Typography as="strong" size={12}>
+              {formatOhlcLegendValue(hoveredCandle.open, hoveredCandle.open, currency)}
+            </Typography>
+          </Typography>
+          <Typography size={12} className="chart-ohlc-legend__item up">
             고가{' '}
-            <strong>{formatOhlcLegendValue(hoveredCandle.high, hoveredCandle.open, currency)}</strong>
-          </span>
-          <span className="chart-ohlc-legend__item down">
+            <Typography as="strong" size={12}>
+              {formatOhlcLegendValue(hoveredCandle.high, hoveredCandle.open, currency)}
+            </Typography>
+          </Typography>
+          <Typography size={12} className="chart-ohlc-legend__item down">
             저가{' '}
-            <strong>{formatOhlcLegendValue(hoveredCandle.low, hoveredCandle.open, currency)}</strong>
-          </span>
-          <span className={`chart-ohlc-legend__item${isUpCandle ? ' up' : ' down'}`}>
+            <Typography as="strong" size={12}>
+              {formatOhlcLegendValue(hoveredCandle.low, hoveredCandle.open, currency)}
+            </Typography>
+          </Typography>
+          <Typography size={12} className={`chart-ohlc-legend__item${isUpCandle ? ' up' : ' down'}`}>
             종가{' '}
-            <strong>
+            <Typography as="strong" size={12}>
               {formatOhlcLegendValue(hoveredCandle.close, hoveredCandle.open, currency)}
-            </strong>
-          </span>
+            </Typography>
+          </Typography>
           {hoveredCandle.volume !== undefined && (
-            <span className="chart-ohlc-legend__item">
-              거래량 <strong>{formatVolume(hoveredCandle.volume)}</strong>
-            </span>
+            <Typography size={12} className="chart-ohlc-legend__item">
+              거래량 <Typography as="strong" size={12}>{formatVolume(hoveredCandle.volume)}</Typography>
+            </Typography>
           )}
         </div>
       )}

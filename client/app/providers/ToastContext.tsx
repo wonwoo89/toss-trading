@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Typography } from '../../shared/ui/Typography';
 
 export type ToastVariant = 'success' | 'error' | 'info';
 
@@ -77,7 +78,9 @@ function ToastStack({
           className={`toast-item toast-item--${toast.variant}${exitingIds.has(toast.id) ? ' is-exiting' : ''}`}
           role="status"
         >
-          <p className="toast-item__message">{toast.message}</p>
+          <Typography size={14} as="p" className="toast-item__message">
+            {toast.message}
+          </Typography>
           <button
             type="button"
             className="toast-item__close"

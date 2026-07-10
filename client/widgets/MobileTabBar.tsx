@@ -1,3 +1,5 @@
+import { Typography } from '../shared/ui/Typography';
+
 export type MobileTab = 'chart' | 'order' | 'book' | 'assets' | 'search' | 'settings';
 
 interface MobileTabBarProps {
@@ -93,7 +95,7 @@ export function MobileTabBar({ active, onChange }: MobileTabBarProps) {
           onClick={() => onChange(tab.id)}
         >
           {tab.icon}
-          <span>{tab.label}</span>
+          <Typography size={10}>{tab.label}</Typography>
         </button>
       ))}
     </nav>

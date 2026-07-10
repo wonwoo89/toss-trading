@@ -1,3 +1,4 @@
+import { Typography } from '../shared/ui/Typography';
 import {
   formatMoney,
   formatPrice,
@@ -30,22 +31,22 @@ export function StockHoldingSummary({
 
   return (
     <div className={`stock-holding-summary stock-holding-summary--${variant}`}>
-      <span className="stock-holding-summary__quantity">
+      <Typography size={12} className="stock-holding-summary__quantity">
         보유 {formatQuantity(quantity)}
         {averagePrice !== undefined && (
           <>
             <span className="stock-holding-summary__divider" aria-hidden="true">
               ·
             </span>
-            <span className="stock-holding-summary__average">
+            <Typography size={12} className="stock-holding-summary__average">
               평단 {formatPrice(averagePrice, currency)}
-            </span>
+            </Typography>
           </>
         )}
-      </span>
+      </Typography>
       <div className="holding-value stock-holding-summary__value">
-        <span>{formatMoney(marketValue, currency)}</span>
-        <span className={`holding-pl ${getKrProfitLossClass(profitLoss) ?? ''}`}>
+        <Typography size={12}>{formatMoney(marketValue, currency)}</Typography>
+        <Typography size={12} className={`holding-pl ${getKrProfitLossClass(profitLoss) ?? ''}`}>
           {profitLoss === undefined && profitLossRate === undefined
             ? '—'
             : `${formatSignedMoney(profitLoss, currency)}${
@@ -53,7 +54,7 @@ export function StockHoldingSummary({
                   ? ` (${formatSignedPercent(profitLossRate, profitLoss)})`
                   : ''
               }`}
-        </span>
+        </Typography>
       </div>
     </div>
   );

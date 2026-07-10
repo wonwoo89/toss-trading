@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 import { Chip } from '../shared/ui/Chip';
 import { Button } from '../shared/ui/Button';
+import { Typography } from '../shared/ui/Typography';
 import {
   clearRecentSearches,
   getRecentSearches,
@@ -21,7 +22,7 @@ export function RecentSearchChips({ onSelect }: RecentSearchChipsProps) {
   return (
     <div className="recent-searches" aria-label="최근 검색">
       <div className="recent-searches__head">
-        <span className="recent-searches__title">최근 검색</span>
+        <Typography size={12} className="recent-searches__title">최근 검색</Typography>
         <Button variant="ghost" size="sm" onClick={clearRecentSearches}>
           지우기
         </Button>
@@ -34,7 +35,11 @@ export function RecentSearchChips({ onSelect }: RecentSearchChipsProps) {
             onClick={() => onSelect(entry.symbol)}
           >
             {entry.symbol}
-            {entry.name && <span className="recent-searches__name">{entry.name}</span>}
+            {entry.name && (
+              <Typography size={12} truncate className="recent-searches__name">
+                {entry.name}
+              </Typography>
+            )}
           </Chip>
         ))}
       </div>

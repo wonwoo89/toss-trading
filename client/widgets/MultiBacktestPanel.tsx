@@ -6,6 +6,7 @@ import { mapHoldings } from '../entities/position';
 import { getCachedHoldings } from '../features/trade/useSymbolTrading';
 import { BacktestResultView } from './BacktestResultView';
 import { NumberField } from './NumberField';
+import { Typography } from '../shared/ui/Typography';
 import { backtestBiasClass, fmtBacktestPct } from '../shared/lib/backtestFormat';
 import {
   BACKTEST_INTERVAL_OPTIONS,
@@ -197,12 +198,14 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
 
       <section className="panel backtest-rows">
         <div className="backtest-rows__head">
-          <h2>종목별 결과</h2>
-          {holdingsLoading && <span className="hint">보유 종목 불러오는 중…</span>}
+          <Typography size={16} as="h2">종목별 결과</Typography>
+          {holdingsLoading && <Typography size={14} className="hint">보유 종목 불러오는 중…</Typography>}
         </div>
 
         {rows.length === 0 && (
-          <p className="hint">보유 종목이 없습니다. 아래에서 종목을 추가해 백테스트해 보세요.</p>
+          <Typography size={14} as="p" className="hint">
+            보유 종목이 없습니다. 아래에서 종목을 추가해 백테스트해 보세요.
+          </Typography>
         )}
 
         <ul className="backtest-row-list">
@@ -210,8 +213,12 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
             <li key={row.id} className="backtest-row">
               <div className="backtest-row__head">
                 <div className="backtest-row__symbol">
-                  <strong>{row.symbol}</strong>
-                  {row.name && <span className="backtest-row__name">{row.name}</span>}
+                  <Typography size={16} as="strong">{row.symbol}</Typography>
+                  {row.name && (
+                    <Typography size={12} truncate className="backtest-row__name">
+                      {row.name}
+                    </Typography>
+                  )}
                 </div>
                 <div className="backtest-row__actions">
                   <button
@@ -241,28 +248,46 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
                 </div>
               </div>
 
-              {row.status === 'error' && <div className="backtest-row__error">{row.error}</div>}
+              {row.status === 'error' && (
+                <Typography size={12} as="div" className="backtest-row__error">
+                  {row.error}
+                </Typography>
+              )}
 
               {row.status === 'done' && row.outcome && (
                 <div className="backtest-row__stats">
-                  <span>
-                    거래수 <b>{row.outcome.result.strategy.trades.toLocaleString()}</b>
-                  </span>
-                  <span>
-                    승률 <b>{fmtBacktestPct(row.outcome.result.strategy.winRate * 100)}</b>
-                  </span>
-                  <span>
+                  <Typography size={14}>
+                    거래수{' '}
+                    <Typography size={14} as="b">
+                      {row.outcome.result.strategy.trades.toLocaleString()}
+                    </Typography>
+                  </Typography>
+                  <Typography size={14}>
+                    승률{' '}
+                    <Typography size={14} as="b">
+                      {fmtBacktestPct(row.outcome.result.strategy.winRate * 100)}
+                    </Typography>
+                  </Typography>
+                  <Typography size={14}>
                     기대값{' '}
-                    <b className={backtestBiasClass(row.outcome.result.strategy.avgReturnPct)}>
+                    <Typography
+                      size={14}
+                      as="b"
+                      className={backtestBiasClass(row.outcome.result.strategy.avgReturnPct)}
+                    >
                       {fmtBacktestPct(row.outcome.result.strategy.avgReturnPct, true)}
-                    </b>
-                  </span>
-                  <span>
+                    </Typography>
+                  </Typography>
+                  <Typography size={14}>
                     누적{' '}
-                    <b className={backtestBiasClass(row.outcome.result.strategy.totalReturnPct)}>
+                    <Typography
+                      size={14}
+                      as="b"
+                      className={backtestBiasClass(row.outcome.result.strategy.totalReturnPct)}
+                    >
                       {fmtBacktestPct(row.outcome.result.strategy.totalReturnPct, true)}
-                    </b>
-                  </span>
+                    </Typography>
+                  </Typography>
                 </div>
               )}
             </li>
@@ -296,10 +321,10 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
             aria-label={`${detailRow.symbol} 백테스트 상세`}
           >
             <div className="backtest-modal__head">
-              <h2 className="backtest-modal__title">
+              <Typography size={16} as="h2" className="backtest-modal__title">
                 백테스트 · {detailRow.symbol}
                 {detailRow.name ? ` (${detailRow.name})` : ''}
-              </h2>
+              </Typography>
               <button
                 type="button"
                 className="backtest-modal__close"

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { OpenOrdersPanel } from './OpenOrdersPanel';
 import { PortfolioStats } from './PortfolioStats';
 import { StockLabel } from './StockLabel';
+import { Typography } from '../shared/ui/Typography';
 import { formatProfitLoss, formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
 import type { HoldingItem, Order } from '../shared/types';
 
@@ -110,19 +111,19 @@ export function PortfolioSidebar({
 
       <section className="panel portfolio-sidebar__holdings">
         <div className="panel-title">
-          <h2>보유 종목</h2>
-          <span className="price-meta">
+          <Typography size={20} as="h2">보유 종목</Typography>
+          <Typography size={14} className="price-meta">
             <span
               className={`refresh-dot${holdingsRefreshing ? ' is-active' : ''}`}
               aria-hidden={!holdingsRefreshing}
             />
             {holdingsPollIntervalMs / 1000}초마다 갱신
-          </span>
+          </Typography>
         </div>
 
         <div className="panel-body portfolio-holdings-list">
           {holdings.length === 0 ? (
-            <p className="hint">보유한 미국 주식이 없습니다.</p>
+            <Typography size={14} as="p" className="hint">보유한 미국 주식이 없습니다.</Typography>
           ) : (
             <ul className="portfolio-holdings-list__items">
               {holdings.map((item, index) => {
@@ -140,34 +141,37 @@ export function PortfolioSidebar({
                       <div className="portfolio-holding-item__main">
                         <span className="portfolio-holding-item__label-group">
                           {hotkey !== undefined && (
-                            <span
+                            <Typography
+                              size={10}
                               className="portfolio-holding-item__hotkey"
                               aria-hidden="true"
                               title={`Option+${hotkey} 로 이동`}
                             >
                               {hotkey}
-                            </span>
+                            </Typography>
                           )}
                           <StockLabel symbol={item.symbol} />
                         </span>
-                        <span
+                        <Typography
+                          size={14}
                           className={`portfolio-holding-item__value ${flashes[item.symbol] ? `price-flash-${flashes[item.symbol]}` : ''}`}
                         >
                           {formatUsd(item.marketValue)}
-                        </span>
+                        </Typography>
                       </div>
                       <div className="portfolio-holding-item__meta">
-                        <span className="portfolio-holding-item__qty">
+                        <Typography size={12} className="portfolio-holding-item__qty">
                           {item.quantity.toLocaleString('en-US', {
                             maximumFractionDigits: 4,
                           })}
                           주
-                        </span>
-                        <span
+                        </Typography>
+                        <Typography
+                          size={12}
                           className={`portfolio-holding-item__pl ${getKrProfitLossClass(item.profitLoss) ?? ''}`}
                         >
                           {formatProfitLoss(item.profitLoss, item.profitLossRate)}
-                        </span>
+                        </Typography>
                       </div>
                     </button>
                     {onToggleHidden && (
@@ -195,8 +199,10 @@ export function PortfolioSidebar({
                 onClick={() => setShowHidden((prev) => !prev)}
                 aria-expanded={showHidden}
               >
-                <span>숨긴 종목 {hiddenHoldings.length}개</span>
-                <span className="portfolio-hidden__chevron">{showHidden ? '▾' : '▸'}</span>
+                <Typography size={12}>숨긴 종목 {hiddenHoldings.length}개</Typography>
+                <Typography size={12} className="portfolio-hidden__chevron">
+                  {showHidden ? '▾' : '▸'}
+                </Typography>
               </button>
 
               {showHidden && (
@@ -213,22 +219,23 @@ export function PortfolioSidebar({
                         >
                           <div className="portfolio-holding-item__main">
                             <StockLabel symbol={item.symbol} />
-                            <span className="portfolio-holding-item__value">
+                            <Typography size={14} className="portfolio-holding-item__value">
                               {formatUsd(item.marketValue)}
-                            </span>
+                            </Typography>
                           </div>
                           <div className="portfolio-holding-item__meta">
-                            <span className="portfolio-holding-item__qty">
+                            <Typography size={12} className="portfolio-holding-item__qty">
                               {item.quantity.toLocaleString('en-US', {
                                 maximumFractionDigits: 4,
                               })}
                               주
-                            </span>
-                            <span
+                            </Typography>
+                            <Typography
+                              size={12}
                               className={`portfolio-holding-item__pl ${getKrProfitLossClass(item.profitLoss) ?? ''}`}
                             >
                               {formatProfitLoss(item.profitLoss, item.profitLossRate)}
-                            </span>
+                            </Typography>
                           </div>
                         </button>
                         {onToggleHidden && (

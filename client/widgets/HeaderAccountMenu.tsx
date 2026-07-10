@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { formatKrw, formatUsd } from '../shared/lib/formatHoldings';
 import { useAccountSummary } from '../shared/hooks/useAccountSummary';
+import { Typography } from '../shared/ui/Typography';
 
 /**
  * 모바일 전용 '내 계좌' 드롭다운. 좁은 화면에서 헤더가 2단으로 늘어나지 않도록
@@ -63,17 +64,21 @@ export function HeaderAccountMenu() {
       {open && (
         <div className="header-account-menu__panel" role="menu" aria-label="총 계좌 및 환율">
           <div className="header-account-menu__row">
-            <span className="header-account-menu__label">환율</span>
-            <span className="header-account-menu__rate">
+            <Typography size={12} className="header-account-menu__label">환율</Typography>
+            <Typography size={12} className="header-account-menu__rate">
               {exchangeRate !== undefined ? `$1 = ${formatKrw(exchangeRate)}` : '—'}
-            </span>
+            </Typography>
           </div>
           <div className="header-account-menu__row">
-            <span className="header-account-menu__label">총 계좌</span>
+            <Typography size={12} className="header-account-menu__label">총 계좌</Typography>
             <span className="header-account-menu__amount">
-              <strong className="header-account-menu__usd">{formatUsd(totalAccountValue)}</strong>
+              <Typography as="strong" size={16} className="header-account-menu__usd">
+                {formatUsd(totalAccountValue)}
+              </Typography>
               {totalAccountValueKrw !== undefined && (
-                <span className="header-account-menu__krw">{formatKrw(totalAccountValueKrw)}</span>
+                <Typography size={10} className="header-account-menu__krw">
+                  {formatKrw(totalAccountValueKrw)}
+                </Typography>
               )}
             </span>
           </div>
