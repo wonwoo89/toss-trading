@@ -19,20 +19,21 @@ const ICON_PROPS = {
 
 const TABS: { id: MobileTab; label: string; icon: React.ReactNode }[] = [
   {
+    id: 'assets',
+    label: '자산',
+    icon: (
+      <svg {...ICON_PROPS}>
+        <path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z" />
+        <path d="M16 12h5v4h-5a2 2 0 1 1 0-4Z" />
+      </svg>
+    ),
+  },
+  {
     id: 'chart',
     label: '차트',
     icon: (
       <svg {...ICON_PROPS}>
         <path d="M7 4v3M7 15v3M7 7h2v8H5V7h2ZM17 6v3M17 17v3M17 9h2v8h-4V9h2Z" />
-      </svg>
-    ),
-  },
-  {
-    id: 'order',
-    label: '주문',
-    icon: (
-      <svg {...ICON_PROPS}>
-        <path d="M13 2 5 14h6l-1 8 8-12h-6l1-8Z" />
       </svg>
     ),
   },
@@ -46,12 +47,11 @@ const TABS: { id: MobileTab; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: 'assets',
-    label: '자산',
+    id: 'order',
+    label: '주문',
     icon: (
       <svg {...ICON_PROPS}>
-        <path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z" />
-        <path d="M16 12h5v4h-5a2 2 0 1 1 0-4Z" />
+        <path d="M13 2 5 14h6l-1 8 8-12h-6l1-8Z" />
       </svg>
     ),
   },
