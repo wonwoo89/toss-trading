@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { BacktestPanel } from './BacktestPanel';
+import { Typography } from '../shared/ui/Typography';
 
 export function BacktestModal({ symbol, onClose }: { symbol: string; onClose: () => void }) {
   // Esc 로 닫기 + 배경 스크롤 잠금
@@ -26,7 +27,9 @@ export function BacktestModal({ symbol, onClose }: { symbol: string; onClose: ()
         aria-label={`${symbol} 신호 백테스트`}
       >
         <div className="backtest-modal__head">
-          <h2 className="backtest-modal__title">백테스트 · {symbol}</h2>
+          <Typography size={16} as="h2" className="backtest-modal__title">
+            백테스트 · {symbol}
+          </Typography>
           <button
             type="button"
             className="backtest-modal__close"
