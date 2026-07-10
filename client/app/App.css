@@ -2216,6 +2216,19 @@ select:focus-visible {
   color: var(--color-down);
 }
 
+/* 매도 예상 실수익률·금액 (수수료·세금 반영) — 이익 빨강/손실 파랑(KR 관례) */
+.order-sell-profit {
+  margin-left: 0.4rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.order-sell-profit.kr-profit {
+  color: var(--color-up);
+}
+.order-sell-profit.kr-loss {
+  color: var(--color-down);
+}
+
 .order-form button[type='submit'] {
   margin-top: 0;
 }
