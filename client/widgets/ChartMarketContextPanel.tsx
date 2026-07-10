@@ -11,6 +11,7 @@ import { buildHoldingPositionSnapshot } from '../shared/lib/holdingTarget';
 import { type MicrostructureBias } from '../shared/lib/marketMicrostructure';
 import { buildOrderExecutionMetrics } from '../shared/lib/orderExecutionContext';
 import { formatUsd } from '../shared/lib/formatHoldings';
+import { Typography } from '../shared/ui/Typography';
 import { formatWarningSummary } from '../shared/lib/warningLabels';
 import { resolveUsMarketSession, type UsMarketSessionKind } from '../shared/lib/usMarketCalendar';
 import type {
@@ -84,15 +85,15 @@ function MetricRow({ label, metrics }: { label: string; metrics: ContextMetric[]
 
   return (
     <div className="market-context__row">
-      <span className="market-context__row-label">{label}</span>
+      <Typography size={12} className="market-context__row-label">{label}</Typography>
       <div className="market-context__metrics">
         {metrics.map((metric) => (
           <span
             key={metric.id}
             className={`market-context__metric ${getMetricClassName(metric.bias)}`}
           >
-            <span className="market-context__metric-label">{metric.label}</span>
-            <span className="market-context__metric-value">{metric.value}</span>
+            <Typography size={12} className="market-context__metric-label">{metric.label}</Typography>
+            <Typography size={12} className="market-context__metric-value">{metric.value}</Typography>
           </span>
         ))}
       </div>
@@ -189,12 +190,12 @@ export function ChartMarketContextPanel({
   return (
     <div className="market-context" aria-live="polite">
       <div className="market-context__row">
-        <span className="market-context__row-label">장 상태</span>
+        <Typography size={12} className="market-context__row-label">장 상태</Typography>
         <div className="market-context__row-content">
-          <span className={`market-context__session ${getSessionClassName(session.kind)}`}>
+          <Typography size={12} className={`market-context__session ${getSessionClassName(session.kind)}`}>
             {session.label}
-          </span>
-          <span className="market-context__detail">{sessionDetail}</span>
+          </Typography>
+          <Typography size={12} className="market-context__detail">{sessionDetail}</Typography>
         </div>
       </div>
 
@@ -204,26 +205,26 @@ export function ChartMarketContextPanel({
 
       {position.visible && (
         <div className="market-context__row">
-          <span className="market-context__row-label">보유 포지션</span>
+          <Typography size={12} className="market-context__row-label">보유 포지션</Typography>
           <div className="market-context__metrics">
             <span className="market-context__metric market-context__metric--neutral">
-              <span className="market-context__metric-label">평단</span>
-              <span className="market-context__metric-value">
+              <Typography size={12} className="market-context__metric-label">평단</Typography>
+              <Typography size={12} className="market-context__metric-value">
                 {formatUsd(position.averagePrice)}
-              </span>
+              </Typography>
             </span>
             <span
               className={`market-context__metric ${getProfitClassName(position.profitLossRate)}`}
             >
-              <span className="market-context__metric-label">실수익률</span>
-              <span className="market-context__metric-value">{position.profitLossRateLabel}</span>
+              <Typography size={12} className="market-context__metric-label">실수익률</Typography>
+              <Typography size={12} className="market-context__metric-value">{position.profitLossRateLabel}</Typography>
             </span>
             {breakEvenMetric && (
               <span
                 className={`market-context__metric ${getMetricClassName(breakEvenMetric.bias)}`}
               >
-                <span className="market-context__metric-label">{breakEvenMetric.label}</span>
-                <span className="market-context__metric-value">{breakEvenMetric.value}</span>
+                <Typography size={12} className="market-context__metric-label">{breakEvenMetric.label}</Typography>
+                <Typography size={12} className="market-context__metric-value">{breakEvenMetric.value}</Typography>
               </span>
             )}
             <span
@@ -234,10 +235,10 @@ export function ChartMarketContextPanel({
                   : 'market-context__metric--neutral'
               }`}
             >
-              <span className="market-context__metric-label">
+              <Typography size={12} className="market-context__metric-label">
                 목표 {position.targetProfitRatePercent}%
-              </span>
-              <span className="market-context__metric-value">{position.distanceToTargetLabel}</span>
+              </Typography>
+              <Typography size={12} className="market-context__metric-value">{position.distanceToTargetLabel}</Typography>
             </span>
           </div>
         </div>
@@ -245,9 +246,9 @@ export function ChartMarketContextPanel({
 
       {warningSummary && (
         <div className="market-context__row">
-          <span className="market-context__row-label">종목 경고</span>
+          <Typography size={12} className="market-context__row-label">종목 경고</Typography>
           <div className="market-context__row-content">
-            <span className="market-context__warning">{warningSummary}</span>
+            <Typography size={12} className="market-context__warning">{warningSummary}</Typography>
           </div>
         </div>
       )}

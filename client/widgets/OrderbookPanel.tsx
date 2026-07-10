@@ -6,6 +6,7 @@ import {
 } from '../shared/lib/marketMicrostructure';
 import { formatPrice, formatQuantity } from '../shared/lib/formatHoldings';
 import { emitLimitPriceSelect } from '../shared/lib/limitPriceBus';
+import { Typography } from '../shared/ui/Typography';
 
 interface OrderbookEntry {
   price: number;
@@ -130,7 +131,7 @@ export function OrderbookPanel({
       <div className="orderbook-summary">
         <div className="orderbook-summary__metrics" aria-live="polite">
           <span className="orderbook-summary__metric orderbook-summary__metric--bearish">
-            <span className="orderbook-summary__metric-label">매도 1호가</span>
+            <Typography size={12} className="orderbook-summary__metric-label">매도 1호가</Typography>
             <button
               type="button"
               className={`orderbook-summary__metric-value orderbook-price-btn ${askFlash ? `price-flash-${askFlash}` : ''}`}
@@ -141,7 +142,7 @@ export function OrderbookPanel({
             </button>
           </span>
           <span className="orderbook-summary__metric orderbook-summary__metric--bullish">
-            <span className="orderbook-summary__metric-label">매수 1호가</span>
+            <Typography size={12} className="orderbook-summary__metric-label">매수 1호가</Typography>
             <button
               type="button"
               className={`orderbook-summary__metric-value orderbook-price-btn ${bidFlash ? `price-flash-${bidFlash}` : ''}`}
@@ -152,12 +153,12 @@ export function OrderbookPanel({
             </button>
           </span>
           <span className={`orderbook-summary__metric ${getMetricBiasClass(spread.bias)}`}>
-            <span className="orderbook-summary__metric-label">{spread.label}</span>
-            <span className="orderbook-summary__metric-value">{spread.value}</span>
+            <Typography size={12} className="orderbook-summary__metric-label">{spread.label}</Typography>
+            <Typography size={12} className="orderbook-summary__metric-value">{spread.value}</Typography>
           </span>
           <span className={`orderbook-summary__metric ${getMetricBiasClass(tradeFlow.bias)}`}>
-            <span className="orderbook-summary__metric-label">{tradeFlow.label}</span>
-            <span className="orderbook-summary__metric-value">{tradeFlow.value}</span>
+            <Typography size={12} className="orderbook-summary__metric-label">{tradeFlow.label}</Typography>
+            <Typography size={12} className="orderbook-summary__metric-value">{tradeFlow.value}</Typography>
           </span>
         </div>
         {showToggle && (
@@ -177,43 +178,44 @@ export function OrderbookPanel({
           {/* 잔량 불균형 / 중간값 / 마이크로프라이스 */}
           <div className="orderbook-stats">
             <span className="orderbook-stat">
-              <span className="orderbook-stat__label">매수/매도 잔량</span>
-              <span className="orderbook-stat__value">
-                <span className="up">{formatQuantity(depth.bidTotal)}</span>
+              <Typography size={10} className="orderbook-stat__label">매수/매도 잔량</Typography>
+              <Typography size={12} className="orderbook-stat__value">
+                <Typography size={12} className="up">{formatQuantity(depth.bidTotal)}</Typography>
                 {' / '}
-                <span className="down">{formatQuantity(depth.askTotal)}</span>
-              </span>
+                <Typography size={12} className="down">{formatQuantity(depth.askTotal)}</Typography>
+              </Typography>
             </span>
             <span className="orderbook-stat">
-              <span className="orderbook-stat__label">불균형</span>
-              <span
+              <Typography size={10} className="orderbook-stat__label">불균형</Typography>
+              <Typography
+                size={12}
                 className={`orderbook-stat__value ${imbalancePct >= 55 ? 'up' : imbalancePct <= 45 ? 'down' : ''}`}
               >
                 매수 {imbalancePct}%
-              </span>
+              </Typography>
             </span>
             <span className="orderbook-stat">
-              <span className="orderbook-stat__label">중간값</span>
-              <span className="orderbook-stat__value">{formatPrice(depth.mid, currency)}</span>
+              <Typography size={10} className="orderbook-stat__label">중간값</Typography>
+              <Typography size={12} className="orderbook-stat__value">{formatPrice(depth.mid, currency)}</Typography>
             </span>
             <span
               className="orderbook-stat"
               title="마이크로프라이스: 양측 잔량으로 가중한 공정가. 중간값보다 한쪽으로 치우치면 그 방향으로의 단기 압력을 시사."
             >
-              <span className="orderbook-stat__label">마이크로</span>
-              <span className="orderbook-stat__value">{formatPrice(depth.micro, currency)}</span>
+              <Typography size={10} className="orderbook-stat__label">마이크로</Typography>
+              <Typography size={12} className="orderbook-stat__value">{formatPrice(depth.micro, currency)}</Typography>
             </span>
           </div>
 
           {/* 뎁스 호가(매도 위 / 매수 아래) — 누적 + 뎁스 바 */}
           <div className="orderbook-depth">
             <div className="orderbook-depth__head">
-              <span>누적</span>
-              <span>잔량</span>
-              <span>가격</span>
+              <Typography size={10}>누적</Typography>
+              <Typography size={10}>잔량</Typography>
+              <Typography size={10}>가격</Typography>
             </div>
             {askRowsDisplay.length === 0 ? (
-              <div className="orderbook-depth__empty">매도호가 없음</div>
+              <Typography size={12} as="div" className="orderbook-depth__empty">매도호가 없음</Typography>
             ) : (
               askRowsDisplay.map((r, i) => (
                 <div className="orderbook-row is-ask" key={`ask-${i}`}>
@@ -221,8 +223,8 @@ export function OrderbookPanel({
                     className="orderbook-row__bar is-ask"
                     style={{ width: `${Math.min(100, (r.quantity / depth.maxQty) * 100)}%` }}
                   />
-                  <span className="orderbook-row__cum">{formatQuantity(r.cumulative)}</span>
-                  <span className="orderbook-row__qty">{formatQuantity(r.quantity)}</span>
+                  <Typography size={12} className="orderbook-row__cum">{formatQuantity(r.cumulative)}</Typography>
+                  <Typography size={12} className="orderbook-row__qty">{formatQuantity(r.quantity)}</Typography>
                   <button
                     type="button"
                     className="orderbook-row__price orderbook-price-btn down"
@@ -236,12 +238,12 @@ export function OrderbookPanel({
             )}
 
             <div className="orderbook-depth__mid">
-              <span>스프레드 {spread.spread !== undefined ? formatPrice(spread.spread, currency) : '—'}</span>
-              {spread.spreadPercent !== undefined && <span>({spread.spreadPercent.toFixed(3)}%)</span>}
+              <Typography size={10}>스프레드 {spread.spread !== undefined ? formatPrice(spread.spread, currency) : '—'}</Typography>
+              {spread.spreadPercent !== undefined && <Typography size={10}>({spread.spreadPercent.toFixed(3)}%)</Typography>}
             </div>
 
             {depth.bidRows.length === 0 ? (
-              <div className="orderbook-depth__empty">매수호가 없음</div>
+              <Typography size={12} as="div" className="orderbook-depth__empty">매수호가 없음</Typography>
             ) : (
               depth.bidRows.map((r, i) => (
                 <div className="orderbook-row is-bid" key={`bid-${i}`}>
@@ -249,8 +251,8 @@ export function OrderbookPanel({
                     className="orderbook-row__bar is-bid"
                     style={{ width: `${Math.min(100, (r.quantity / depth.maxQty) * 100)}%` }}
                   />
-                  <span className="orderbook-row__cum">{formatQuantity(r.cumulative)}</span>
-                  <span className="orderbook-row__qty">{formatQuantity(r.quantity)}</span>
+                  <Typography size={12} className="orderbook-row__cum">{formatQuantity(r.cumulative)}</Typography>
+                  <Typography size={12} className="orderbook-row__qty">{formatQuantity(r.quantity)}</Typography>
                   <button
                     type="button"
                     className="orderbook-row__price orderbook-price-btn up"
@@ -267,18 +269,18 @@ export function OrderbookPanel({
           {/* 최근 체결 */}
           <div className="orderbook-trades">
             <div className="orderbook-trades__head">
-              <span>시간</span>
-              <span>가격</span>
-              <span>수량</span>
+              <Typography size={10}>시간</Typography>
+              <Typography size={10}>가격</Typography>
+              <Typography size={10}>수량</Typography>
             </div>
             {trades.length === 0 ? (
-              <div className="orderbook-depth__empty">체결 없음</div>
+              <Typography size={12} as="div" className="orderbook-depth__empty">체결 없음</Typography>
             ) : (
               trades.slice(0, 12).map((t, i) => (
                 <div className="orderbook-trade" key={`trade-${i}`}>
-                  <span>{new Date(t.timestamp).toLocaleTimeString('ko-KR')}</span>
-                  <span>{formatPrice(t.price, currency)}</span>
-                  <span>{formatQuantity(t.quantity)}</span>
+                  <Typography size={10}>{new Date(t.timestamp).toLocaleTimeString('ko-KR')}</Typography>
+                  <Typography size={10}>{formatPrice(t.price, currency)}</Typography>
+                  <Typography size={10}>{formatQuantity(t.quantity)}</Typography>
                 </div>
               ))
             )}
