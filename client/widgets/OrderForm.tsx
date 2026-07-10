@@ -3,6 +3,7 @@ import { StockHoldingSummary } from './StockHoldingSummary';
 import { Button } from '../shared/ui/Button';
 import { Chip } from '../shared/ui/Chip';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
+import { TextField } from '../shared/ui/TextField';
 import { Typography } from '../shared/ui/Typography';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
@@ -670,15 +671,13 @@ export function OrderForm({
               <Typography size={14} className="order-form__field-label">주문 금액 (USD)</Typography>
               {amountOrderToggle}
             </div>
-            <label>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={orderAmount}
-                onChange={(e) => setOrderAmount(sanitizeDecimalInput(e.target.value))}
-                required
-              />
-            </label>
+            <TextField
+              type="number"
+              unit="$"
+              value={orderAmount}
+              onChange={(e) => setOrderAmount(sanitizeDecimalInput(e.target.value))}
+              required
+            />
           </div>
         ) : (
           <>
@@ -689,9 +688,9 @@ export function OrderForm({
               </div>
               {/* 배치: [가격 인풋] [−] [+] — 스테퍼는 우측에 모아 정렬 */}
               <div className="order-price-row">
-                <input
-                  type="text"
-                  inputMode="decimal"
+                <TextField
+                  className="order-price-field"
+                  type="number"
                   value={price}
                   placeholder={
                     priceMode === 'market' ? '시장가' : currentPrice ? String(currentPrice) : '0.00'

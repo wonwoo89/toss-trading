@@ -6,6 +6,7 @@ import { mapHoldings } from '../entities/position';
 import { getCachedHoldings } from '../features/trade/useSymbolTrading';
 import { BacktestResultView } from './BacktestResultView';
 import { NumberField } from './NumberField';
+import { TextField } from '../shared/ui/TextField';
 import { Typography } from '../shared/ui/Typography';
 import { backtestBiasClass, fmtBacktestPct } from '../shared/lib/backtestFormat';
 import {
@@ -170,22 +171,40 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
             ))}
           </select>
         </label>
-        <label title="신호 발생 후 결과를 평가할 봉 수. 예: K=15 → 이후 15봉 안에 목표/손절 도달 여부로 판정(미도달 시 만기 종가).">
-          예측 봉수 (K)
-          <NumberField integer min={1} max={120} value={forwardBars} onChange={setForwardBars} />
-        </label>
-        <label title="진입 후 이 비율(+%)에 먼저 도달하면 익절로 판정.">
-          목표 +%
-          <NumberField min={0.1} value={targetPct} onChange={setTargetPct} />
-        </label>
-        <label title="진입 후 이 비율(−%)에 먼저 도달하면 손절로 판정.">
-          손절 −%
-          <NumberField min={0.1} value={stopPct} onChange={setStopPct} />
-        </label>
-        <label title="1회 매매(매수+매도) 왕복에 드는 거래비용(수수료+스프레드+세금) 추정치. 각 거래 수익률에서 그대로 차감합니다.">
-          거래비용 %
-          <NumberField min={0} value={costPct} onChange={setCostPct} />
-        </label>
+        <NumberField
+          label="예측 봉수 (K)"
+          unit="봉"
+          title="신호 발생 후 결과를 평가할 봉 수. 예: K=15 → 이후 15봉 안에 목표/손절 도달 여부로 판정(미도달 시 만기 종가)."
+          integer
+          min={1}
+          max={120}
+          value={forwardBars}
+          onChange={setForwardBars}
+        />
+        <NumberField
+          label="목표"
+          unit="+%"
+          title="진입 후 이 비율(+%)에 먼저 도달하면 익절로 판정."
+          min={0.1}
+          value={targetPct}
+          onChange={setTargetPct}
+        />
+        <NumberField
+          label="손절"
+          unit="−%"
+          title="진입 후 이 비율(−%)에 먼저 도달하면 손절로 판정."
+          min={0.1}
+          value={stopPct}
+          onChange={setStopPct}
+        />
+        <NumberField
+          label="거래비용"
+          unit="%"
+          title="1회 매매(매수+매도) 왕복에 드는 거래비용(수수료+스프레드+세금) 추정치. 각 거래 수익률에서 그대로 차감합니다."
+          min={0}
+          value={costPct}
+          onChange={setCostPct}
+        />
         <button
           type="button"
           className="backtest-run"
@@ -295,7 +314,7 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
         </ul>
 
         <div className="backtest-add-row">
-          <input
+          <TextField
             value={addSymbol}
             onChange={(e) => setAddSymbol(e.target.value)}
             placeholder="종목 추가 (예: TSLA)"
