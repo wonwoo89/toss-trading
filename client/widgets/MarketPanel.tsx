@@ -6,6 +6,7 @@ const CandleChart = lazy(() =>
 import { ChartMarketContextPanel } from './ChartMarketContextPanel';
 import { ChartOptionsMenu } from './ChartOptionsMenu';
 import { AutoTradePanel } from './AutoTradePanel';
+import { Button } from '../shared/ui/Button';
 import { OrderbookPanel } from './OrderbookPanel';
 import { StockLabel } from './StockLabel';
 import { BacktestModal } from './BacktestModal';
@@ -178,14 +179,15 @@ export function MarketPanel({
                 </option>
               ))}
             </select>
-            <button
-              type="button"
+            <Button
+              size="sm"
+              variant="ghost"
               className="chart-backtest-btn"
               onClick={() => setBacktestOpen(true)}
               title="이 종목 신호 백테스트"
             >
               백테스트
-            </button>
+            </Button>
           </div>
         </div>
 

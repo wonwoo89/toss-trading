@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
+import { Button } from '../shared/ui/Button';
+import { Chip } from '../shared/ui/Chip';
+import { SegmentedControl } from '../shared/ui/SegmentedControl';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import {
@@ -682,15 +685,14 @@ export function OrderForm({
                 {amountOrderToggle}
               </div>
               <div className="order-price-row">
-                <button
-                  type="button"
+                <Button
                   className="order-price-step"
                   aria-label="한 틱 내리기"
                   onClick={() => stepPrice(-1)}
                   disabled={priceMode === 'market'}
                 >
                   −
-                </button>
+                </Button>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -705,41 +707,27 @@ export function OrderForm({
                   disabled={isPriceInputDisabled}
                   required={priceMode === 'limit'}
                 />
-                <button
-                  type="button"
+                <Button
                   className="order-price-step"
                   aria-label="한 틱 올리기"
                   onClick={() => stepPrice(1)}
                   disabled={priceMode === 'market'}
                 >
                   ＋
-                </button>
+                </Button>
               </div>
 
-              <div className="order-quick-actions order-price-modes">
-                <button
-                  type="button"
-                  className={priceMode === 'limit' ? 'active' : ''}
-                  onClick={() => handlePriceModeChange('limit')}
-                >
-                  지정가
-                </button>
-                <button
-                  type="button"
-                  className={priceMode === 'current' ? 'active' : ''}
-                  onClick={() => handlePriceModeChange('current')}
-                  disabled={currentPrice === undefined}
-                >
-                  현재가
-                </button>
-                <button
-                  type="button"
-                  className={priceMode === 'market' ? 'active' : ''}
-                  onClick={() => handlePriceModeChange('market')}
-                >
-                  시장가
-                </button>
-              </div>
+              <SegmentedControl
+                className="order-price-modes"
+                aria-label="가격 모드"
+                value={priceMode}
+                onChange={handlePriceModeChange}
+                options={[
+                  { value: 'limit', label: '지정가' },
+                  { value: 'current', label: '현재가', disabled: currentPrice === undefined },
+                  { value: 'market', label: '시장가' },
+                ]}
+              />
             </div>
 
             <div className="order-form__section">
@@ -747,15 +735,14 @@ export function OrderForm({
               {showQuantityPercentButtons && (
                 <div className="order-quick-actions">
                   {QUANTITY_PERCENTAGES.map((percent) => (
-                    <button
+                    <Chip
                       key={percent}
-                      type="button"
-                      className={selectedQuantityPercent === percent ? 'active' : ''}
+                      selected={selectedQuantityPercent === percent}
                       onClick={() => applyQuantityPercent(percent)}
                       disabled={quantityPercentDisabled}
                     >
                       {percent}%
-                    </button>
+                    </Chip>
                   ))}
                 </div>
               )}
@@ -775,14 +762,13 @@ export function OrderForm({
                 <>
                   <div className="order-quick-actions">
                     {TAKE_PROFIT_RATE_OPTIONS.map((rate) => (
-                      <button
+                      <Chip
                         key={rate}
-                        type="button"
-                        className={takeProfitRatePercent === rate ? 'active' : ''}
+                        selected={takeProfitRatePercent === rate}
                         onClick={() => updateTakeProfitRate(rate)}
                       >
                         {rate}%
-                      </button>
+                      </Chip>
                     ))}
                   </div>
                 </>
@@ -866,9 +852,9 @@ export function OrderForm({
 
         {/* 직접 입력(수량·가격)으로 실행하는 버튼. 사용자가 정한 값 그대로 주문. */}
         <div className="order-manual-actions">
-          <button
-            type="button"
-            className="order-manual-btn buy"
+          <Button
+            variant="buy"
+            className="order-manual-btn"
             onClick={() => executeManual('BUY')}
             disabled={submitting}
           >
@@ -876,10 +862,10 @@ export function OrderForm({
             {!quantity && selectedQuantityPercent !== undefined && (
               <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
             )}
-          </button>
-          <button
-            type="button"
-            className="order-manual-btn sell"
+          </Button>
+          <Button
+            variant="sell"
+            className="order-manual-btn"
             onClick={() => executeManual('SELL')}
             disabled={submitting}
           >
@@ -887,7 +873,7 @@ export function OrderForm({
             {!quantity && selectedQuantityPercent !== undefined && (
               <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
             )}
-          </button>
+          </Button>
         </div>
 
           </>

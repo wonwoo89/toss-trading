@@ -804,6 +804,155 @@ textarea {
   min-height: 0;
 }
 
+/* ═══ UI 컴포넌트 시스템 — 버튼·칩·세그먼티드 (미니멀·보더리스) ═══
+   이 블록은 베이스 레이어: 화면별 세부 조정(.order-manual-btn 등)이 뒤에서 덮을 수 있다. */
+
+/* 버튼 — hover 는 배경 변화, pressed 는 눌림(scale) 피드백 */
+.ui-btn {
+  border: none;
+  border-radius: 10px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.06s ease,
+    opacity 0.12s ease;
+}
+.ui-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+.ui-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.ui-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.ui-btn--accent {
+  background: var(--accent, #3182f6);
+  color: #fff;
+}
+.ui-btn--accent:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent, #3182f6) 86%, #000);
+}
+.ui-btn--buy {
+  background: var(--color-up);
+  color: #fff;
+}
+.ui-btn--buy:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-up) 86%, #000);
+}
+.ui-btn--sell {
+  background: var(--color-down);
+  color: #fff;
+}
+.ui-btn--sell:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-down) 86%, #000);
+}
+.ui-btn--ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+.ui-btn--ghost:hover:not(:disabled) {
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+}
+.ui-btn--sm {
+  padding: 0.35rem 0.6rem;
+  font-size: 0.75rem;
+  border-radius: 8px;
+}
+.ui-btn--lg {
+  padding: 0.7rem 1rem;
+  font-size: 0.95rem;
+  border-radius: 12px;
+}
+
+/* 칩 — 선택/해제 상태가 있는 리스팅 아이템 */
+.ui-chip {
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.06s ease,
+    opacity 0.12s ease;
+}
+.ui-chip:hover:not(:disabled):not(.is-selected) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+.ui-chip:active:not(:disabled) {
+  transform: scale(0.96);
+}
+.ui-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.ui-chip.is-selected {
+  background: color-mix(in srgb, var(--accent, #3182f6) 18%, transparent);
+  color: var(--accent, #3182f6);
+  font-weight: 700;
+}
+
+/* 세그먼티드 컨트롤 — 트랙(bg-subtle) 위에 활성 아이템만 떠 있는 형태 */
+.ui-segmented {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+}
+.ui-segmented__item {
+  flex: 1 1 0;
+  border: none;
+  border-radius: 8px;
+  padding: 0.38rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 0.12s ease,
+    color 0.12s ease,
+    transform 0.06s ease;
+}
+.ui-segmented__item:hover:not(:disabled):not(.is-active) {
+  color: var(--text-primary);
+}
+.ui-segmented__item:active:not(:disabled) {
+  transform: scale(0.97);
+}
+.ui-segmented__item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.ui-segmented__item.is-active {
+  background: var(--accent, #3182f6);
+  color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14);
+}
+/* 위험 단계 강조(오토 모드 등) — 활성 시 하락색 */
+.ui-segmented__item.is-danger.is-active {
+  background: var(--color-down);
+}
+
 /* 모바일 전용 보유 종목 칩 바 (데스크톱 숨김, 모바일 media query 에서 노출) */
 .holdings-chip-bar {
   display: none;
@@ -816,18 +965,15 @@ textarea {
   align-items: center;
   gap: 0.25rem;
   padding: 0.35rem 0.6rem;
-  border-radius: 12px;
+  border-radius: 999px;
   background: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
+  border: none;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .holdings-chip.is-active {
-  background: color-mix(in srgb, var(--accent, #3182f6) 16%, var(--bg-subtle));
-  border-color: var(--accent, #3182f6);
-  /* 안쪽 링(inset)으로 강조 — 가로 스크롤(overflow) 칩 바에서 바깥 링이 위아래로 잘리는 문제 방지 */
-  box-shadow: inset 0 0 0 1px var(--accent, #3182f6);
+  background: color-mix(in srgb, var(--accent, #3182f6) 18%, transparent);
 }
 
 .holdings-chip.is-active .holdings-chip__ticker {
@@ -2479,33 +2625,12 @@ input[type='checkbox']:focus-visible {
   margin: 0;
 }
 
+/* ui-btn(buy/sell 변형) 위에 크기만 조정 */
 .order-manual-btn {
   padding: 0.65rem 0.6rem;
   border-radius: 12px;
-  border: 1px solid transparent;
   font-size: 0.9rem;
   font-weight: 700;
-  color: #fff;
-  cursor: pointer;
-  transition:
-    filter 0.1s ease,
-    opacity 0.1s ease;
-}
-
-.order-manual-btn.buy {
-  background: var(--color-up);
-}
-
-.order-manual-btn.sell {
-  background: var(--color-down);
-}
-
-.order-manual-btn:hover:not(:disabled) {
-  filter: brightness(1.08);
-}
-
-.order-manual-btn:active:not(:disabled) {
-  filter: brightness(0.94);
 }
 
 /* 직접 매수/매도 버튼의 수량 비율 배지 — 원탭 시 몇 %가 나갈지 표시 */
@@ -2528,25 +2653,16 @@ input[type='checkbox']:focus-visible {
   flex: 1 1 auto;
   min-width: 0;
 }
+/* ui-btn 위에 크기만 조정 — 색·hover·pressed 는 컴포넌트 시스템을 따른다 */
 .order-price-step {
   flex: 0 0 auto;
   width: 2.6rem;
-  border: 1px solid var(--border-subtle);
+  padding: 0;
   border-radius: 8px;
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1;
   color: var(--text-secondary);
-  background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
-  cursor: pointer;
-}
-.order-price-step:hover:not(:disabled) {
-  color: var(--text-primary);
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-subtle));
-}
-.order-price-step:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
 }
 
 /* 호가 가격 버튼(탭 → 지정가 입력) — 기존 텍스트 스타일 유지한 무장식 버튼 */
@@ -2744,32 +2860,10 @@ button.orderbook-price-btn:hover {
 }
 
 /* 모드 세그먼티드 컨트롤 (하나로 합쳐진 레이아웃) */
-.auto-trade__modes {
-  display: inline-flex;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.auto-trade__mode {
-  padding: 0.2rem 0.6rem;
-  border: none;
-  border-left: 1px solid var(--border-subtle);
-  border-radius: 0;
+/* 자동매매 모드는 ui-segmented 컴포넌트 사용 — 좁은 패널에 맞게 아이템만 컴팩트하게 */
+.auto-trade__modes .ui-segmented__item {
+  padding: 0.22rem 0.5rem;
   font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: var(--bg-subtle);
-}
-.auto-trade__mode:first-child {
-  border-left: none;
-}
-.auto-trade__mode.is-on {
-  color: #fff;
-  background: var(--accent, #3182f6);
-}
-/* 오토는 위험 단계 — 켜졌을 때 빨강으로 경고 */
-.auto-trade__mode.is-auto.is-on {
-  background: var(--color-down);
 }
 .auto-trade__paused {
   margin: 0.4rem 0 0;
@@ -2940,27 +3034,12 @@ button.orderbook-price-btn:hover {
   gap: 0.4rem;
   margin-top: 0.1rem;
 }
+/* 실행/무시는 ui-btn(accent/ghost) 기반 — 배치만 지정 */
 .auto-trade__exec {
   flex: 1 1 auto;
-  padding: 0.4rem;
-  border: none;
-  border-radius: 7px;
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: #fff;
-  background: var(--accent, #3182f6);
-}
-.auto-trade__exec:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 .auto-trade__dismiss {
   flex: 0 0 auto;
-  padding: 0.4rem 0.7rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 7px;
-  font-size: 0.78rem;
-  color: var(--text-secondary);
   background: var(--bg-subtle);
 }
 .auto-trade__log {
@@ -3013,6 +3092,7 @@ button.orderbook-price-btn:hover {
 
 .order-price-modes {
   margin-top: 0;
+  display: flex; /* 세그먼티드를 폼 폭에 맞춰 풀폭으로 */
 }
 
 /* 목표 실수익률: 체크박스와 비율 버튼 사이 간격 */
@@ -3041,39 +3121,10 @@ button.orderbook-price-btn:hover {
   white-space: nowrap;
 }
 
-.order-quick-actions button {
-  width: auto;
-  flex: 0 0 auto;
-  min-width: auto;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  padding: 0.4rem 0.5rem;
-  background: var(--bg-button);
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  white-space: nowrap;
-}
 
 .order-quick-actions:not(.chart-interval) button {
   flex: 1;
   min-width: 0;
-}
-
-.order-quick-actions button:hover:not(:disabled) {
-  color: var(--text-primary);
-}
-
-.order-quick-actions button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.order-quick-actions button.active {
-  background: var(--chip-selected-bg);
-  color: var(--chip-selected-text);
-  border-color: var(--chip-selected-border);
-  font-weight: 600;
-  box-shadow: var(--btn-selected-shadow);
 }
 
 .form-message,
@@ -3908,13 +3959,18 @@ button.orderbook-price-btn:hover {
 .chart-backtest-btn {
   flex: 0 0 auto;
   padding: 0.25rem 0.55rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-input);
+  border-radius: 8px;
+  border: none;
+  background: var(--bg-subtle);
   color: var(--text-secondary);
   font-size: 0.72rem;
   cursor: pointer;
   white-space: nowrap;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+.chart-backtest-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .chart-backtest-btn:hover {
