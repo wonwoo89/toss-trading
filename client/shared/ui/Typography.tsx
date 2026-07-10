@@ -24,6 +24,8 @@ interface TypographyProps extends HTMLAttributes<HTMLElement> {
   as?: ElementType;
   /** 한 줄 말줄임(ellipsis) 처리. */
   truncate?: boolean;
+  /** as="label" 일 때 연결할 컨트롤 id. */
+  htmlFor?: string;
 }
 
 /**
