@@ -434,12 +434,10 @@ export function OrderForm({
     setSelectedQuantityPercent(undefined);
   };
 
-  // 매수(주문가능)·매도(보유) 어느 쪽이든 여력이 있으면 % 버튼 노출 (사이드 비의존)
+  // 매수(주문가능)·매도(보유) 어느 쪽이든 여력이 있으면 % 컨트롤 노출 (사이드 비의존)
   const showQuantityPercentButtons =
     (maxBuyQuantity !== undefined && maxBuyQuantity > 0) ||
     (effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0);
-
-  const quantityPercentDisabled = !showQuantityPercentButtons;
 
   // 금액 주문으로 전환 시 % 선택 해제 (수량 주문에서만 % 의미 있음)
   useEffect(() => {
@@ -733,18 +731,16 @@ export function OrderForm({
             <div className="order-form__section">
               <div className="order-form__section-title">수량 비율</div>
               {showQuantityPercentButtons && (
-                <div className="order-quick-actions">
-                  {QUANTITY_PERCENTAGES.map((percent) => (
-                    <Chip
-                      key={percent}
-                      selected={selectedQuantityPercent === percent}
-                      onClick={() => applyQuantityPercent(percent)}
-                      disabled={quantityPercentDisabled}
-                    >
-                      {percent}%
-                    </Chip>
-                  ))}
-                </div>
+                <SegmentedControl
+                  className="order-quantity-percents"
+                  aria-label="수량 비율"
+                  value={selectedQuantityPercent !== undefined ? String(selectedQuantityPercent) : ''}
+                  onChange={(value) => applyQuantityPercent(Number(value))}
+                  options={QUANTITY_PERCENTAGES.map((percent) => ({
+                    value: String(percent),
+                    label: `${percent}%`,
+                  }))}
+                />
               )}
             </div>
 

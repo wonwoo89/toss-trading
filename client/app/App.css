@@ -3090,7 +3090,8 @@ button.orderbook-price-btn:hover {
   gap: 4px;
 }
 
-.order-price-modes {
+.order-price-modes,
+.order-quantity-percents {
   margin-top: 0;
   display: flex; /* 세그먼티드를 폼 폭에 맞춰 풀폭으로 */
 }
