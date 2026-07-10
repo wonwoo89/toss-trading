@@ -130,32 +130,37 @@ export function OrderbookPanel({
     <div className="orderbook">
       <div className="orderbook-summary">
         <div className="orderbook-summary__metrics" aria-live="polite">
-          <span className="orderbook-summary__metric orderbook-summary__metric--bearish">
-            <Typography size={12} className="orderbook-summary__metric-label">매도 1호가</Typography>
-            <button
-              type="button"
-              className={`orderbook-summary__metric-value orderbook-price-btn ${askFlash ? `price-flash-${askFlash}` : ''}`}
-              title="탭하면 지정가로 입력"
-              onClick={() => spread.bestAsk !== undefined && emitLimitPriceSelect(spread.bestAsk)}
-            >
-              {formatPrice(spread.bestAsk, currency)}
-            </button>
-          </span>
-          <span className="orderbook-summary__metric orderbook-summary__metric--bullish">
-            <Typography size={12} className="orderbook-summary__metric-label">매수 1호가</Typography>
-            <button
-              type="button"
-              className={`orderbook-summary__metric-value orderbook-price-btn ${bidFlash ? `price-flash-${bidFlash}` : ''}`}
-              title="탭하면 지정가로 입력"
-              onClick={() => spread.bestBid !== undefined && emitLimitPriceSelect(spread.bestBid)}
-            >
-              {formatPrice(spread.bestBid, currency)}
-            </button>
-          </span>
-          <span className={`orderbook-summary__metric ${getMetricBiasClass(spread.bias)}`}>
-            <Typography size={12} className="orderbook-summary__metric-label">{spread.label}</Typography>
-            <Typography size={12} className="orderbook-summary__metric-value">{spread.value}</Typography>
-          </span>
+          {/* 1호가·스프레드는 펼침 상태에선 뎁스(최우선 행·중간 스프레드 행)와 중복 — 접힘에서만 표시 */}
+          {!expanded && (
+            <>
+              <span className="orderbook-summary__metric orderbook-summary__metric--bearish">
+                <Typography size={12} className="orderbook-summary__metric-label">매도 1호가</Typography>
+                <button
+                  type="button"
+                  className={`orderbook-summary__metric-value orderbook-price-btn ${askFlash ? `price-flash-${askFlash}` : ''}`}
+                  title="탭하면 지정가로 입력"
+                  onClick={() => spread.bestAsk !== undefined && emitLimitPriceSelect(spread.bestAsk)}
+                >
+                  {formatPrice(spread.bestAsk, currency)}
+                </button>
+              </span>
+              <span className="orderbook-summary__metric orderbook-summary__metric--bullish">
+                <Typography size={12} className="orderbook-summary__metric-label">매수 1호가</Typography>
+                <button
+                  type="button"
+                  className={`orderbook-summary__metric-value orderbook-price-btn ${bidFlash ? `price-flash-${bidFlash}` : ''}`}
+                  title="탭하면 지정가로 입력"
+                  onClick={() => spread.bestBid !== undefined && emitLimitPriceSelect(spread.bestBid)}
+                >
+                  {formatPrice(spread.bestBid, currency)}
+                </button>
+              </span>
+              <span className={`orderbook-summary__metric ${getMetricBiasClass(spread.bias)}`}>
+                <Typography size={12} className="orderbook-summary__metric-label">{spread.label}</Typography>
+                <Typography size={12} className="orderbook-summary__metric-value">{spread.value}</Typography>
+              </span>
+            </>
+          )}
           <span className={`orderbook-summary__metric ${getMetricBiasClass(tradeFlow.bias)}`}>
             <Typography size={12} className="orderbook-summary__metric-label">{tradeFlow.label}</Typography>
             <Typography size={12} className="orderbook-summary__metric-value">{tradeFlow.value}</Typography>
