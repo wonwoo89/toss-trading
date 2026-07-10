@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from 'react';
 // lightweight-charts(차트 청크)를 지연 로드 → 주문폼/시세가 먼저 그려진다.
 const CandleChart = lazy(() =>
   import('./CandleChart').then((m) => ({ default: m.CandleChart }))
@@ -20,6 +20,10 @@ import {
   getStoredSupertrendVisible,
   setStoredSupertrendVisible,
 } from '../shared/lib/supertrendVisiblePreference';
+import {
+  getMobileLayoutV2,
+  subscribeMobileLayout,
+} from '../shared/lib/mobileLayoutPreference';
 import {
   CANDLE_INTERVALS,
   type CandleInterval,
@@ -101,6 +105,8 @@ export function MarketPanel({
   onRealtimePollingForcedChange,
 }: MarketPanelProps) {
   const [orderbookExpanded, setOrderbookExpanded] = useState(false);
+  // v2(하단 탭) 레이아웃에선 호가가 전용 탭이므로 접힘/펼침 없이 항상 전체 표시.
+  const mobileV2 = useSyncExternalStore(subscribeMobileLayout, getMobileLayoutV2);
   const [backtestOpen, setBacktestOpen] = useState(false);
   const [bollingerVisible, setBollingerVisible] = useState(getStoredBollingerVisible);
 
@@ -278,8 +284,8 @@ export function MarketPanel({
             asks={asks}
             trades={trades}
             currency={currency}
-            expanded={isDesktop || orderbookExpanded}
-            showToggle={!isDesktop}
+            expanded={isDesktop || mobileV2 || orderbookExpanded}
+            showToggle={!isDesktop && !mobileV2}
             onToggle={() => setOrderbookExpanded((v) => !v)}
           />
         </div>
