@@ -1638,6 +1638,11 @@ select:focus-visible {
 }
 
 @media (min-width: 1101px) {
+  /* 데스크톱 차트 최소 높이 확보 — 하단 정보(지표·호가)가 차트를 과도하게 압박하지 않게.
+     (패널의 min-height:0 이 축소를 허용하므로 패널 단위로 지정해야 실제 높이가 보장된다) */
+  .chart-panel {
+    min-height: 440px;
+  }
   .chart-bleed {
     flex: 1 1 0;
     min-height: 0;
@@ -1757,6 +1762,9 @@ select:focus-visible {
   .market-panel__below {
     flex-direction: row;
     align-items: flex-start;
+    /* 차트 최소 높이 확보로 밀릴 때 하단 영역이 내부 스크롤되게 */
+    flex: 0 1 auto;
+    overflow-y: auto;
   }
   .market-panel__below-info {
     flex: 1 1 0;
