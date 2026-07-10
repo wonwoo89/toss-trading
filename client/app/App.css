@@ -328,11 +328,13 @@ textarea {
 .symbol-search input,
 .order-form input,
 .order-form select {
+  box-sizing: border-box;
+  height: var(--control-height);
   background: var(--bg-input);
   color: var(--text-primary);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
-  padding: 0.55rem 0.75rem;
+  padding: 0 0.75rem;
   font-size: 16px;
 }
 
@@ -809,9 +811,14 @@ textarea {
 
 /* 버튼 — hover 는 배경 변화, pressed 는 눌림(scale) 피드백 */
 .ui-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--control-height); /* 인풋과 동일 높이 */
   border: none;
   border-radius: 10px;
-  padding: 0.55rem 0.9rem;
+  padding: 0 0.9rem;
   font-size: 0.85rem;
   font-weight: 600;
   background: var(--bg-subtle);
@@ -864,12 +871,14 @@ textarea {
   color: var(--text-primary);
 }
 .ui-btn--sm {
-  padding: 0.35rem 0.6rem;
+  height: 32px;
+  padding: 0 0.6rem;
   font-size: 0.75rem;
   border-radius: 8px;
 }
 .ui-btn--lg {
-  padding: 0.7rem 1rem;
+  height: 48px;
+  padding: 0 1rem;
   font-size: 0.95rem;
   border-radius: 12px;
 }
@@ -910,8 +919,10 @@ textarea {
 
 /* 세그먼티드 컨트롤 — 트랙(bg-subtle) 위에 활성 아이템만 떠 있는 형태 */
 .ui-segmented {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: stretch;
+  min-height: var(--control-height); /* 인풋·버튼과 동일 높이 */
   gap: 2px;
   padding: 3px;
   border-radius: 10px;
@@ -2627,7 +2638,7 @@ input[type='checkbox']:focus-visible {
 
 /* ui-btn(buy/sell 변형) 위에 크기만 조정 */
 .order-manual-btn {
-  padding: 0.65rem 0.6rem;
+  padding: 0 0.6rem;
   border-radius: 12px;
   font-size: 0.9rem;
   font-weight: 700;
