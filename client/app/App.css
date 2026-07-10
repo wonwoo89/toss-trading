@@ -4340,7 +4340,8 @@ button.orderbook-price-btn:hover {
   bottom: 0;
   z-index: 310;
   display: flex;
-  background: var(--bg-panel);
+  /* --bg-panel(다크)은 반투명이라 뒤 콘텐츠가 비침 → 불투명 베이스 사용 */
+  background: var(--bg-base);
   border-top: 1px solid var(--border-subtle);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -4443,9 +4444,10 @@ button.orderbook-price-btn:hover {
   .trading-layout.layout-v2--tab-order .order-column {
     display: flex;
   }
-  /* 주문 탭의 하단 sticky 실행 영역은 탭바 위에 붙도록 오프셋 */
+  /* 주문 탭: 실행 영역 sticky 해제 — sticky 시 위 콘텐츠(수량 비율 등)를 덮어
+     잘려 보인다. 탭바가 있으니 자연 스크롤로 배치. */
   .trading-layout.layout-v2--tab-order .order-form .order-form__submit-block {
-    bottom: calc(52px + env(safe-area-inset-bottom));
+    position: static;
   }
 
   /* 호가 탭 */
@@ -4464,9 +4466,10 @@ button.orderbook-price-btn:hover {
   body.mobile-v2-active .header {
     display: none;
   }
-  /* 헤더가 사라지므로 노치/상태바 안전영역만큼 상단 여백 확보 */
-  body.mobile-v2-active .trading-layout.layout-v2 {
-    padding-top: max(0.5rem, env(safe-area-inset-top));
+  /* 헤더 제거로 남는 상단 여백 축소 — .app 이 이미 safe-area 를 확보하므로
+     추가 1rem 만 0.25rem 로 줄인다(이중 inset 적용 방지). */
+  body.mobile-v2-active .app {
+    padding-top: calc(0.25rem + env(safe-area-inset-top));
   }
 
   /* 새 탭 콘텐츠: 기본 숨김 + order 배치 */
