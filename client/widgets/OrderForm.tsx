@@ -17,7 +17,7 @@ import {
   getStoredQuantityPercent,
   setStoredQuantityPercent,
 } from '../shared/lib/quantityPercentPreference';
-import type { CandleInterval, ChartCandle, HoldingItem } from '../shared/types';
+import type { CandleInterval, ChartCandle, HoldingItem, Order } from '../shared/types';
 import { formatOrderSuccessMessage } from '../shared/lib/formatOrderToast';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../shared/types';
 
@@ -47,6 +47,8 @@ interface OrderFormProps {
   bids?: { price: number; quantity: number }[];
   asks?: { price: number; quantity: number }[];
   holding?: HoldingItem;
+  /** 이 종목의 미체결 주문 — 자동매매 AI 판단 컨텍스트로 전달. */
+  openOrders?: Order[];
   onSubmit: (
     payload: CreateOrderPayload,
     options?: OrderSubmitOptions
@@ -173,6 +175,7 @@ export function OrderForm({
   bids = [],
   asks = [],
   holding,
+  openOrders = [],
   onSubmit,
 }: OrderFormProps) {
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
@@ -930,6 +933,7 @@ export function OrderForm({
             asks={asks}
             previousClose={previousClose}
             maxBuyQuantity={maxBuyQuantity}
+            openOrders={openOrders}
             currency={currency}
           />
         )}

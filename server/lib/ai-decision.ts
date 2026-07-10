@@ -36,7 +36,31 @@ export interface AiDecisionRequest {
   stopLossPct?: number;
   signal?: { level?: string; score?: number; rsi?: number; sma20?: number; sma50?: number; atr?: number };
   trend?: { state?: string; confirmedBars?: number };
-  orderbook?: { bestBid?: number; bestAsk?: number; bidRatio?: number };
+  orderbook?: {
+    bestBid?: number;
+    bestAsk?: number;
+    bidRatio?: number;
+    /** 상위 호가 심도(최대 5단). p=가격, q=잔량. */
+    bids?: { p: number; q: number }[];
+    asks?: { p: number; q: number }[];
+  };
+  /** 이 종목의 미체결 주문 — 중복 진입/청산 판단에 사용. */
+  openOrders?: { side: 'BUY' | 'SELL'; price?: number; quantity?: number }[];
+  /** 직전 AI 판단 이력(최근→과거). 일관성 있는 연속 판단을 위해 제공. */
+  history?: {
+    t: number; // epoch ms
+    action: string;
+    confidence?: number;
+    executed?: boolean;
+    reason?: string;
+  }[];
+  /** 코드가 강제하는 가드 상태 — 모델이 상황을 이해하고 무리한 제안을 줄이도록 제공. */
+  guards?: {
+    trailingStopPct?: number;
+    buyMaxPercent?: number;
+    dailyLossLimitUsd?: number;
+    dailyRealizedUsd?: number;
+  };
   candles: AiDecisionCandle[];
 }
 
@@ -56,16 +80,21 @@ const MODEL = 'claude-opus-4-8';
 const MAX_CANDLES = 40;
 
 const SYSTEM_PROMPT = `당신은 미국 주식 단기 매매를 보조하는 신중한 트레이딩 판단 엔진입니다.
-입력으로 한 종목의 최근 '완성된' 캔들(OHLCV)·지표·추세·호가·보유 상태를 받습니다.
-음봉/양봉 추세, 모멘텀(RSI), 이동평균 배열, 거래량, 변동성(ATR), 호가 균형을 종합해
+입력으로 한 종목의 최근 '완성된' 캔들(OHLCV)·지표·추세·호가 심도·보유 상태·미체결 주문·
+직전 판단 이력·앱의 가드 상태를 받습니다.
+음봉/양봉 추세, 모멘텀(RSI), 이동평균 배열, 거래량, 변동성(ATR), 호가 균형·심도를 종합해
 "지금 이 봉 마감 시점"에 취할 행동을 BUY / SELL / HOLD 중 하나로 제안합니다.
 
 원칙:
 - 보수적으로 판단합니다. 근거가 모호하면 HOLD 가 기본입니다. 추세가 명확히 위로 확정될 때만 BUY,
   명확히 꺾이거나 청산이 합리적일 때만 SELL.
 - 손절·한도·쿨다운·킬스위치 같은 안전장치는 앱이 코드로 강제합니다. 당신은 그 안에서 '방향'만 제안하면 됩니다.
-- 과최적화·추격매수·잦은 뒤집기를 피합니다. 같은 추세 안에서는 일관된 판단을 유지하세요.
-- sizePct 는 제안 비중(%)이며 앱이 자체 상한으로 다시 제한합니다. confidence 는 0~1.
+- 과최적화·추격매수·잦은 뒤집기를 피합니다. 직전 판단 이력이 주어지면 같은 추세 안에서 일관성을
+  유지하고, 직전 판단을 뒤집을 때는 그만한 새 근거(추세 전환·급변)가 있어야 합니다.
+- 같은 방향의 미체결 주문이 이미 있으면 중복 진입(BUY)·중복 청산(SELL)을 제안하지 않습니다.
+- 일일 실현 손실이 한도에 근접해 있으면 신규 진입(BUY)에 더 엄격한 기준을 적용합니다.
+- sizePct 는 제안 비중(%)이며 앱이 자체 상한으로 다시 제한합니다. 확신이 낮을수록 작게 제안하세요.
+  confidence 는 0~1.
 - reason 은 한국어 1~2문장으로 핵심 근거만 적습니다(지표/봉 형태 위주).
 - 반드시 지정된 JSON 스키마로만 답합니다.`;
 
@@ -137,6 +166,33 @@ function buildUserPrompt(req: AiDecisionRequest): string {
     req.orderbook
       ? `호가: 매수1 ${req.orderbook.bestBid ?? '-'} / 매도1 ${req.orderbook.bestAsk ?? '-'}` +
         (req.orderbook.bidRatio !== undefined ? `, 매수비중 ${(req.orderbook.bidRatio * 100).toFixed(0)}%` : '')
+      : '',
+    req.orderbook?.bids?.length
+      ? `매수 심도(상위): ${req.orderbook.bids.map((l) => `${l.p}×${l.q}`).join(' ')}`
+      : '',
+    req.orderbook?.asks?.length
+      ? `매도 심도(상위): ${req.orderbook.asks.map((l) => `${l.p}×${l.q}`).join(' ')}`
+      : '',
+    req.openOrders?.length
+      ? `미체결 주문: ${req.openOrders
+          .map((o) => `${o.side === 'BUY' ? '매수' : '매도'} ${o.quantity ?? '-'}주 @ ${o.price ?? '시장가'}`)
+          .join(', ')}`
+      : '미체결 주문 없음',
+    req.guards
+      ? `가드: 트레일링 ${req.guards.trailingStopPct ? `-${req.guards.trailingStopPct}%` : '없음'}, ` +
+        `1회 매수 상한 ${req.guards.buyMaxPercent ?? '-'}%` +
+        (req.guards.dailyLossLimitUsd
+          ? `, 일일손실한도 $${req.guards.dailyLossLimitUsd} (오늘 실현 ${req.guards.dailyRealizedUsd?.toFixed(2) ?? 0}$)`
+          : '')
+      : '',
+    req.history?.length
+      ? `직전 판단(최근→과거): ${req.history
+          .slice(0, 8)
+          .map(
+            (h) =>
+              `${h.action}${h.confidence !== undefined ? `(${(h.confidence * 100).toFixed(0)}%)` : ''}${h.executed ? '·실행됨' : ''}`
+          )
+          .join(' → ')}`
       : '',
     '',
     `최근 완성봉(오래된→최근, 최대 ${MAX_CANDLES}개):`,

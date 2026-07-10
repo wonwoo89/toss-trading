@@ -2826,6 +2826,61 @@ button.orderbook-price-btn:hover {
 .auto-trade__ai-decision.is-fallback {
   color: var(--text-secondary);
 }
+/* AI 판단 이력(접이식) — 최근 판단 흐름을 시간·행동·근거로 나열 */
+.auto-trade__ai-history {
+  flex: 1 1 100%;
+  font-size: 0.7rem;
+}
+.auto-trade__ai-history summary {
+  cursor: pointer;
+  color: var(--text-secondary);
+  user-select: none;
+}
+.auto-trade__ai-history ul {
+  list-style: none;
+  margin: 0.3rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  max-height: 140px;
+  overflow-y: auto;
+}
+.auto-trade__ai-history li {
+  display: flex;
+  gap: 0.35rem;
+  align-items: baseline;
+  line-height: 1.4;
+}
+.auto-trade__ai-history-time {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.auto-trade__ai-history-action {
+  flex: 0 0 auto;
+  font-weight: 600;
+}
+.auto-trade__ai-history li.is-buy .auto-trade__ai-history-action {
+  color: var(--color-up);
+}
+.auto-trade__ai-history li.is-sell .auto-trade__ai-history-action {
+  color: var(--color-down);
+}
+.auto-trade__ai-history-reason {
+  color: var(--text-secondary);
+  min-width: 0;
+}
+/* 일일 실현 손익 표시 — 한도 도달 시 경고색 */
+.auto-trade__daily-pnl {
+  margin: 0.35rem 0 0;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+.auto-trade__daily-pnl.is-limit {
+  color: var(--color-down);
+  font-weight: 600;
+}
 .auto-trade__controls {
   display: flex;
   align-items: center;

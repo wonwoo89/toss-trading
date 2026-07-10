@@ -49,7 +49,27 @@ export interface AiDecisionRequest {
   stopLossPct?: number;
   signal?: { level?: string; score?: number; rsi?: number; sma20?: number; sma50?: number; atr?: number };
   trend?: { state?: string; confirmedBars?: number };
-  orderbook?: { bestBid?: number; bestAsk?: number; bidRatio?: number };
+  orderbook?: {
+    bestBid?: number;
+    bestAsk?: number;
+    bidRatio?: number;
+    bids?: { p: number; q: number }[];
+    asks?: { p: number; q: number }[];
+  };
+  openOrders?: { side: 'BUY' | 'SELL'; price?: number; quantity?: number }[];
+  history?: {
+    t: number;
+    action: string;
+    confidence?: number;
+    executed?: boolean;
+    reason?: string;
+  }[];
+  guards?: {
+    trailingStopPct?: number;
+    buyMaxPercent?: number;
+    dailyLossLimitUsd?: number;
+    dailyRealizedUsd?: number;
+  };
   candles: AiDecisionCandle[];
 }
 
