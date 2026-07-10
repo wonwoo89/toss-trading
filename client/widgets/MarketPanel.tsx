@@ -4,6 +4,7 @@ const CandleChart = lazy(() =>
   import('./CandleChart').then((m) => ({ default: m.CandleChart }))
 );
 import { ChartMarketContextPanel } from './ChartMarketContextPanel';
+import { ChartOptionsMenu } from './ChartOptionsMenu';
 import { ChartSignalPanel } from './ChartSignalPanel';
 import { OrderbookPanel } from './OrderbookPanel';
 import { StockLabel } from './StockLabel';
@@ -159,38 +160,14 @@ export function MarketPanel({
         <div className="chart-toolbar">
           <StockLabel symbol={symbol} name={stockName} as="heading" />
           <div className="chart-toolbar__controls">
-            {onRealtimePollingForcedChange && (
-              <label
-                className="realtime-toggle"
-                title="켜면 장 세션(프리/데이/애프터/정규)·주말과 무관하게 시세·차트를 계속 갱신합니다."
-              >
-                <input
-                  type="checkbox"
-                  checked={realtimePollingForced}
-                  onChange={(e) => onRealtimePollingForcedChange(e.target.checked)}
-                />
-                <span>실시간</span>
-              </label>
-            )}
-            <label className="bollinger-toggle" title="볼린저밴드 표시 켜기/끄기">
-              <input
-                type="checkbox"
-                checked={bollingerVisible}
-                onChange={(e) => handleBollingerVisibleChange(e.target.checked)}
-              />
-              <span>볼린저</span>
-            </label>
-            <label
-              className="bollinger-toggle"
-              title="슈퍼트렌드(ATR 추세선) 표시 켜기/끄기 — 상승=빨강, 하락=파랑"
-            >
-              <input
-                type="checkbox"
-                checked={supertrendVisible}
-                onChange={(e) => handleSupertrendVisibleChange(e.target.checked)}
-              />
-              <span>슈퍼트렌드</span>
-            </label>
+            <ChartOptionsMenu
+              realtimeForced={realtimePollingForced}
+              onRealtimeForcedChange={onRealtimePollingForcedChange}
+              bollingerVisible={bollingerVisible}
+              onBollingerVisibleChange={handleBollingerVisibleChange}
+              supertrendVisible={supertrendVisible}
+              onSupertrendVisibleChange={handleSupertrendVisibleChange}
+            />
             <select
               className="chart-interval"
               value={candleInterval}

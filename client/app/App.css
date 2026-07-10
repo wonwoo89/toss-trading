@@ -4537,3 +4537,56 @@ button.orderbook-price-btn:hover {
     padding: 7px 0 5px;
   }
 }
+
+/* ── 차트 표시 옵션 드롭다운(실시간·볼린저·슈퍼트렌드) ── */
+.chart-options {
+  position: relative;
+  flex: 0 0 auto;
+  display: inline-flex;
+}
+
+.chart-options__trigger {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.45rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.chart-options__trigger:hover,
+.chart-options__trigger.is-open {
+  color: var(--text-primary);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-subtle));
+}
+
+.chart-options__panel {
+  z-index: 400; /* sticky 차트(200)·탭바(310) 위 */
+  display: flex;
+  flex-direction: column;
+  padding: 0.35rem 0.3rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.chart-options__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.chart-options__row:hover {
+  background: color-mix(in srgb, var(--bg-panel) 80%, var(--bg-hover, #888) 20%);
+}
