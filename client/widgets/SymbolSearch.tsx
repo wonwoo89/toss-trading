@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../shared/api/client';
 import { setLastSelectedSymbol } from '../shared/lib/lastSymbolPreference';
+import { addRecentSearch } from '../shared/lib/recentSearchPreference';
 import type { StockInfo } from '../shared/types';
 
 function looksLikeTicker(value: string) {
@@ -117,6 +118,11 @@ export function SymbolSearch() {
 
   const goToSymbol = (symbol: string) => {
     const normalized = symbol.toUpperCase();
+    // 최근 검색 이력 기록 — 자동완성에 이름이 있으면 함께 저장(칩 툴팁·표시용)
+    addRecentSearch(
+      normalized,
+      suggestions.find((s) => s.symbol.toUpperCase() === normalized)?.name
+    );
     // 진행 중/예약된 검색 응답이 늦게 도착해 자동완성이 다시 열리는 것 방지
     requestSeqRef.current += 1;
     clearTimeout(debounceRef.current);
