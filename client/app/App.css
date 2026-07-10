@@ -4169,10 +4169,26 @@ button.orderbook-price-btn:hover {
        inset 을 포함해, 중복되면 버튼 아래 큰 공백이 생긴다. */
     padding-bottom: 0;
   }
-  /* 주문 탭: 실행 영역 sticky 해제 — sticky 시 위 콘텐츠(수량 비율 등)를 덮어
-     잘려 보인다. 탭바가 있으니 자연 스크롤로 배치. */
+  /* 주문 탭: 실행 영역(블록 전체) sticky 해제 — 블록이 통째로 붙으면 위 콘텐츠(수량 비율 등)를
+     덮어 잘려 보인다. 대신 아래에서 직접 매수/매도 버튼만 탭바 위에 sticky 로 고정. */
   .trading-layout.layout-v2--tab-order .order-form .order-form__submit-block {
     position: static;
+  }
+  /* order-form 의 overflow:hidden(데스크톱 카드 클리핑 규칙, 특정성 0,4,0)이 sticky 기준
+     (스크롤포트)을 폼 내부로 가둬 버튼이 폼 하단 기준으로 붙는다 → 같은 특정성으로 해제해
+     뷰포트 기준이 되게 한다(모바일 flat 이라 카드 클리핑 불필요). */
+  .trading-layout.layout-v2--tab-order .order-column .order-form {
+    overflow: visible;
+  }
+  /* 직접 매수/매도 버튼: 하단 탭바(53px + inset) 바로 위에 항상 고정 — 스크롤 위치와 무관하게
+     즉시 주문 가능. 불투명 배경 + 좌우 블리드로 뒤 콘텐츠가 버튼 사이로 비치지 않게. */
+  .trading-layout.layout-v2--tab-order .order-form .order-manual-actions {
+    position: sticky;
+    bottom: calc(57px + env(safe-area-inset-bottom));
+    z-index: 5;
+    background: var(--bg-base);
+    margin: 0 -16px;
+    padding: 0.5rem 16px;
   }
 
   /* 호가 탭: 티커칩 노출 + 영역별 카드 구분 + 가독성(폰트 확대) */
