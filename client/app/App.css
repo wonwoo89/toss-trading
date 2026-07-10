@@ -964,6 +964,49 @@ textarea {
   background: var(--color-down);
 }
 
+/* 텍스트필드 — [라벨] + [박스(인풋+단위)]. 높이는 버튼·세그먼티드와 동일(--control-height). */
+.ui-textfield {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.ui-textfield__label {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.ui-textfield__box {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  height: var(--control-height);
+  background: var(--bg-input);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  cursor: text;
+  transition: border-color 0.12s ease;
+}
+.ui-textfield__box:focus-within {
+  border-color: color-mix(in srgb, var(--accent, #3182f6) 55%, var(--border-subtle));
+}
+.ui-textfield__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 16px;
+  outline: none;
+}
+.ui-textfield__unit {
+  flex: 0 0 auto;
+  padding-right: 0.75rem;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
 /* 타이포그래피 — 크기·행간은 컴포넌트 인라인 스타일이 결정. 여기선 여백/말줄임만. */
 .ui-typo {
   margin: 0;
