@@ -3211,8 +3211,14 @@ button.orderbook-price-btn:hover {
 
 .order-price-modes,
 .order-quantity-percents {
-  margin-top: 0;
   display: flex; /* 세그먼티드를 폼 폭에 맞춰 풀폭으로 */
+}
+/* 가격 인풋·스테퍼 행과 가격 모드 세그먼티드 사이 간격 */
+.order-price-modes {
+  margin-top: 0.6rem;
+}
+.order-quantity-percents {
+  margin-top: 0.35rem;
 }
 
 /* 목표 실수익률: 체크박스와 비율 버튼 사이 간격 */
@@ -4347,9 +4353,9 @@ button.orderbook-price-btn:hover {
   }
   .trading-layout.layout-v2--tab-order .chart-panel {
     display: flex;
-    height: 300px;
-    min-height: 220px;
-    max-height: 34dvh;
+    height: 360px;
+    min-height: 260px;
+    max-height: 40dvh;
   }
   .trading-layout.layout-v2--tab-order .order-column {
     display: flex;
