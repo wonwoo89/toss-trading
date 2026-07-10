@@ -4290,11 +4290,15 @@ button.orderbook-price-btn:hover {
      즉시 주문 가능. 불투명 배경 + 좌우 블리드로 뒤 콘텐츠가 버튼 사이로 비치지 않게. */
   .trading-layout.layout-v2--tab-order .order-form .order-manual-actions {
     position: sticky;
-    bottom: calc(57px + env(safe-area-inset-bottom));
+    bottom: calc(53px + env(safe-area-inset-bottom)); /* = 탭바 높이(52+1px 보더)+inset — 유격 0 */
     z-index: 5;
     background: var(--bg-base);
     margin: 0 -16px;
     padding: 0.5rem 16px;
+  }
+  /* 주문 탭은 하단 여백을 탭바 높이에 정확히 맞춰, 스크롤 최하단에서도 버튼이 탭바에 밀착 */
+  .trading-layout.layout-v2--tab-order.layout-v2 {
+    padding-bottom: calc(53px + env(safe-area-inset-bottom));
   }
 
   /* 호가 탭: 티커칩 노출 + 영역별 카드 구분 + 가독성(폰트 확대) */

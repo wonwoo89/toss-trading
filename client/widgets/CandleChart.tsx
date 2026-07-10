@@ -283,17 +283,6 @@ function enforceRealtimeRightMargin(chart: IChartApi, lastBarIndex: number) {
   });
 }
 
-function applyChartViewportWhenReady(chart: IChartApi, viewport: ChartViewport, attempt = 0) {
-  if (getTimeScaleWidth(chart) <= 0 && attempt < 8) {
-    requestAnimationFrame(() => {
-      applyChartViewportWhenReady(chart, viewport, attempt + 1);
-    });
-    return;
-  }
-
-  applyViewportSpacing(chart, viewport);
-}
-
 function applyInitialViewport(chart: IChartApi, lastBarIndex: number) {
   chart.timeScale().applyOptions({
     minBarSpacing: CHART_MIN_BAR_SPACING,
@@ -412,6 +401,9 @@ export function CandleChart({
   const fitKeyRef = useRef(fitKey);
   const viewportInitializedRef = useRef(false);
   const pendingRestoreRef = useRef<ChartViewport | null>(null);
+  // 차트가 숨겨진(display:none, 폭 0) 상태에서 데이터가 도착하면 초기화(fit/복원)를 미루고,
+  // 보이는 순간(ResizeObserver 폭 > 0) 수행한다 — 폭 0에서 fitContent 하면 스케일이 깨진다.
+  const needsInitOnVisibleRef = useRef(false);
   const lastBarIndexRef = useRef(0);
   const chartWidthRef = useRef(0);
   const [hoveredCandle, setHoveredCandle] = useState<HoveredCandleOhlc | null>(null);
@@ -424,8 +416,27 @@ export function CandleChart({
   useEffect(() => {
     pendingRestoreRef.current = fitKey ? getStoredChartViewport(fitKey) : null;
     viewportInitializedRef.current = false;
+    needsInitOnVisibleRef.current = false;
     prevDataLengthRef.current = null;
   }, [fitKey]);
+
+  // 초기 뷰포트 설정(저장된 뷰포트 복원 or 전체 fit). 반드시 차트 폭 > 0 일 때 호출한다.
+  const initializeViewportNow = (chart: IChartApi, lastBarIndex: number) => {
+    const pending = pendingRestoreRef.current;
+    if (pending) {
+      applyViewportSpacing(chart, pending);
+      pendingRestoreRef.current = null;
+      viewportInitializedRef.current = true;
+      requestAnimationFrame(() => {
+        enforceRealtimeRightMargin(chart, lastBarIndex);
+      });
+      return;
+    }
+    applyInitialViewport(chart, lastBarIndex);
+    viewportInitializedRef.current = true;
+  };
+  const initializeViewportNowRef = useRef(initializeViewportNow);
+  initializeViewportNowRef.current = initializeViewportNow;
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -678,6 +689,17 @@ export function CandleChart({
         panes[1].setStretchFactor(VOLUME_PANE_STRETCH);
       }
 
+      // 숨김 상태에서 미뤄둔 초기 뷰포트 설정(fit/복원)을 보이는 순간 수행.
+      if (needsInitOnVisibleRef.current && newWidth > 0) {
+        needsInitOnVisibleRef.current = false;
+        requestAnimationFrame(() => {
+          if (chartRef.current) {
+            initializeViewportNowRef.current(chartRef.current, lastBarIndexRef.current);
+          }
+        });
+        return; // 초기화가 fit + 우측 여백까지 처리하므로 아래 재강제는 생략
+      }
+
       // 가로 크기 변화에 대해 1/3 오른쪽 여백 위치를 재강제 (rAF로 settle 대기)
       if (lastBarIndexRef.current != null) {
         requestAnimationFrame(() => {
@@ -890,19 +912,15 @@ export function CandleChart({
             : {}),
         });
       }
-    } else if (pendingRestoreRef.current) {
-      const viewport = pendingRestoreRef.current;
-      applyChartViewportWhenReady(chart, viewport);
-      pendingRestoreRef.current = null;
-      viewportInitializedRef.current = true;
-      requestAnimationFrame(() => {
-        if (chart && lastBarIndex != null) {
-          enforceRealtimeRightMargin(chart, lastBarIndex);
-        }
-      });
-    } else if (!viewportInitializedRef.current) {
-      applyInitialViewport(chart, lastBarIndex);
-      viewportInitializedRef.current = true;
+    } else if (pendingRestoreRef.current || !viewportInitializedRef.current) {
+      if (getTimeScaleWidth(chart) > 0) {
+        needsInitOnVisibleRef.current = false;
+        initializeViewportNow(chart, lastBarIndex);
+      } else {
+        // 차트가 숨겨진 탭(display:none, 폭 0)에서 종목이 바뀐 경우 — 여기서 fit/복원하면
+        // 스케일이 깨진 채 고정된다. 보이는 순간(ResizeObserver) 초기화하도록 미룬다.
+        needsInitOnVisibleRef.current = true;
+      }
     } else if (
       isStructuralChange &&
       barSpacingBeforeUpdate !== undefined &&
