@@ -838,10 +838,10 @@ export function OrderForm({
                     className={`order-sell-profit ${getKrProfitLossClass(sellProfitEstimate.profit) ?? ''}`}
                     title="매도가(지정가/현재가) 기준, 수수료·세금 반영 예상 실수익"
                   >
-                    {sellProfitEstimate.ratePercent >= 0 ? '+' : '−'}
-                    {Math.abs(sellProfitEstimate.ratePercent).toFixed(2)}% (
                     {sellProfitEstimate.profit >= 0 ? '+' : '−'}
-                    {formatUsd(Math.abs(sellProfitEstimate.profit))})
+                    {formatUsd(Math.abs(sellProfitEstimate.profit))} (
+                    {sellProfitEstimate.ratePercent >= 0 ? '+' : '−'}
+                    {Math.abs(sellProfitEstimate.ratePercent).toFixed(2)}%)
                   </span>
                 )}
               </p>
