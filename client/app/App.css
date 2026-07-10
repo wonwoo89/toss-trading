@@ -4410,7 +4410,9 @@ button.orderbook-price-btn:hover {
   }
 
   /* 차트 탭: 차트 크게(정적) + 아래 지표 스크롤 */
-  .trading-layout.layout-v2--tab-chart .holdings-chip-bar,
+  .trading-layout.layout-v2--tab-chart .holdings-chip-bar {
+    display: flex; /* 베이스(가로 스크롤 칩 행)와 동일하게 복원 — block 이면 세로로 쌓임 */
+  }
   .trading-layout.layout-v2--tab-chart .warning-box {
     display: block;
   }
@@ -4426,7 +4428,9 @@ button.orderbook-price-btn:hover {
   }
 
   /* 주문 탭: 컴팩트 고정 차트 + 주문폼 */
-  .trading-layout.layout-v2--tab-order .holdings-chip-bar,
+  .trading-layout.layout-v2--tab-order .holdings-chip-bar {
+    display: flex; /* 베이스(가로 스크롤 칩 행)와 동일하게 복원 — block 이면 세로로 쌓임 */
+  }
   .trading-layout.layout-v2--tab-order .warning-box {
     display: block;
   }
