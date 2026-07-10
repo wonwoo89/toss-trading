@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { Typography } from '../shared/ui/Typography';
 
 interface NumberFieldProps {
   value: number;
@@ -7,6 +8,10 @@ interface NumberFieldProps {
   max?: number;
   /** 정수만 허용(소수점 입력 차단). 기본 false(소수 허용). */
   integer?: boolean;
+  /** 인풋을 설명하는 제목/타이틀(TextField 와 동일 구조). */
+  label?: ReactNode;
+  /** 인풋 내부 우측 단위 표시(%·주·$ 등). */
+  unit?: string;
   className?: string;
   placeholder?: string;
   disabled?: boolean;
@@ -15,7 +20,10 @@ interface NumberFieldProps {
 }
 
 /**
- * 숫자 입력 필드. type="number" 의 강제 변환/스피너 대신 문자열 상태로 자유롭게 편집하고,
+ * 숫자 입력 필드 — TextField 의 숫자(blur-commit) 변형. 시각 구조는 TextField 와 동일
+ * (ui-textfield: [라벨] + [박스(인풋+단위)]).
+ *
+ * type="number" 의 강제 변환/스피너 대신 문자열 상태로 자유롭게 편집하고,
  * 보정(min/max/정수)은 blur(확정) 시에만 적용한다 — 값을 지우거나 "0." 같은 중간 상태를
  * 입력해도 0.1 등으로 튕기지 않는다.
  *
@@ -29,6 +37,8 @@ export function NumberField({
   min,
   max,
   integer = false,
+  label,
+  unit,
   className,
   placeholder,
   disabled,
@@ -37,6 +47,7 @@ export function NumberField({
 }: NumberFieldProps) {
   const [text, setText] = useState(() => String(value));
   const focusedRef = useRef(false);
+  const inputId = useId();
 
   // 외부 value 변경(프로그램적 리셋 등)을 반영하되, 사용자가 편집 중일 땐 건드리지 않는다.
   useEffect(() => {
@@ -80,20 +91,36 @@ export function NumberField({
   };
 
   return (
-    <input
-      type="text"
-      inputMode={integer ? 'numeric' : 'decimal'}
-      className={className}
-      placeholder={placeholder}
-      disabled={disabled}
-      title={title}
-      aria-label={ariaLabel}
-      value={text}
-      onFocus={() => {
-        focusedRef.current = true;
-      }}
-      onChange={(e) => handleChange(e.target.value)}
-      onBlur={commit}
-    />
+    <div className={['ui-textfield', className ?? ''].filter(Boolean).join(' ')} title={title}>
+      {label !== undefined && label !== null && (
+        <Typography as="label" size={12} className="ui-textfield__label" htmlFor={inputId}>
+          {label}
+        </Typography>
+      )}
+      <label className="ui-textfield__box">
+        <input
+          id={inputId}
+          type="text"
+          inputMode={integer ? 'numeric' : 'decimal'}
+          autoComplete="off"
+          spellCheck={false}
+          className="ui-textfield__input"
+          placeholder={placeholder}
+          disabled={disabled}
+          aria-label={ariaLabel}
+          value={text}
+          onFocus={() => {
+            focusedRef.current = true;
+          }}
+          onChange={(e) => handleChange(e.target.value)}
+          onBlur={commit}
+        />
+        {unit && (
+          <Typography size={12} className="ui-textfield__unit" aria-hidden="true">
+            {unit}
+          </Typography>
+        )}
+      </label>
+    </div>
   );
 }

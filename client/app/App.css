@@ -971,34 +971,45 @@ textarea {
   gap: 0.3rem;
   min-width: 0;
 }
-.ui-textfield__label {
+.ui-textfield .ui-textfield__label {
+  display: block;
   color: var(--text-secondary);
   font-weight: 600;
 }
-.ui-textfield__box {
+/* 특정성(0,2,0): .order-form label / .backtest-controls label 등의 column 강제(0,1,1)를 이긴다 */
+.ui-textfield .ui-textfield__box {
   box-sizing: border-box;
   display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
   align-items: center;
+  gap: 0;
   height: var(--control-height);
+  padding: 0;
   background: var(--bg-input);
   border: 1px solid var(--border-subtle);
   border-radius: 10px;
   cursor: text;
   transition: border-color 0.12s ease;
 }
-.ui-textfield__box:focus-within {
+.ui-textfield .ui-textfield__box:focus-within {
   border-color: color-mix(in srgb, var(--accent, #3182f6) 55%, var(--border-subtle));
 }
-.ui-textfield__input {
+.ui-textfield__box .ui-textfield__input {
   flex: 1 1 auto;
   min-width: 0;
+  width: 100%;
   height: 100%;
   padding: 0 0.75rem;
   border: none;
+  border-radius: 0;
   background: transparent;
   color: var(--text-primary);
   font-size: 16px;
   outline: none;
+}
+.ui-textfield__box .ui-textfield__input:focus-visible {
+  outline: none; /* 포커스 표시는 박스 보더 색으로 대체 */
 }
 .ui-textfield__unit {
   flex: 0 0 auto;
@@ -2761,6 +2772,10 @@ input[type='checkbox']:focus-visible {
   align-items: stretch;
   gap: 0.4rem;
 }
+.order-price-row .order-price-field {
+  flex: 1 1 auto;
+  min-width: 0;
+}
 .order-price-row input {
   flex: 1 1 auto;
   min-width: 0;
@@ -3085,30 +3100,22 @@ button.orderbook-price-btn:hover {
   font-weight: 600;
 }
 .auto-trade__controls {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
   margin-top: 0.5rem;
-  flex-wrap: wrap;
 }
-/* .order-form label (specificity 0,1,1) 이 display:flex; flex-direction:column 을 강제하므로
-   특정성을 높여(0,2,0) 덮는다 → 라벨·인풋·단위를 한 줄로 정렬. */
+/* 자동매매 설정 필드 — ui-textfield(라벨 위·박스 아래) 기반. 3열 그리드로 정렬. */
+.auto-trade__controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  align-items: end;
+}
 .auto-trade .auto-trade__field {
-  display: inline-flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.25rem;
-  font-size: 0.72rem;
-  color: var(--text-secondary);
+  min-width: 0;
 }
-.auto-trade__field input {
-  width: 3.2rem;
-  padding: 0.15rem 0.3rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 5px;
-  background: var(--bg-input);
-  color: var(--text-primary);
-  font-size: 0.72rem;
+/* AI 판단 체크박스 — 필드 박스와 같은 높이로 하단 정렬 */
+.auto-trade__ai-toggle {
+  height: var(--control-height);
+  align-self: end;
 }
 .auto-trade__hint {
   margin: 0.45rem 0 0;
@@ -3800,16 +3807,18 @@ button.orderbook-price-btn:hover {
   color: var(--text-secondary);
 }
 
-.backtest-controls input,
 .backtest-controls select {
   box-sizing: border-box;
-  height: 2.4rem;
+  height: var(--control-height);
   width: 6.5rem;
   padding: 0 0.5rem;
   border-radius: 8px;
   border: 1px solid var(--border-subtle);
   background: var(--bg-input);
   color: var(--text-primary);
+}
+.backtest-controls .ui-textfield {
+  width: 8rem;
 }
 
 .backtest-controls input[type='number'],

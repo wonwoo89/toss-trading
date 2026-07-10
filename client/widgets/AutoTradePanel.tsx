@@ -762,16 +762,22 @@ export function AutoTradePanel({
       </div>
 
       <div className="auto-trade__controls">
-        <label className="auto-trade__field">
-          목표 수익률
-          <NumberField min={0.1} value={targetPercent} onChange={setTargetPercent} />
-          %
-        </label>
-        <label className="auto-trade__field">
-          손절률
-          <NumberField min={0.1} value={stopLossPercent} onChange={setStopLossPercent} />
-          %
-        </label>
+        <NumberField
+          className="auto-trade__field"
+          label="목표 수익률"
+          unit="%"
+          min={0.1}
+          value={targetPercent}
+          onChange={setTargetPercent}
+        />
+        <NumberField
+          className="auto-trade__field"
+          label="손절률"
+          unit="%"
+          min={0.1}
+          value={stopLossPercent}
+          onChange={setStopLossPercent}
+        />
         <label className="auto-trade__ai-toggle" title="AI(LLM)가 봉 마감·의미있는 변동 시 매수/매도/관망을 판단합니다. 손절·쿨다운 등 가드는 그대로 적용됩니다.">
           <input type="checkbox" checked={useAi} onChange={(e) => setUseAi(e.target.checked)} />
           AI 판단
@@ -779,20 +785,34 @@ export function AutoTradePanel({
       </div>
 
       <div className="auto-trade__controls">
-        <label className="auto-trade__field" title="포지션 고점 대비 이 % 하락 시 전량 매도(이익 보존). 0 = 끔.">
-          트레일링
-          <NumberField min={0} value={trailingStopPercent} onChange={setTrailingStopPercent} />
-          %
-        </label>
-        <label className="auto-trade__field" title="AI 매수 1회 금액 상한 = 주문가능금액의 이 비율. AI 제안 비중은 이 값으로 캡됩니다.">
-          1회 매수
-          <NumberField min={1} max={100} value={buyMaxPercent} onChange={setBuyMaxPercent} />
-          %
-        </label>
-        <label className="auto-trade__field" title="자동매매 실현 손실이 오늘 이 금액을 넘으면 강제 OFF. 0 = 끔.">
-          일손실 $
-          <NumberField min={0} value={dailyLossLimitUsd} onChange={setDailyLossLimitUsd} />
-        </label>
+        <NumberField
+          className="auto-trade__field"
+          label="트레일링"
+          unit="%"
+          title="포지션 고점 대비 이 % 하락 시 전량 매도(이익 보존). 0 = 끔."
+          min={0}
+          value={trailingStopPercent}
+          onChange={setTrailingStopPercent}
+        />
+        <NumberField
+          className="auto-trade__field"
+          label="1회 매수"
+          unit="%"
+          title="AI 매수 1회 금액 상한 = 주문가능금액의 이 비율. AI 제안 비중은 이 값으로 캡됩니다."
+          min={1}
+          max={100}
+          value={buyMaxPercent}
+          onChange={setBuyMaxPercent}
+        />
+        <NumberField
+          className="auto-trade__field"
+          label="일손실"
+          unit="$"
+          title="자동매매 실현 손실이 오늘 이 금액을 넘으면 강제 OFF. 0 = 끔."
+          min={0}
+          value={dailyLossLimitUsd}
+          onChange={setDailyLossLimitUsd}
+        />
       </div>
 
       {dailyLossLimitUsd > 0 && (
