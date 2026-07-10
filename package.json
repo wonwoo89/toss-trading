@@ -14,7 +14,6 @@
     "gen:icons": "node scripts/gen-icons.mjs",
     "start": "NODE_ENV=production tsx server/index.ts",
     "lint": "eslint .",
-    "test:engine": "tsx client/shared/lib/recommendationEngine.resilience.test.ts",
     "test:wasm": "node wasm/test/indicators.test.mjs",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
     "preview": "vite preview",

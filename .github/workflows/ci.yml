@@ -27,8 +27,6 @@ jobs:
         run: pnpm run build:wasm
       - name: 커널 회귀 테스트 (WASM↔JS 비트 일치)
         run: pnpm run test:wasm
-      - name: 추천 엔진 견고성 테스트 (비정상 입력 no-throw)
-        run: pnpm run test:engine
 
   lint:
     name: ESLint

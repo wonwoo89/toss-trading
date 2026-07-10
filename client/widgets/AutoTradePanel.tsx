@@ -28,11 +28,7 @@ interface AutoTradePanelProps {
   /** 매도 가능 수량(effectiveSellableQuantity) */
   sellableQuantity?: number;
   takeProfitRatePercent: number;
-  /** 추천 매수(신호 기반)가 추천 상태인지 */
-  buyRecommended: boolean;
-  buyQuantity?: number;
-  buyEntryPrice?: number;
-  /** 주문 가능 금액 — 자동매수 1회 금액 상한(10%) 계산에 사용 */
+  /** 주문 가능 금액 — AI 매수 1회 금액 상한 계산에 사용 */
   buyingPower?: number;
   /** 주문 제출 중 — 실행 버튼 비활성 */
   submitting?: boolean;
@@ -88,9 +84,11 @@ const AI_PRICE_MOVE_PCT = 0.3;
 /**
  * 자동매매 패널 (1~3단계 통합).
  *  - OFF: 비활성(킬 스위치)
- *  - 드라이런: 추천 매수·익절/손절 신호를 감지해 "했을 주문"을 기록만(실주문 X)
+ *  - 드라이런: AI 판단·익절/손절 신호를 감지해 "했을 주문"을 기록만(실주문 X)
  *  - 세미오토: 트리거 시 대기 카드 노출 → 사용자가 '실행' 탭해야 실제 주문(확인 탭 필수)
  *  - 오토: 트리거 + 가드 통과 시 확인 없이 자동 실주문(켤 때 확인, 탭 숨김 시 일시정지)
+ *
+ * 매수 진입은 AI 판단(useAi)으로만 이루어지고, 익절/손절 보호 매도는 항상 동작한다.
  *
  * 안전장치: 킬 스위치(모드 OFF) · 손절률 · 쿨다운 · 탭 가시성(오토) ·
  * 종목당 단일 대기(세미) · 감사로그. 데스크탑·모바일 모두 동작하되, 렌더+포그라운드(탭 보임)
@@ -102,9 +100,6 @@ export function AutoTradePanel({
   holding,
   sellableQuantity,
   takeProfitRatePercent,
-  buyRecommended,
-  buyQuantity,
-  buyEntryPrice,
   buyingPower,
   submitting,
   onAutoExecute,
@@ -267,32 +262,6 @@ export function AutoTradePanel({
       : undefined;
   const slReached = slPrice !== undefined && currentPrice !== undefined && currentPrice <= slPrice;
 
-  // 자동매수 1회 금액 상한: 주문가능금액의 AUTO_BUY_MAX_PCT% 이내로 수량을 제한.
-  const buyAmountCapQty =
-    buyingPower !== undefined && buyEntryPrice !== undefined && buyEntryPrice > 0
-      ? Math.floor((buyingPower * (AUTO_BUY_MAX_PCT / 100)) / buyEntryPrice)
-      : undefined;
-  // 추천 수량과 금액 상한 중 작은 값. 상한 계산 가능 시 그 값을 적용(0이면 매수 불가).
-  const effectiveBuyQty =
-    buyQuantity !== undefined
-      ? buyAmountCapQty !== undefined
-        ? Math.min(buyQuantity, buyAmountCapQty)
-        : buyQuantity
-      : undefined;
-
-  const buyReady =
-    buyRecommended &&
-    effectiveBuyQty !== undefined &&
-    effectiveBuyQty > 0 &&
-    buyEntryPrice !== undefined &&
-    buyEntryPrice > 0;
-
-  // 매수 진입가 기준 목표 매도가(자동매매 목표 수익률 적용) — 매수 트리거 라벨 표시용.
-  const buyTargetSell =
-    buyReady && buyEntryPrice !== undefined && effectiveBuyQty !== undefined
-      ? calculateTakeProfitSellPrice(buyEntryPrice, effectiveBuyQty, targetPercent)
-      : undefined;
-
   const active = mode !== 'off';
 
   // 실제 주문 실행 + 공통 가드(제출 중·쿨다운). 통과해 주문을 내면 true.
@@ -342,25 +311,6 @@ export function AutoTradePanel({
     setPending(action);
     pushLog('trigger', action.side, `대기: ${action.label} — '실행'을 눌러야 주문됩니다`);
   };
-
-  // 매수 트리거 (AI 모드에선 AI 가 매수를 결정하므로 지표 기반 매수는 끈다. TP/SL 보호는 유지.)
-  useEffect(() => {
-    if (!active) return;
-    if (buyReady && !useAi) {
-      if (shouldFire('BUY', buyEntryPrice!, effectiveBuyQty!)) {
-        const label = `매수 ${symbol} ${effectiveBuyQty}주 @ $${fmtPrice(buyEntryPrice!)}${buyTargetSell !== undefined ? ` → 목표 $${fmtPrice(buyTargetSell)} (+${targetPercent}%)` : ''}`;
-        fireTrigger(
-          { id: crypto.randomUUID(), kind: 'BUY', side: 'BUY', quantity: effectiveBuyQty!, limitPrice: buyEntryPrice, label },
-          `모의 ${label}`,
-          buyEntryPrice!,
-          effectiveBuyQty!
-        );
-      }
-    } else {
-      lastSignalRef.current.BUY = null;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, mode, isTabVisible, buyReady, useAi, symbol, effectiveBuyQty, buyEntryPrice, buyTargetSell, targetPercent]);
 
   // 익절 매도 트리거
   useEffect(() => {
@@ -412,8 +362,8 @@ export function AutoTradePanel({
 
     let action: PendingAction;
     if (decision.action === 'BUY') {
-      // AI 매수 수량은 지표 추천과 독립적으로 '주문가능금액의 상한 비율(AUTO_BUY_MAX_PCT)'로 산정.
-      const price = buyEntryPrice ?? currentPrice;
+      // AI 매수 수량은 '주문가능금액의 상한 비율(AUTO_BUY_MAX_PCT)'로 산정.
+      const price = currentPrice;
       if (price === undefined || price <= 0 || buyingPower === undefined || buyingPower <= 0) {
         pushLog('block', 'BUY', `AI 매수 보류 — 가격/주문가능 부족: ${decision.reason}`);
         return;
