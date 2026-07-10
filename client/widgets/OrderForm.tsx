@@ -17,8 +17,17 @@ import {
   setStoredQuantityPercent,
 } from '../shared/lib/quantityPercentPreference';
 import { tickSizeFor, floorToTick } from '../shared/lib/usTick';
+import {
+  estimateNetSellProfit,
+  getTakeProfitCostContext,
+} from '../shared/lib/takeProfitSell';
 import { formatOrderSuccessMessage } from '../shared/lib/formatOrderToast';
-import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../shared/types';
+import type {
+  CreateOrderPayload,
+  HoldingItem,
+  OrderSubmitOptions,
+  OrderSubmitResult,
+} from '../shared/types';
 
 type PriceMode = 'limit' | 'current' | 'market';
 
@@ -41,6 +50,8 @@ interface OrderFormProps {
   takeProfitRatePercent?: number;
   onTakeProfitRateChange?: (rate: number) => void;
   commissionRatePercent?: number;
+  /** 보유 스냅샷 — 매도 예상 실수익 계산의 비용(수수료·세금) 컨텍스트로 사용. */
+  holding?: HoldingItem;
   /** 자동매매(차트 탭)가 세미오토/오토로 실행 중 — 수동 주문 입력·실행을 차단한다. */
   autoTradeActive?: boolean;
   onSubmit: (
@@ -152,6 +163,7 @@ export function OrderForm({
   takeProfitRatePercent = 3,
   onTakeProfitRateChange,
   commissionRatePercent = 0.015,
+  holding,
   autoTradeActive = false,
   onSubmit,
 }: OrderFormProps) {
@@ -316,6 +328,29 @@ export function OrderForm({
     const qty = sellQuantityForPercent ?? effectiveQuantity;
     return qty !== undefined ? qty * currentPrice : undefined;
   }, [useAmountOrder, currentPrice, sellQuantityForPercent, effectiveQuantity]);
+
+  // 매도 예상 실수익(비용 반영) — 매도가(지정가 입력값/현재가) × 예상 수량 기준, 평단 대비.
+  const sellProfitEstimate = useMemo(() => {
+    if (useAmountOrder) return undefined;
+    const qty = sellQuantityForPercent ?? effectiveQuantity;
+    if (qty === undefined || qty <= 0) return undefined;
+    if (holdingAveragePrice === undefined || holdingAveragePrice <= 0) return undefined;
+    const sellPrice = effectiveOrderPrice;
+    if (sellPrice === undefined || !Number.isFinite(sellPrice) || sellPrice <= 0) return undefined;
+    return estimateNetSellProfit(
+      holdingAveragePrice,
+      qty,
+      sellPrice,
+      getTakeProfitCostContext(holding)
+    );
+  }, [
+    useAmountOrder,
+    sellQuantityForPercent,
+    effectiveQuantity,
+    holdingAveragePrice,
+    effectiveOrderPrice,
+    holding,
+  ]);
 
   useEffect(() => {
     if (priceMode === 'current' && currentPrice !== undefined) {
@@ -811,6 +846,17 @@ export function OrderForm({
                     ? `${formatOrderQuantity(sellQuantityForPercent)}주${sellEstimatedAmount !== undefined ? ` · ${formatUsd(sellEstimatedAmount)}` : ''}`
                     : '—'}
                 </strong>
+                {sellProfitEstimate && (
+                  <span
+                    className={`order-sell-profit ${getKrProfitLossClass(sellProfitEstimate.profit) ?? ''}`}
+                    title="매도가(지정가/현재가) 기준, 수수료·세금 반영 예상 실수익"
+                  >
+                    {sellProfitEstimate.ratePercent >= 0 ? '+' : '−'}
+                    {Math.abs(sellProfitEstimate.ratePercent).toFixed(2)}% (
+                    {sellProfitEstimate.profit >= 0 ? '+' : '−'}
+                    {formatUsd(Math.abs(sellProfitEstimate.profit))})
+                  </span>
+                )}
               </p>
             </>
           )}

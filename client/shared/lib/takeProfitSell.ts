@@ -139,6 +139,72 @@ export function calculateTakeProfitSellPrice(
   return roundUsdPrice((averagePrice * (1 + targetRate)) / (1 - US_COMMISSION_RATE));
 }
 
+export interface ExpectedSellProfit {
+  /** 비용(수수료·세금) 반영 예상 실수익 금액(USD). */
+  profit: number;
+  /** 비용 반영 예상 실수익률(%) — 매입금액 대비. */
+  ratePercent: number;
+}
+
+/**
+ * 주어진 매도가로 전량/일부 매도했을 때의 예상 실수익(비용 반영)을 추정한다.
+ * calculateTakeProfitSellPrice(목표율→가격)의 역방향(가격→실수익률)으로, 같은 비용 모델을 사용:
+ *  1) 보유 손익 스냅샷의 비용 비율(costDrag/gross)이 있으면 그 비율로 차감
+ *  2) 아니면 수수료+추정 세율 모델
+ *  3) 그것도 없으면 US 매도 수수료(0.1%)만 차감
+ */
+export function estimateNetSellProfit(
+  averagePrice: number,
+  sellQuantity: number,
+  sellPrice: number,
+  costContext?: TakeProfitCostContext
+): ExpectedSellProfit | undefined {
+  if (!(averagePrice > 0) || !(sellQuantity > 0) || !(sellPrice > 0)) return undefined;
+
+  const purchaseAmount = sellQuantity * averagePrice;
+  const grossProfit = (sellPrice - averagePrice) * sellQuantity;
+  const scaledCost = scaleCostContext(costContext, sellQuantity);
+
+  const grossRef = scaledCost?.grossProfitLoss;
+  const costDragRef =
+    scaledCost?.profitLossCostDrag ??
+    (scaledCost?.costCommission !== undefined
+      ? scaledCost.costCommission + (scaledCost.costTax ?? 0)
+      : undefined);
+
+  let netProfit: number;
+  if (
+    grossRef !== undefined &&
+    grossRef > MIN_GROSS_PROFIT &&
+    costDragRef !== undefined &&
+    costDragRef >= 0
+  ) {
+    const costRatio = Math.min(costDragRef / grossRef, MAX_COST_RATIO);
+    netProfit = grossProfit * (1 - costRatio);
+  } else {
+    const commission = scaledCost?.costCommission ?? 0;
+    const inferredTaxRate =
+      grossRef !== undefined && costDragRef !== undefined
+        ? inferEffectiveTaxRate(grossRef, costDragRef, commission, scaledCost?.costTax)
+        : undefined;
+
+    if (inferredTaxRate !== undefined) {
+      // 역산 모델: price = avg*(rate+1-tax)/(1-comm-tax) → rate 로 풀어 실수익률 산출.
+      const rate =
+        (sellPrice * (1 - US_COMMISSION_RATE - inferredTaxRate)) / averagePrice -
+        1 +
+        inferredTaxRate;
+      netProfit = purchaseAmount * rate;
+    } else {
+      // 기본: 매도 수수료만 차감 — price = avg*(1+rate)/(1-comm) → rate.
+      const rate = (sellPrice * (1 - US_COMMISSION_RATE)) / averagePrice - 1;
+      netProfit = purchaseAmount * rate;
+    }
+  }
+
+  return { profit: netProfit, ratePercent: (netProfit / purchaseAmount) * 100 };
+}
+
 export function resolveTakeProfitSellQuantity(
   boughtQuantity: number | undefined,
   baselineQuantity: number,
