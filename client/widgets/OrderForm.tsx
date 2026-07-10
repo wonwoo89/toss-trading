@@ -685,15 +685,8 @@ export function OrderForm({
                 <span className="order-form__field-label">가격</span>
                 {amountOrderToggle}
               </div>
+              {/* 배치: [가격 인풋] [−] [+] — 스테퍼는 우측에 모아 정렬 */}
               <div className="order-price-row">
-                <Button
-                  className="order-price-step"
-                  aria-label="한 틱 내리기"
-                  onClick={() => stepPrice(-1)}
-                  disabled={priceMode === 'market'}
-                >
-                  −
-                </Button>
                 <input
                   type="text"
                   inputMode="decimal"
@@ -708,6 +701,14 @@ export function OrderForm({
                   disabled={isPriceInputDisabled}
                   required={priceMode === 'limit'}
                 />
+                <Button
+                  className="order-price-step"
+                  aria-label="한 틱 내리기"
+                  onClick={() => stepPrice(-1)}
+                  disabled={priceMode === 'market'}
+                >
+                  −
+                </Button>
                 <Button
                   className="order-price-step"
                   aria-label="한 틱 올리기"
