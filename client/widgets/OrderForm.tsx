@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
-import { AutoTradePanel } from './AutoTradePanel';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import {
@@ -17,7 +16,7 @@ import {
   getStoredQuantityPercent,
   setStoredQuantityPercent,
 } from '../shared/lib/quantityPercentPreference';
-import type { CandleInterval, ChartCandle, HoldingItem, Order } from '../shared/types';
+import { tickSizeFor, floorToTick } from '../shared/lib/usTick';
 import { formatOrderSuccessMessage } from '../shared/lib/formatOrderToast';
 import type { CreateOrderPayload, OrderSubmitOptions, OrderSubmitResult } from '../shared/types';
 
@@ -42,13 +41,8 @@ interface OrderFormProps {
   takeProfitRatePercent?: number;
   onTakeProfitRateChange?: (rate: number) => void;
   commissionRatePercent?: number;
-  candles?: ChartCandle[];
-  candleInterval?: CandleInterval;
-  bids?: { price: number; quantity: number }[];
-  asks?: { price: number; quantity: number }[];
-  holding?: HoldingItem;
-  /** 이 종목의 미체결 주문 — 자동매매 AI 판단 컨텍스트로 전달. */
-  openOrders?: Order[];
+  /** 자동매매(차트 탭)가 세미오토/오토로 실행 중 — 수동 주문 입력·실행을 차단한다. */
+  autoTradeActive?: boolean;
   onSubmit: (
     payload: CreateOrderPayload,
     options?: OrderSubmitOptions
@@ -68,18 +62,6 @@ function getMaxBuyQuantity(buyingPower: number, unitPrice: number) {
 function formatOrderQuantity(value: number) {
   const rounded = Math.round(value * 10000) / 10000;
   return Number.isInteger(rounded) ? String(rounded) : String(rounded);
-}
-
-// US 주식 최소 호가단위(Reg NMS Rule 612): $1 이상은 $0.01, $1 미만은 $0.0001(서브-페니).
-function tickSizeFor(price: number) {
-  return price < 1 ? 0.0001 : 0.01;
-}
-
-// USD 지정가를 해당 가격대의 호가단위로 내림한다($1 이상 센트, $1 미만 서브-페니).
-function floorToTick(value: number | undefined) {
-  if (value === undefined || !Number.isFinite(value)) return value;
-  const inv = Math.round(1 / tickSizeFor(value)); // 0.01→100, 0.0001→10000 (부동소수 오차 방지)
-  return Math.floor(value * inv) / inv;
 }
 
 // 가격 입력칸용 값. 콤마 없이 $1 미만은 4자리·그 외 2자리까지, 불필요한 0 제거.
@@ -170,22 +152,13 @@ export function OrderForm({
   takeProfitRatePercent = 3,
   onTakeProfitRateChange,
   commissionRatePercent = 0.015,
-  candles = [],
-  candleInterval = '1m',
-  bids = [],
-  asks = [],
-  holding,
-  openOrders = [],
+  autoTradeActive = false,
   onSubmit,
 }: OrderFormProps) {
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
   const pendingSideRef = useRef<'BUY' | 'SELL' | null>(null);
-  // 자동매매 실행 시에는 목표수익률 자동 매도를 건너뛴다(체크돼 있어도 미실행).
-  const skipTakeProfitRef = useRef(false);
   // 제출 직전 결정된 주문 수량(사이드별 %기준). 설정돼 있으면 handleSubmit 이 이 값을 우선 사용.
   const pendingQuantityRef = useRef<number | null>(null);
-  // 자동매매 실행 시 제출에 쓸 지정가를 동기 전달(상태 flush 레이스 방지). null 이면 일반 가격 로직 사용.
-  const pendingLimitPriceRef = useRef<number | null>(null);
   const [priceMode, setPriceMode] = useState<PriceMode>(getStoredPriceMode);
   const [quantity, setQuantity] = useState('');
   // 마지막 선택한 수량 비율을 기억(영속) → 종목 전환·재접속 후에도 미리 선택돼 1탭 주문 가능.
@@ -197,19 +170,6 @@ export function OrderForm({
   const [useAmountOrder, setUseAmountOrder] = useState(false);
   const [useTakeProfitSell, setUseTakeProfitSell] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  // 세미오토/오토 실행 중에는 주문 입력 영역을 숨기고 자동 실행 내용만 노출(AutoTradePanel 이 알림).
-  const [autoExecActive, setAutoExecActive] = useState(false);
-
-  // 자동매매는 데스크탑·모바일 모두 제공. isDesktop 은 모바일 안내(화면 꺼짐 방지) 노출 판정에 사용.
-  const [isDesktop, setIsDesktop] = useState(
-    () => typeof window !== 'undefined' && window.innerWidth > 1100
-  );
-  useEffect(() => {
-    const update = () => setIsDesktop(window.innerWidth > 1100);
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-  }, []);
   const { showToast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const limitPriceManualRef = useRef(false);
@@ -275,48 +235,19 @@ export function OrderForm({
     return buildBuyBreakEvenHint(effectiveBuyPrice, commissionRatePercent);
   }, [commissionRatePercent, effectiveBuyPrice]);
 
-  // 자동매매(AutoTradePanel)가 결정한 주문을 실행. 수량·지정가를 ref 로 동기 전달한 뒤 제출한다.
-  const executeAutoOrder = (
-    intendedSide: 'BUY' | 'SELL',
-    quantity: number | undefined,
-    limitPrice: number | undefined
-  ) => {
-    if (submitting) return;
-    // 수량이 없으면 실행하지 않는다(버튼도 비활성). 토스트로 빠지지 않게 가드.
-    if (quantity === undefined || quantity <= 0) return;
-
-    const recPrice =
-      limitPrice !== undefined && Number.isFinite(limitPrice) && limitPrice > 0 ? limitPrice : null;
-
-    // 제출에 쓸 값은 ref 로 동기 전달 → requestSubmit 이 곧바로 handleSubmit 을 호출해도
-    // state flush 를 기다리지 않아 "비율 선택" 토스트로 잘못 빠지지 않는다.
-    pendingQuantityRef.current = quantity;
-    pendingLimitPriceRef.current = recPrice;
-    pendingSideRef.current = intendedSide;
-    skipTakeProfitRef.current = true; // 자동매매 실행은 목표수익률 자동 매도 건너뜀
-
-    // 폼 표시 반영(시각적): 적용된 사이드·수량·지정가를 보여준다. 제출 값은 위 ref 가 결정.
-    setSide(intendedSide);
-    setQuantity(formatOrderQuantity(quantity));
-    if (recPrice !== null) {
-      limitPriceManualRef.current = false;
-      setPriceMode('limit');
-      setPrice(priceInputValue(recPrice));
-    }
-
-    formRef.current?.requestSubmit();
-  };
-
-  // 직접 입력값(수량·가격)으로 실행. 자동매매와 달리 목표수익률 자동 매도 설정을 그대로 따른다.
+  // 직접 입력값(수량·가격)으로 실행. 자동매매(세미오토/오토) 실행 중에는 수동 주문을 차단한다.
   const executeManual = (intendedSide: 'BUY' | 'SELL') => {
     if (submitting) return;
+    if (autoTradeActive) {
+      showToast('자동매매 실행 중에는 수동 주문이 비활성화됩니다. 차트 탭에서 OFF 하세요.', 'error');
+      return;
+    }
     // 선택된 %를 실행하려는 사이드 기준으로 환산해 주문 수량 결정
     // (매수=주문가능 금액 기준, 매도=보유 수량 기준). 직접 입력 수량은 effectiveQuantity 로 폴백.
     pendingQuantityRef.current =
       intendedSide === 'BUY' ? (buyQuantityForPercent ?? null) : (sellQuantityForPercent ?? null);
     setSide(intendedSide);
     pendingSideRef.current = intendedSide;
-    skipTakeProfitRef.current = false;
     formRef.current?.requestSubmit();
   };
 
@@ -549,18 +480,15 @@ export function OrderForm({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
+    // 자동매매(세미오토/오토) 실행 중에는 수동 주문 차단(안전).
+    if (autoTradeActive) return;
+
     // 실행 버튼으로만 매수/매도 결정 (상단 탭 제거)
     const effectiveSide = pendingSideRef.current ?? side;
     pendingSideRef.current = null;
-    // 자동매매 실행 여부를 읽고 즉시 리셋 (이후 일반 제출엔 영향 없게)
-    const skipTakeProfit = skipTakeProfitRef.current;
-    skipTakeProfitRef.current = false;
     // 사이드별 %기준 수량(있으면) 우선, 없으면 직접 입력한 effectiveQuantity 사용.
     const pendingQuantity = pendingQuantityRef.current;
     pendingQuantityRef.current = null;
-    // 자동매매 실행이 지정한 지정가(있으면 priceMode/price 상태 대신 이 값을 사용).
-    const pendingLimitPrice = pendingLimitPriceRef.current;
-    pendingLimitPriceRef.current = null;
 
     const payload: CreateOrderPayload = {
       symbol: symbol.toUpperCase(),
@@ -581,11 +509,7 @@ export function OrderForm({
 
       payload.quantity = submitQuantity;
 
-      if (pendingLimitPrice !== null) {
-        // 자동매매 실행: 지정한 지정가로 LIMIT 주문 (상태 flush 와 무관하게 정확한 값 사용)
-        payload.orderType = 'LIMIT';
-        payload.price = floorToTick(pendingLimitPrice);
-      } else if (priceMode === 'market') {
+      if (priceMode === 'market') {
         payload.orderType = 'MARKET';
       } else if (priceMode === 'current') {
         payload.orderType = 'LIMIT';
@@ -597,7 +521,7 @@ export function OrderForm({
     }
 
     const submitOptions: OrderSubmitOptions | undefined =
-      effectiveSide === 'BUY' && useTakeProfitSell && !useAmountOrder && !skipTakeProfit
+      effectiveSide === 'BUY' && useTakeProfitSell && !useAmountOrder
         ? { takeProfitSell: { profitRatePercent: takeProfitRatePercent } }
         : undefined;
 
@@ -685,10 +609,18 @@ export function OrderForm({
           </p>
         )}
 
+        {/* 자동매매(차트 탭)가 세미오토/오토로 실행 중이면 수동 주문을 잠근다 */}
+        {isOrderable && autoTradeActive && (
+          <p className="order-form__readonly-notice hint">
+            ⚡ 자동매매(세미오토/오토) 실행 중 — 수동 주문이 잠겨 있어요. 차트 탭의 자동매매
+            패널에서 OFF 하면 다시 주문할 수 있습니다.
+          </p>
+        )}
+
         {/* 매수/매도 구분은 상단 탭이 아닌 하단 실행 버튼으로만 결정 (UX 개선) */}
-        {/* 세미오토/오토 실행 중에는 주문 입력(가격·수량·목표매도)을 숨기고 자동 실행 내용만 노출 */}
+        {/* 자동매매 실행 중에는 주문 입력(가격·수량·목표매도)을 숨긴다 */}
         {isOrderable &&
-          !autoExecActive &&
+          !autoTradeActive &&
           (useAmountOrder ? (
           <div className="order-form__section">
             <div className="order-form__field-header">
@@ -838,7 +770,7 @@ export function OrderForm({
           />
         </div>
 
-        {isOrderable && !autoExecActive && (
+        {isOrderable && !autoTradeActive && (
           <>
         {/* 매수 가능·손익분기·매도 가능·예상 금액은 side(매수/매도)와 무관하게 항상 노출 */}
         <div className="order-form__hints">
@@ -912,32 +844,6 @@ export function OrderForm({
 
           </>
         )}
-
-        {/* 자동매매(드라이런/세미오토/오토). 데스크탑·모바일 + USD(미국주식)만. 세미오토는 확인 탭 후 실주문.
-            모바일은 포그라운드+화면 켜짐에서만 동작(탭 숨김 시 일시정지) — 패널이 안내. */}
-        {isOrderable && (
-          <AutoTradePanel
-            symbol={symbol}
-            currentPrice={currentPrice}
-            holding={holding}
-            sellableQuantity={effectiveSellableQuantity}
-            takeProfitRatePercent={takeProfitRatePercent}
-            buyingPower={buyingPower}
-            submitting={submitting}
-            onAutoExecute={(side, qty, price) => executeAutoOrder(side, qty, price)}
-            onExecModeChange={setAutoExecActive}
-            isMobile={!isDesktop}
-            candles={candles}
-            candleInterval={candleInterval}
-            bids={bids}
-            asks={asks}
-            previousClose={previousClose}
-            maxBuyQuantity={maxBuyQuantity}
-            openOrders={openOrders}
-            currency={currency}
-          />
-        )}
-
       </div>
     </form>
   );
