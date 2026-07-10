@@ -4458,3 +4458,82 @@ button.orderbook-price-btn:hover {
     display: flex;
   }
 }
+
+@media (max-width: 1100px) {
+  /* ── v2: 헤더 제거 — 검색/테마/레이아웃/내 계좌를 탭으로 이동해 화면을 넓게 사용 ── */
+  body.mobile-v2-active .header {
+    display: none;
+  }
+  /* 헤더가 사라지므로 노치/상태바 안전영역만큼 상단 여백 확보 */
+  body.mobile-v2-active .trading-layout.layout-v2 {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+
+  /* 새 탭 콘텐츠: 기본 숨김 + order 배치 */
+  .trading-layout.layout-v2 .mobile-assets-extras {
+    display: none;
+    order: 5; /* portfolio-sidebar(5)와 동급 — DOM 이 앞이라 위에 배치 */
+  }
+  .trading-layout.layout-v2 .mobile-search-panel {
+    display: none;
+    order: 8;
+  }
+  .trading-layout.layout-v2 .mobile-settings-panel {
+    display: none;
+    order: 9;
+  }
+
+  /* 자산 탭: 헤더에서 이동한 '내 계좌'(계좌 전환·총계좌·환율) */
+  .trading-layout.layout-v2--tab-assets .mobile-assets-extras {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.25rem 0;
+  }
+
+  /* 검색 탭 */
+  .trading-layout.layout-v2--tab-search .mobile-search-panel {
+    display: block;
+    padding-top: 0.5rem;
+  }
+  .mobile-search-panel .symbol-search,
+  .mobile-search-panel .symbol-search-field {
+    width: 100%;
+  }
+  .mobile-search-panel #symbol-search {
+    width: 100%;
+    height: 44px;
+    font-size: 16px;
+  }
+
+  /* 설정 탭 */
+  .trading-layout.layout-v2--tab-settings .mobile-settings-panel {
+    display: block;
+    padding-top: 0.25rem;
+  }
+  .mobile-settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.9rem 0.1rem;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.9rem;
+  }
+  .mobile-settings-row:last-child {
+    border-bottom: none;
+  }
+  .mobile-settings-row__label {
+    color: var(--text-primary);
+  }
+  .mobile-settings-row__link {
+    color: var(--accent, #3182f6);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  /* 탭이 6개가 되어 라벨·패딩 소폭 축소 */
+  .mobile-tab-bar__tab {
+    font-size: 0.63rem;
+    padding: 7px 0 5px;
+  }
+}

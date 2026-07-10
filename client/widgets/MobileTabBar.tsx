@@ -1,4 +1,4 @@
-export type MobileTab = 'chart' | 'order' | 'book' | 'assets';
+export type MobileTab = 'chart' | 'order' | 'book' | 'assets' | 'search' | 'settings';
 
 interface MobileTabBarProps {
   active: MobileTab;
@@ -52,6 +52,26 @@ const TABS: { id: MobileTab; label: string; icon: React.ReactNode }[] = [
       <svg {...ICON_PROPS}>
         <path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8Z" />
         <path d="M16 12h5v4h-5a2 2 0 1 1 0-4Z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'search',
+    label: '검색',
+    icon: (
+      <svg {...ICON_PROPS}>
+        <circle cx="11" cy="11" r="6" />
+        <path d="m20 20-4.2-4.2" />
+      </svg>
+    ),
+  },
+  {
+    id: 'settings',
+    label: '설정',
+    icon: (
+      <svg {...ICON_PROPS}>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" />
       </svg>
     ),
   },
