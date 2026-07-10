@@ -4165,6 +4165,9 @@ button.orderbook-price-btn:hover {
   }
   .trading-layout.layout-v2--tab-order .order-column {
     display: flex;
+    /* v1(탭바 없음)용 하단 safe-area 패딩 제거 — v2 는 layout-v2 의 탭바 여백이 이미
+       inset 을 포함해, 중복되면 버튼 아래 큰 공백이 생긴다. */
+    padding-bottom: 0;
   }
   /* 주문 탭: 실행 영역 sticky 해제 — sticky 시 위 콘텐츠(수량 비율 등)를 덮어
      잘려 보인다. 탭바가 있으니 자연 스크롤로 배치. */
