@@ -964,6 +964,18 @@ textarea {
   background: var(--color-down);
 }
 
+/* 타이포그래피 — 크기·행간은 컴포넌트 인라인 스타일이 결정. 여기선 여백/말줄임만. */
+.ui-typo {
+  margin: 0;
+}
+.ui-typo--truncate {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* 모바일 전용 보유 종목 칩 바 (데스크톱 숨김, 모바일 media query 에서 노출) */
 .holdings-chip-bar {
   display: none;
