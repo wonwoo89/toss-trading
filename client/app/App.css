@@ -2842,16 +2842,16 @@ button.orderbook-price-btn:hover {
   margin: 0.25rem 0 0.5rem;
 }
 
-/* 자동매매 패널 (드라이런/세미오토/오토) */
+/* 자동매매 패널 (드라이런/세미오토/오토) — 보더리스 카드 */
 .auto-trade {
   margin-top: 0.75rem;
-  padding: 0.6rem 0.7rem;
-  border: 1px dashed var(--border-default);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg-subtle) 70%, transparent);
+  padding: 0.6rem 0.75rem;
+  border: none;
+  border-radius: 12px;
+  background: var(--bg-subtle);
 }
 .auto-trade.is-active {
-  border-style: solid;
+  background: color-mix(in srgb, var(--accent, #3182f6) 7%, transparent);
 }
 .auto-trade__head {
   display: flex;
@@ -3475,7 +3475,17 @@ button.orderbook-price-btn:hover {
   }
 
   .market-auto-trade {
-    padding: 0 16px;
+    padding: 0; /* 레이아웃(.app) 좌우 패딩만 사용 — 아래 지표 행들과 라인 일치 */
+  }
+  /* 모바일: 카드 인셋 제거 — 아래 지표 행들과 같은 폭으로 넓게 사용 */
+  .market-auto-trade .auto-trade {
+    margin-top: 0.4rem;
+    padding: 0.4rem 0 0.6rem;
+    border-radius: 0;
+    background: transparent;
+  }
+  .market-auto-trade .auto-trade.is-active {
+    background: transparent;
   }
 
   /* 모바일 차트/시그널/지표 영역 상단 여백 통일 (이전 추가 여백 설정의 들쭉날쭉 해결) */
