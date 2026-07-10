@@ -617,28 +617,31 @@ export function OrderForm({
       }}
     >
       <div className="order-form__body">
-        <div className="order-form__quote">
-          <strong className="order-form__quote-price">
-            {currentPrice !== undefined ? formatPrice(currentPrice, currency) : '—'}
-          </strong>
-          <span
-            className={`order-form__quote-change${
-              getKrProfitLossClass(dayChangeDiff) ? ` ${getKrProfitLossClass(dayChangeDiff)}` : ''
-            }`}
-          >
-            {dayChange.value}
-          </span>
-        </div>
+        {/* 시세(좌) + 보유 요약(우) 한 줄 배치 — 세로 스크롤 최소화 */}
+        <div className="order-form__topline">
+          <div className="order-form__quote">
+            <strong className="order-form__quote-price">
+              {currentPrice !== undefined ? formatPrice(currentPrice, currency) : '—'}
+            </strong>
+            <span
+              className={`order-form__quote-change${
+                getKrProfitLossClass(dayChangeDiff) ? ` ${getKrProfitLossClass(dayChangeDiff)}` : ''
+              }`}
+            >
+              {dayChange.value}
+            </span>
+          </div>
 
-        <StockHoldingSummary
-          variant="order"
-          quantity={holdingQuantity}
-          averagePrice={holdingAveragePrice}
-          marketValue={holdingMarketValue}
-          profitLoss={holdingProfitLoss}
-          profitLossRate={holdingProfitLossRate}
-          currency={currency}
-        />
+          <StockHoldingSummary
+            variant="order"
+            quantity={holdingQuantity}
+            averagePrice={holdingAveragePrice}
+            marketValue={holdingMarketValue}
+            profitLoss={holdingProfitLoss}
+            profitLossRate={holdingProfitLossRate}
+            currency={currency}
+          />
+        </div>
 
         {/* 국내주식 등 비(非)USD 종목은 조회 전용 — 주문 입력/실행 UI를 숨기고 안내만 노출 */}
         {!isOrderable && (

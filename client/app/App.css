@@ -1211,25 +1211,63 @@ textarea {
 }
 
 /* 주문폼 최상단 시세 블록: 현재가(크게) + 전일대비(색상) */
+/* 시세(좌) + 보유 요약(우) 한 줄 배치 — 세로 스크롤 최소화 */
+.order-form__topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.1rem 0 0.25rem;
+}
+
 .order-form__quote {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.1rem 0 0.5rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  flex: 0 0 auto;
 }
 
 .order-form__quote-price {
-  font-size: 1.5rem;
+  font-size: 1.15rem;
   font-weight: 700;
   line-height: 1.1;
   color: var(--text-primary);
 }
 
 .order-form__quote-change {
-  font-size: 0.95rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+/* 보유 요약(우측): 카드 제거 + 축소·우측 정렬 */
+.order-form__topline .stock-holding-summary--order {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  gap: 0.15rem;
+  align-items: flex-end;
+}
+.order-form__topline .stock-holding-summary__quantity {
+  font-size: 0.72rem;
+  justify-content: flex-end;
+}
+.order-form__topline .stock-holding-summary--order .stock-holding-summary__average {
+  font-size: 0.72rem;
+}
+.order-form__topline .stock-holding-summary--order .stock-holding-summary__value {
+  font-size: 0.78rem;
+  justify-content: flex-end;
+  gap: 0.35rem;
+}
+.order-form__topline .stock-holding-summary--order .stock-holding-summary__value span {
+  font-size: 0.78rem;
+}
+.order-form__topline .holding-pl {
+  font-size: 0.72rem;
 }
 
 .order-form__quote-change.kr-profit {
