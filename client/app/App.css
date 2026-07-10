@@ -4483,11 +4483,9 @@ button.orderbook-price-btn:hover {
     order: 9;
   }
 
-  /* 자산 탭: 헤더에서 이동한 '내 계좌'(계좌 전환·총계좌·환율) */
+  /* 자산 탭: '내 계좌' 인라인 카드 (항상 펼침) */
   .trading-layout.layout-v2--tab-assets .mobile-assets-extras {
-    display: flex;
-    justify-content: flex-end;
-    padding: 0.25rem 0;
+    display: block;
   }
 
   /* 검색 탭 */
@@ -4589,4 +4587,55 @@ button.orderbook-price-btn:hover {
 
 .chart-options__row:hover {
   background: color-mix(in srgb, var(--bg-panel) 80%, var(--bg-hover, #888) 20%);
+}
+
+@media (max-width: 1100px) {
+  /* v2: 상단 안전영역(노치/상태바) 마스크 — sticky 차트 위 틈으로 스크롤 콘텐츠가
+     비쳐 보이던 문제. 고정 오버레이로 그 띠를 배경색으로 덮는다. */
+  body.mobile-v2-active::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: env(safe-area-inset-top);
+    background: var(--bg-base);
+    z-index: 305; /* 콘텐츠·sticky 차트(200) 위, 탭바(310)·팝오버(400) 아래 */
+    pointer-events: none;
+  }
+
+  /* 자산 탭 '내 계좌' 인라인 카드 — 자산 탭의 다른 카드들과 동일한 카드 스타일 */
+  .account-summary-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 18px;
+    background: var(--bg-panel);
+  }
+  .account-summary-card__row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+  }
+  .account-summary-card__label {
+    color: var(--text-secondary);
+  }
+  .account-summary-card__amount {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .account-summary-card__amount strong {
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .account-summary-card__krw,
+  .account-summary-card__rate {
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+  }
 }

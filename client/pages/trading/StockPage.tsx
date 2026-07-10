@@ -4,7 +4,7 @@ import { MarketPanel } from '../../widgets/MarketPanel';
 import { OrderForm } from '../../widgets/OrderForm';
 import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
 import { HoldingsChipBar } from '../../widgets/HoldingsChipBar';
-import { HeaderAccountMenu } from '../../widgets/HeaderAccountMenu';
+import { AccountSummaryCard } from '../../widgets/AccountSummaryCard';
 import { MobileSettingsPanel } from '../../widgets/MobileSettingsPanel';
 import { MobileTabBar, type MobileTab } from '../../widgets/MobileTabBar';
 import { SymbolSearch } from '../../widgets/SymbolSearch';
@@ -86,9 +86,9 @@ export function StockPage() {
         </div>
         {v2Active && (
           <>
-            {/* 자산 탭 상단: 헤더에서 이동한 '내 계좌'(계좌 전환·총계좌·환율) */}
+            {/* 자산 탭 상단: '내 계좌'(총계좌·환율) — 드롭다운 없이 항상 펼쳐 표시 */}
             <div className="mobile-assets-extras">
-              <HeaderAccountMenu />
+              <AccountSummaryCard />
             </div>
             {/* 검색 탭: 헤더에서 이동한 종목 검색 */}
             <section className="mobile-search-panel" aria-label="종목 검색">
