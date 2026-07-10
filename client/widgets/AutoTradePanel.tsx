@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NumberField } from './NumberField';
 import { Button } from '../shared/ui/Button';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
+import { Typography } from '../shared/ui/Typography';
 import {
   calculateTakeProfitSellPrice,
   getTakeProfitCostContext,
@@ -729,7 +730,7 @@ export function AutoTradePanel({
   return (
     <div className={`auto-trade ${active ? 'is-active' : ''}`}>
       <div className="auto-trade__head">
-        <span className="auto-trade__title">
+        <Typography size={12} className="auto-trade__title">
           자동매매
           <span className="auto-trade__help">
             <button
@@ -745,7 +746,7 @@ export function AutoTradePanel({
               ?
             </button>
           </span>
-        </span>
+        </Typography>
         <SegmentedControl
           className="auto-trade__modes"
           aria-label="자동매매 모드"
@@ -795,39 +796,40 @@ export function AutoTradePanel({
       </div>
 
       {dailyLossLimitUsd > 0 && (
-        <p className={`auto-trade__daily-pnl ${dailyLossReached ? 'is-limit' : ''}`}>
+        <Typography as="p" size={12} className={`auto-trade__daily-pnl ${dailyLossReached ? 'is-limit' : ''}`}>
           오늘 자동매매 실현 손익 ${dailyRealizedUsd.toFixed(2)} / 한도 -${dailyLossLimitUsd}
           {dailyLossReached ? ' — 한도 도달(신규 매수 차단)' : ''}
-        </p>
+        </Typography>
       )}
 
       {useAi && (
         <div className="auto-trade__ai">
-          <span className="auto-trade__ai-head">
+          <Typography size={12} className="auto-trade__ai-head">
             🤖 AI {aiLoading ? '판단 중…' : aiDecision ? '' : '대기'}
-          </span>
+          </Typography>
           {aiDecision && (
-            <span
+            <Typography
+              size={12}
               className={`auto-trade__ai-decision is-${aiDecision.action.toLowerCase()}${aiDecision.fallback ? ' is-fallback' : ''}`}
             >
               {aiDecision.action === 'BUY' ? '매수' : aiDecision.action === 'SELL' ? '매도' : '관망'}
               {aiDecision.confidence ? ` ${(aiDecision.confidence * 100).toFixed(0)}%` : ''} — {aiDecision.reason}
-            </span>
+            </Typography>
           )}
           {aiHistory.length > 1 && (
             <details className="auto-trade__ai-history">
-              <summary>판단 이력 ({aiHistory.length})</summary>
+              <Typography as="summary" size={12}>판단 이력 ({aiHistory.length})</Typography>
               <ul>
                 {aiHistory.map((h) => (
-                  <li key={h.id} className={`is-${h.action.toLowerCase()}`}>
-                    <span className="auto-trade__ai-history-time">{fmtHistoryTime(h.t)}</span>
-                    <span className="auto-trade__ai-history-action">
+                  <Typography as="li" size={12} key={h.id} className={`is-${h.action.toLowerCase()}`}>
+                    <Typography size={12} className="auto-trade__ai-history-time">{fmtHistoryTime(h.t)}</Typography>
+                    <Typography size={12} className="auto-trade__ai-history-action">
                       {h.action === 'BUY' ? '매수' : h.action === 'SELL' ? '매도' : '관망'}
                       {h.confidence ? ` ${(h.confidence * 100).toFixed(0)}%` : ''}
                       {h.executed ? ' ✓실행' : ''}
-                    </span>
-                    <span className="auto-trade__ai-history-reason">{h.reason}</span>
-                  </li>
+                    </Typography>
+                    <Typography size={12} className="auto-trade__ai-history-reason">{h.reason}</Typography>
+                  </Typography>
                 ))}
               </ul>
             </details>
@@ -836,19 +838,19 @@ export function AutoTradePanel({
       )}
 
       {isMobile && active && (
-        <p className="auto-trade__mobile-hint">
+        <Typography as="p" size={12} className="auto-trade__mobile-hint">
           📱 모바일에선 화면이 꺼지거나 앱을 벗어나면 자동 실행이 멈춰요. 상단 👁(화면 꺼짐 방지)를
           켜고 이 화면을 포그라운드로 유지하세요.
-        </p>
+        </Typography>
       )}
 
       {mode === 'auto' && !isTabVisible && (
-        <p className="auto-trade__paused">⏸ 탭이 가려져 자동 실행 일시정지 중 — 이 탭을 다시 보면 재개됩니다.</p>
+        <Typography as="p" size={12} className="auto-trade__paused">⏸ 탭이 가려져 자동 실행 일시정지 중 — 이 탭을 다시 보면 재개됩니다.</Typography>
       )}
 
       {mode === 'semi' && pending && (
         <div className={`auto-trade__pending ${pending.side === 'BUY' ? 'is-buy' : 'is-sell'}`}>
-          <span className="auto-trade__pending-label">
+          <Typography size={12} className="auto-trade__pending-label">
             {pending.kind === 'BUY'
               ? '🟢 매수 대기'
               : pending.kind === 'TP'
@@ -856,8 +858,8 @@ export function AutoTradePanel({
                 : pending.kind === 'TS'
                   ? '🟠 트레일링 대기'
                   : '🔴 손절 대기'}
-          </span>
-          <span className="auto-trade__pending-text">{pending.label}</span>
+          </Typography>
+          <Typography size={12} className="auto-trade__pending-text">{pending.label}</Typography>
           <div className="auto-trade__pending-actions">
             <Button
               variant="accent"
@@ -878,16 +880,16 @@ export function AutoTradePanel({
       {active && (
         <ul className="auto-trade__log">
           {logs.length === 0 ? (
-            <li className="auto-trade__empty">아직 감지된 신호 없음…</li>
+            <Typography as="li" size={12} className="auto-trade__empty">아직 감지된 신호 없음…</Typography>
           ) : (
             logs.map((log) => (
-              <li key={log.id} className={`auto-trade__row level-${log.level}`}>
-                <span className="auto-trade__time">{log.time}</span>
-                <span className="auto-trade__text">
+              <Typography as="li" size={12} key={log.id} className={`auto-trade__row level-${log.level}`}>
+                <Typography size={12} className="auto-trade__time">{log.time}</Typography>
+                <Typography size={12} className="auto-trade__text">
                   {log.symbol && log.symbol !== symbol ? `[${log.symbol}] ` : ''}
                   {log.text}
-                </span>
-              </li>
+                </Typography>
+              </Typography>
             ))
           )}
         </ul>
@@ -899,11 +901,11 @@ export function AutoTradePanel({
           role="tooltip"
           style={{ position: 'fixed', top: tipPos.top, left: tipPos.left, width: TIP_WIDTH }}
         >
-          <b>드라이런</b> 모의 기록만(실주문 없음)
+          <Typography as="b" size={12}>드라이런</Typography> 모의 기록만(실주문 없음)
           <br />
-          <b>세미오토</b> 트리거 시 “실행” 탭해야 실주문
+          <Typography as="b" size={12}>세미오토</Typography> 트리거 시 “실행” 탭해야 실주문
           <br />
-          <b>오토</b> 트리거 시 확인 없이 자동 실주문
+          <Typography as="b" size={12}>오토</Typography> 트리거 시 확인 없이 자동 실주문
           <br />
           매수는 AI 판단 전용. 익절=목표 도달, 손절=손절률 도달, 트레일링=고점 대비 하락 시 전량 매도.
           일일 손실 한도 도달 시 강제 OFF. 쿨다운(30s)·탭 숨김 일시정지로 보호. 현재 종목만.

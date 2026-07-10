@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatSignedPercent, getKrProfitLossClass } from '../shared/lib/formatHoldings';
+import { Typography } from '../shared/ui/Typography';
 import type { HoldingItem } from '../shared/types';
 
 interface HoldingsChipBarProps {
@@ -58,10 +59,13 @@ export function HoldingsChipBar({ holdings, activeSymbol }: HoldingsChipBarProps
             className={`holdings-chip${isActive ? ' is-active' : ''}`}
             onClick={() => navigate(`/stock/${item.symbol}`)}
           >
-            <span className="holdings-chip__ticker">{item.symbol}</span>
-            <span className={`holdings-chip__pl ${getKrProfitLossClass(item.profitLoss) ?? ''}`}>
+            <Typography size={12} className="holdings-chip__ticker">{item.symbol}</Typography>
+            <Typography
+              size={12}
+              className={`holdings-chip__pl ${getKrProfitLossClass(item.profitLoss) ?? ''}`}
+            >
               {pct ?? '—'}
-            </span>
+            </Typography>
           </button>
         );
       })}

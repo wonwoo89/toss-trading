@@ -3,6 +3,7 @@ import { StockHoldingSummary } from './StockHoldingSummary';
 import { Button } from '../shared/ui/Button';
 import { Chip } from '../shared/ui/Chip';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
+import { Typography } from '../shared/ui/Typography';
 import { useToast } from '../app/providers/ToastContext';
 import { buildBuyBreakEvenHint } from '../shared/lib/commissionBreakEven';
 import {
@@ -620,16 +621,17 @@ export function OrderForm({
         {/* 시세(좌) + 보유 요약(우) 한 줄 배치 — 세로 스크롤 최소화 */}
         <div className="order-form__topline">
           <div className="order-form__quote">
-            <strong className="order-form__quote-price">
+            <Typography as="strong" size={18} className="order-form__quote-price">
               {currentPrice !== undefined ? formatPrice(currentPrice, currency) : '—'}
-            </strong>
-            <span
+            </Typography>
+            <Typography
+              size={12}
               className={`order-form__quote-change${
                 getKrProfitLossClass(dayChangeDiff) ? ` ${getKrProfitLossClass(dayChangeDiff)}` : ''
               }`}
             >
               {dayChange.value}
-            </span>
+            </Typography>
           </div>
 
           <StockHoldingSummary
@@ -645,17 +647,17 @@ export function OrderForm({
 
         {/* 국내주식 등 비(非)USD 종목은 조회 전용 — 주문 입력/실행 UI를 숨기고 안내만 노출 */}
         {!isOrderable && (
-          <p className="order-form__readonly-notice hint">
+          <Typography as="p" size={14} className="order-form__readonly-notice hint">
             국내주식은 현재 조회 전용입니다(주문 준비 중). 시세·차트·보유 현황만 표시됩니다.
-          </p>
+          </Typography>
         )}
 
         {/* 자동매매(차트 탭)가 세미오토/오토로 실행 중이면 수동 주문을 잠근다 */}
         {isOrderable && autoTradeActive && (
-          <p className="order-form__readonly-notice hint">
+          <Typography as="p" size={14} className="order-form__readonly-notice hint">
             ⚡ 자동매매(세미오토/오토) 실행 중 — 수동 주문이 잠겨 있어요. 차트 탭의 자동매매
             패널에서 OFF 하면 다시 주문할 수 있습니다.
-          </p>
+          </Typography>
         )}
 
         {/* 매수/매도 구분은 상단 탭이 아닌 하단 실행 버튼으로만 결정 (UX 개선) */}
@@ -665,7 +667,7 @@ export function OrderForm({
           (useAmountOrder ? (
           <div className="order-form__section">
             <div className="order-form__field-header">
-              <span className="order-form__field-label">주문 금액 (USD)</span>
+              <Typography size={14} className="order-form__field-label">주문 금액 (USD)</Typography>
               {amountOrderToggle}
             </div>
             <label>
@@ -682,7 +684,7 @@ export function OrderForm({
           <>
             <div className="order-form__section">
               <div className="order-form__field-header">
-                <span className="order-form__field-label">가격</span>
+                <Typography size={14} className="order-form__field-label">가격</Typography>
                 {amountOrderToggle}
               </div>
               {/* 배치: [가격 인풋] [−] [+] — 스테퍼는 우측에 모아 정렬 */}
@@ -733,7 +735,7 @@ export function OrderForm({
             </div>
 
             <div className="order-form__section">
-              <div className="order-form__section-title">수량 비율</div>
+              <Typography as="div" size={12} className="order-form__section-title">수량 비율</Typography>
               {showQuantityPercentButtons && (
                 <SegmentedControl
                   className="order-quantity-percents"
@@ -798,44 +800,45 @@ export function OrderForm({
         {/* 매수 가능·손익분기·매도 가능·예상 금액은 side(매수/매도)와 무관하게 항상 노출 */}
         <div className="order-form__hints">
           <div className="order-form__buy-hints-row">
-            <p className="hint order-form__footer-hint">
+            <Typography as="p" size={12} className="hint order-form__footer-hint">
               매수 가능: {buyCapacityReady
                 ? formatOrderQuantity(maxBuyQuantity ?? 0) + '주'
                 : (buyingPower !== undefined || currentPrice !== undefined ? '—' : '불러오는 중...')}
-            </p>
+            </Typography>
             {buyBreakEvenHint && (
               <>
-                <span className="order-form__hint-divider">·</span>
-                <p className="hint order-form__footer-hint">{buyBreakEvenHint}</p>
+                <Typography size={12} className="order-form__hint-divider">·</Typography>
+                <Typography as="p" size={12} className="hint order-form__footer-hint">{buyBreakEvenHint}</Typography>
               </>
             )}
           </div>
 
-          <p className="hint order-form__footer-hint">
+          <Typography as="p" size={12} className="hint order-form__footer-hint">
             매도 가능: {sellCapacityReady && effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0
               ? `${effectiveSellableQuantity}주`
               : (sellCapacityReady ? '0주' : (effectiveSellableQuantity !== undefined ? '—' : '불러오는 중...'))}
-          </p>
+          </Typography>
 
           {!useAmountOrder && (
             <>
-              <p className="order-estimated-amount">
+              <Typography as="p" size={14} className="order-estimated-amount">
                 예상 매수{' '}
-                <strong>
+                <Typography as="strong" size={14}>
                   {buyQuantityForPercent !== undefined
                     ? `${formatOrderQuantity(buyQuantityForPercent)}주${buyEstimatedAmount !== undefined ? ` · ${formatUsd(buyEstimatedAmount)}` : ''}`
                     : '—'}
-                </strong>
-              </p>
-              <p className="order-estimated-amount sell">
+                </Typography>
+              </Typography>
+              <Typography as="p" size={14} className="order-estimated-amount sell">
                 예상 매도{' '}
-                <strong>
+                <Typography as="strong" size={14}>
                   {sellQuantityForPercent !== undefined
                     ? `${formatOrderQuantity(sellQuantityForPercent)}주${sellEstimatedAmount !== undefined ? ` · ${formatUsd(sellEstimatedAmount)}` : ''}`
                     : '—'}
-                </strong>
+                </Typography>
                 {sellProfitEstimate && (
-                  <span
+                  <Typography
+                    size={14}
                     className={`order-sell-profit ${getKrProfitLossClass(sellProfitEstimate.profit) ?? ''}`}
                     title="매도가(지정가/현재가) 기준, 수수료·세금 반영 예상 실수익"
                   >
@@ -843,9 +846,9 @@ export function OrderForm({
                     {formatUsd(Math.abs(sellProfitEstimate.profit))} (
                     {sellProfitEstimate.ratePercent >= 0 ? '+' : '−'}
                     {Math.abs(sellProfitEstimate.ratePercent).toFixed(2)}%)
-                  </span>
+                  </Typography>
                 )}
-              </p>
+              </Typography>
             </>
           )}
         </div>

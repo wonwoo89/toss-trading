@@ -6,6 +6,7 @@ import {
   formatOrderPriceLabel,
   sortOrdersByDate,
 } from '../shared/lib/formatOrders';
+import { Typography } from '../shared/ui/Typography';
 import type { Order } from '../shared/types';
 
 interface OpenOrdersPanelProps {
@@ -35,12 +36,14 @@ export function OpenOrdersPanel({
   return (
     <section className="panel open-orders-panel">
       <div className="panel-title open-orders-panel__title">
-        <h2>미체결 주문</h2>
+        <Typography size={16} as="h2">미체결 주문</Typography>
       </div>
 
       <div className="panel-body open-orders-panel__body">
         {openOrders.length === 0 ? (
-          <p className="hint open-orders-panel__empty">미체결 주문이 없습니다.</p>
+          <Typography size={14} as="p" className="hint open-orders-panel__empty">
+            미체결 주문이 없습니다.
+          </Typography>
         ) : (
           <ul className="order-history-list">
             {sortedOrders.map((order) => {
@@ -52,7 +55,9 @@ export function OpenOrdersPanel({
                 <li key={order.orderId} className="order-history-item">
                   <div className="order-history-item__content">
                     {hideSymbol ? (
-                      <span className="order-history-item__date-symbol">{leftLabel}</span>
+                      <Typography size={14} className="order-history-item__date-symbol">
+                        {leftLabel}
+                      </Typography>
                     ) : (
                       <Link
                         to={`/stock/${order.symbol}`}
@@ -63,15 +68,16 @@ export function OpenOrdersPanel({
                     )}
 
                     <div className="order-history-item__summary">
-                      <span className="order-history-item__price">
+                      <Typography size={14} className="order-history-item__price">
                         {formatOrderPriceLabel(order)}
-                      </span>
+                      </Typography>
                       <div className="order-history-item__status-row">
-                        <span
+                        <Typography
+                          size={12}
                           className={`order-history-item__status${order.side === 'BUY' ? ' is-buy' : ' is-sell'}`}
                         >
                           {formatOpenOrderStatus(order)}
-                        </span>
+                        </Typography>
                         <button
                           type="button"
                           className="order-history-item__cancel"
