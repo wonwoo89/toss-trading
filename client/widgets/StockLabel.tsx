@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Typography } from '../shared/ui/Typography';
 
 interface StockLabelProps {
   symbol: string;
@@ -14,8 +15,14 @@ export function StockLabel({ symbol, name, to, as = 'inline' }: StockLabelProps)
 
   const content = (
     <>
-      <span className="stock-label__name">{displayName}</span>
-      {showTicker && <span className="stock-label__ticker">{symbol}</span>}
+      <Typography size={as === 'heading' ? 20 : 14} className="stock-label__name">
+        {displayName}
+      </Typography>
+      {showTicker && (
+        <Typography size={12} className="stock-label__ticker">
+          {symbol}
+        </Typography>
+      )}
     </>
   );
 

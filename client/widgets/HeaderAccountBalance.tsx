@@ -1,5 +1,6 @@
 import { formatKrw, formatUsd } from '../shared/lib/formatHoldings';
 import { useAccountSummary } from '../shared/hooks/useAccountSummary';
+import { Typography } from '../shared/ui/Typography';
 
 export function HeaderAccountBalance() {
   const { isReady, exchangeRate, totalAccountValue, totalAccountValueKrw } = useAccountSummary();
@@ -9,20 +10,24 @@ export function HeaderAccountBalance() {
   return (
     <div className="header-finance" aria-label="총 계좌 및 환율">
       <div className="header-account-balance">
-        <span className="header-account-balance__label">총 계좌</span>
+        <Typography size={12} className="header-account-balance__label">총 계좌</Typography>
         <div className="header-account-balance__amounts">
           <div className="header-exchange-rate">
-            <span className="header-exchange-rate__value">
+            <Typography size={10} className="header-exchange-rate__value">
               {exchangeRate !== undefined ? `$1 = ${formatKrw(exchangeRate)}` : '—'}
-            </span>
+            </Typography>
           </div>
-          <span className="header-finance__divider" aria-hidden="true">
+          <Typography size={12} className="header-finance__divider" aria-hidden="true">
             ·
-          </span>
+          </Typography>
           {totalAccountValueKrw !== undefined && (
-            <span className="header-account-balance__krw">{formatKrw(totalAccountValueKrw)}</span>
+            <Typography size={10} className="header-account-balance__krw">
+              {formatKrw(totalAccountValueKrw)}
+            </Typography>
           )}
-          <strong className="header-account-balance__value">{formatUsd(totalAccountValue)}</strong>
+          <Typography as="strong" size={16} className="header-account-balance__value">
+            {formatUsd(totalAccountValue)}
+          </Typography>
         </div>
       </div>
     </div>

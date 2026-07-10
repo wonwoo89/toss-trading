@@ -1,4 +1,5 @@
 import { useRegisterSW } from 'virtual:pwa-register/react';
+import { Typography } from '../shared/ui/Typography';
 
 /**
  * PWA 새 배포 알림 배너. 서비스워커가 새 버전을 감지하면(needRefresh) 배너를 띄우고,
@@ -25,7 +26,7 @@ export function PwaUpdatePrompt() {
 
   return (
     <div className="pwa-update" role="alert" aria-live="polite">
-      <span className="pwa-update__text">새 버전이 배포되었어요.</span>
+      <Typography size={12} className="pwa-update__text">새 버전이 배포되었어요.</Typography>
       <button
         type="button"
         className="pwa-update__btn"

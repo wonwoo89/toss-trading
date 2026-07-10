@@ -4,6 +4,7 @@ import { api } from '../shared/api/client';
 import { setLastSelectedSymbol } from '../shared/lib/lastSymbolPreference';
 import { addRecentSearch } from '../shared/lib/recentSearchPreference';
 import type { StockInfo } from '../shared/types';
+import { Typography } from '../shared/ui/Typography';
 
 function looksLikeTicker(value: string) {
   return /^[A-Za-z0-9.^-]+$/.test(value);
@@ -223,10 +224,16 @@ export function SymbolSearch() {
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => goToSymbol(stock.symbol)}
                 >
-                  <span className="symbol-search-suggestions__symbol">{stock.symbol}</span>
-                  <span className="symbol-search-suggestions__name">{stock.name}</span>
+                  <Typography size={14} className="symbol-search-suggestions__symbol">
+                    {stock.symbol}
+                  </Typography>
+                  <Typography size={14} className="symbol-search-suggestions__name">
+                    {stock.name}
+                  </Typography>
                   {stock.englishName && stock.englishName !== stock.name && (
-                    <span className="symbol-search-suggestions__english">{stock.englishName}</span>
+                    <Typography size={12} className="symbol-search-suggestions__english">
+                      {stock.englishName}
+                    </Typography>
                   )}
                 </button>
               </li>
@@ -234,9 +241,9 @@ export function SymbolSearch() {
           </ul>
         )}
         {isSearching && searchInput.trim() && (
-          <span className="symbol-search-status" aria-live="polite">
+          <Typography size={12} className="symbol-search-status" aria-live="polite">
             검색 중…
-          </span>
+          </Typography>
         )}
       </div>
     </form>
