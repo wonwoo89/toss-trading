@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
 import { Button } from '../shared/ui/Button';
 import { Checkbox } from '../shared/ui/Checkbox';
-import { Chip } from '../shared/ui/Chip';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
 import { TextField } from '../shared/ui/TextField';
 import { Typography } from '../shared/ui/Typography';
@@ -756,19 +755,16 @@ export function OrderForm({
               />
 
               {useTakeProfitSell && (
-                <>
-                  <div className="order-quick-actions">
-                    {TAKE_PROFIT_RATE_OPTIONS.map((rate) => (
-                      <Chip
-                        key={rate}
-                        selected={takeProfitRatePercent === rate}
-                        onClick={() => updateTakeProfitRate(rate)}
-                      >
-                        {rate}%
-                      </Chip>
-                    ))}
-                  </div>
-                </>
+                <SegmentedControl
+                  className="order-take-profit-rates"
+                  aria-label="목표 실수익률"
+                  value={String(takeProfitRatePercent)}
+                  onChange={(value) => updateTakeProfitRate(Number(value))}
+                  options={TAKE_PROFIT_RATE_OPTIONS.map((rate) => ({
+                    value: String(rate),
+                    label: `${rate}%`,
+                  }))}
+                />
               )}
             </div>
           </>
