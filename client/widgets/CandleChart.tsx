@@ -80,8 +80,9 @@ const CHART_MIN_HEIGHT = 200;
 function getChartHeight(container: HTMLDivElement) {
   return Math.max(container.clientHeight, CHART_MIN_HEIGHT);
 }
-const CANDLE_PANE_STRETCH = 0.72;
-const VOLUME_PANE_STRETCH = 0.28;
+// 캔들에 집중하도록 거래량 페인 비중 축소 (0.28 → 0.20)
+const CANDLE_PANE_STRETCH = 0.8;
+const VOLUME_PANE_STRETCH = 0.2;
 const PRICE_HEADROOM_RATIO = 0.05; // range-based symmetric headroom for consistent visual whitespace across charts
 const BAR_SPACING_DRIFT_THRESHOLD = 0.001;
 const RIGHT_OFFSET_DRIFT_THRESHOLD = 0.5;
