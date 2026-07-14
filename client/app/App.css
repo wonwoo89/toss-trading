@@ -764,6 +764,14 @@ textarea {
   font-weight: 700;
 }
 
+/* 모바일 전용 섹션(자산 카드·검색·설정 탭 콘텐츠)은 데스크톱/태블릿(>1100px)에서 렌더되지
+   않아야 한다 — 레이아웃 고정 후 항상 마운트되므로 기본 숨김, 모바일 미디어에서 탭별 표시. */
+.mobile-assets-extras,
+.mobile-search-panel,
+.mobile-settings-panel {
+  display: none;
+}
+
 .trading-layout {
   display: flex;
   flex-direction: row;
