@@ -199,6 +199,7 @@ export function MarketPanel({
               loadingOlder={candlesLoadingOlder}
               error={candlesError}
               fitKey={`${symbol}:${candleInterval}`}
+              candleInterval={candleInterval}
               hasMoreHistory={hasMoreHistory}
               onLoadOlder={onLoadOlderCandles}
               showBollinger={bollingerVisible}
