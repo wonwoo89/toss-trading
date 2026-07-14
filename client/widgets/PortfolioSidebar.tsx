@@ -8,6 +8,8 @@ import { formatProfitLoss, formatUsd, getKrProfitLossClass } from '../shared/lib
 import type { HoldingItem, Order } from '../shared/types';
 
 interface PortfolioSidebarProps {
+  /** 보유 종목 클릭으로 종목 이동 시 호출 — 모바일에서 차트 탭 전환에 사용. */
+  onNavigateToStock?: (symbol: string) => void;
   buyingPower?: number;
   totalMarketValue?: number;
   totalProfitLoss?: number;
@@ -23,6 +25,7 @@ interface PortfolioSidebarProps {
 }
 
 export function PortfolioSidebar({
+  onNavigateToStock,
   buyingPower,
   totalMarketValue,
   totalProfitLoss,
@@ -61,7 +64,11 @@ export function PortfolioSidebar({
     }
   }, [holdings]);
 
+  const onNavigateToStockRef = useRef(onNavigateToStock);
+  onNavigateToStockRef.current = onNavigateToStock;
+
   const goToStock = (symbol: string) => {
+    onNavigateToStock?.(symbol);
     navigate(`/stock/${symbol}`);
   };
 
@@ -91,6 +98,7 @@ export function PortfolioSidebar({
       if (!target) return;
 
       event.preventDefault();
+      onNavigateToStockRef.current?.(target.symbol);
       navigate(`/stock/${target.symbol}`);
     };
 

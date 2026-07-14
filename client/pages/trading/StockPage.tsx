@@ -153,6 +153,7 @@ export function StockPage() {
           </>
         )}
         <PortfolioSidebar
+          onNavigateToStock={() => setMobileTab('chart')}
           buyingPower={buyingPower}
           totalMarketValue={portfolioTotals.totalMarketValue}
           totalProfitLoss={portfolioTotals.totalProfitLoss}
