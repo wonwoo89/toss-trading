@@ -536,7 +536,9 @@ export function CandleChart({
     text: string;
     y: number;
     axisWidth: number;
+    color: string;
   } | null>(null);
+  const countdownIntervalSecRef = useRef<number | null>(null);
 
   onLoadOlderRef.current = onLoadOlder;
   hasMoreHistoryRef.current = hasMoreHistory;
@@ -898,43 +900,50 @@ export function CandleChart({
     };
   }, []);
 
-  // 봉 마감 카운트다운 — 마지막 캔들 시작시각 + 간격 대비 남은 시간을 1초마다 갱신.
-  // 위치는 현재가(마지막 종가)의 y 좌표 바로 아래(가격축 폭에 맞춤).
-  useEffect(() => {
-    const intervalSec = parseMinuteIntervalSec(candleInterval);
-    if (!intervalSec || intervalSec > COUNTDOWN_MAX_INTERVAL_SEC) {
+  // 봉 마감 카운트다운 갱신 — 남은 시간·y 좌표·방향색(현재가 라벨과 동일)을 계산.
+  // 1초 타이머 + 캔들 데이터 변경 양쪽에서 호출해 라벨 위치를 늦지 않게 따라간다.
+  const updateBarCountdown = () => {
+    const intervalSec = countdownIntervalSecRef.current;
+    const chart = chartRef.current;
+    const series = seriesRef.current;
+    const last = sortedCandlesRef.current[sortedCandlesRef.current.length - 1];
+    if (!intervalSec || !chart || !series || !last || chartWidthRef.current <= 0) {
       setBarCountdown(null);
       return;
     }
+    const nowSec = Date.now() / 1000;
+    let remain = last.time + intervalSec - nowSec;
+    // 데이터 지연/폐장 등으로 범위를 벗어나면 벽시계 기준 경계로 폴백
+    if (remain <= 0 || remain > intervalSec) remain = intervalSec - (nowSec % intervalSec);
+    const y = series.priceToCoordinate(last.close);
+    if (y == null) {
+      setBarCountdown(null);
+      return;
+    }
+    const colors = getChartThemeColors();
+    const minutes = Math.floor(remain / 60);
+    const seconds = Math.floor(remain % 60);
+    setBarCountdown({
+      text: `${minutes}:${String(seconds).padStart(2, '0')}`,
+      y: Math.round(y) + 9, // 현재가 축 라벨(높이 ~18px) 바로 아래 밀착
+      axisWidth: chart.priceScale('right').width(),
+      // 현재가 라벨과 같은 방향색 → 라벨과 한 덩어리로 읽힘
+      color: last.close >= last.open ? colors.candleUp : colors.candleDown,
+    });
+  };
+  const updateBarCountdownRef = useRef(updateBarCountdown);
+  updateBarCountdownRef.current = updateBarCountdown;
 
-    const update = () => {
-      const chart = chartRef.current;
-      const series = seriesRef.current;
-      const last = sortedCandlesRef.current[sortedCandlesRef.current.length - 1];
-      if (!chart || !series || !last || chartWidthRef.current <= 0) {
-        setBarCountdown(null);
-        return;
-      }
-      const nowSec = Date.now() / 1000;
-      let remain = last.time + intervalSec - nowSec;
-      // 데이터 지연/폐장 등으로 범위를 벗어나면 벽시계 기준 경계로 폴백
-      if (remain <= 0 || remain > intervalSec) remain = intervalSec - (nowSec % intervalSec);
-      const y = series.priceToCoordinate(last.close);
-      if (y == null) {
-        setBarCountdown(null);
-        return;
-      }
-      const minutes = Math.floor(remain / 60);
-      const seconds = Math.floor(remain % 60);
-      setBarCountdown({
-        text: `${minutes}:${String(seconds).padStart(2, '0')}`,
-        y: Math.round(y) + 10, // 현재가 축 라벨 바로 아래
-        axisWidth: chart.priceScale('right').width(),
-      });
-    };
-
-    update();
-    const id = setInterval(update, 1000);
+  useEffect(() => {
+    const intervalSec = parseMinuteIntervalSec(candleInterval);
+    countdownIntervalSecRef.current =
+      intervalSec && intervalSec <= COUNTDOWN_MAX_INTERVAL_SEC ? intervalSec : null;
+    if (!countdownIntervalSecRef.current) {
+      setBarCountdown(null);
+      return;
+    }
+    updateBarCountdownRef.current();
+    const id = setInterval(() => updateBarCountdownRef.current(), 1000);
     return () => clearInterval(id);
   }, [candleInterval]);
 
@@ -1163,6 +1172,7 @@ export function CandleChart({
     // 데이터 갱신 후 보이는 범위 기준 최고/최저 마커 갱신 (뷰포트 적용이 settle 된 뒤 rAF 로)
     sortedCandlesRef.current = sortedCandles;
     scheduleHighLowMarkersUpdateRef.current();
+    updateBarCountdownRef.current(); // 현재가 라벨 이동을 즉시 추적
   }, [candles, fitKey]);
 
   const chartStatus = loading
@@ -1222,7 +1232,11 @@ export function CandleChart({
         <Typography
           size={10}
           className="chart-countdown"
-          style={{ top: barCountdown.y, width: barCountdown.axisWidth }}
+          style={{
+            top: barCountdown.y,
+            width: barCountdown.axisWidth,
+            background: barCountdown.color,
+          }}
           aria-label="봉 마감까지 남은 시간"
         >
           {barCountdown.text}
