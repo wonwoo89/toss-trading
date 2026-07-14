@@ -65,9 +65,13 @@ jobs:
           TS_SSH_USER: ${{ vars.TS_SSH_USER }}
           TS_SERVER_HOST: ${{ vars.TS_SERVER_HOST }}
         run: |
+          # ServerAliveCountMax=12 → 15s×12 = 3분까지 무응답 허용.
+          # 대용량 의존성 설치 중 서버가 일시적으로 바빠져도 세션을 끊지 않는다.
+          # git pull 을 먼저 해서 update.sh 자체의 수정이 이번 배포부터 적용되게 한다.
           ssh \
             -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=20 \
             -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=12 \
             "${TS_SSH_USER}@${TS_SERVER_HOST}" \
-            'cd ~/toss-trading && SKIP_BUILD=1 ./update.sh'
+            'cd ~/toss-trading && git pull --ff-only && SKIP_BUILD=1 ./update.sh'
