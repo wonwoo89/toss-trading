@@ -2249,7 +2249,7 @@ select:focus-visible {
   min-height: 0;
 }
 
-/* 봉 마감 카운트다운 — 가격축 폭에 맞춰 현재가 라벨 바로 아래 표시 */
+/* 봉 마감 카운트다운 — 현재가 라벨과 같은 방향색(인라인)으로 라벨 바로 아래 밀착 */
 .chart-countdown {
   position: absolute;
   right: 0;
@@ -2257,9 +2257,9 @@ select:focus-visible {
   pointer-events: none;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  color: var(--text-secondary);
-  background: var(--bg-elevated);
-  border-radius: 3px;
+  font-weight: 600;
+  color: #fff;
+  border-radius: 2px;
 }
 
 /* 차트 청크 지연 로드 중 fallback: 차트와 동일 영역을 점유해 레이아웃 점프 방지 */
