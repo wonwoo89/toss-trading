@@ -233,7 +233,10 @@ export const api = {
       body: JSON.stringify({}),
       accountSeq,
     }),
-  getAiStatus: () => request<ApiEnvelope<{ configured: boolean }>>('/ai/status'),
+  getAiStatus: () =>
+    request<ApiEnvelope<{ configured: boolean; mode: 'api-key' | 'subscription' | null }>>(
+      '/ai/status'
+    ),
   getAiDecision: (payload: AiDecisionRequest) =>
     request<ApiEnvelope<AiDecision>>('/ai/decision', {
       method: 'POST',
