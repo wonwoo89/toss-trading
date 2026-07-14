@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
 import { Button } from '../shared/ui/Button';
+import { Checkbox } from '../shared/ui/Checkbox';
 import { Chip } from '../shared/ui/Chip';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
 import { TextField } from '../shared/ui/TextField';
@@ -595,14 +596,12 @@ export function OrderForm({
 
   // 가격/주문금액 라벨과 같은 줄(우측)에 두는 금액 주문 토글 (두 모드 공통)
   const amountOrderToggle = (
-    <label className="checkbox order-form__amount-toggle">
-      <input
-        type="checkbox"
-        checked={useAmountOrder}
-        onChange={(e) => setUseAmountOrder(e.target.checked)}
-      />
-      금액 주문
-    </label>
+    <Checkbox
+      className="order-form__amount-toggle"
+      label="금액 주문"
+      checked={useAmountOrder}
+      onChange={setUseAmountOrder}
+    />
   );
 
   return (
@@ -750,14 +749,11 @@ export function OrderForm({
             </div>
 
             <div className="order-form__section">
-              <label className="checkbox">
-                <input
-                  type="checkbox"
-                  checked={useTakeProfitSell}
-                  onChange={(e) => setUseTakeProfitSell(e.target.checked)}
-                />
-                매수 후 평단가 기준 목표 실수익률 매도
-              </label>
+              <Checkbox
+                label="매수 후 평단가 기준 목표 실수익률 매도"
+                checked={useTakeProfitSell}
+                onChange={setUseTakeProfitSell}
+              />
 
               {useTakeProfitSell && (
                 <>

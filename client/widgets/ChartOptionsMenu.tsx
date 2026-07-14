@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Checkbox } from '../shared/ui/Checkbox';
 
 interface ChartOptionsMenuProps {
   realtimeForced?: boolean;
@@ -100,37 +101,28 @@ export function ChartOptionsMenu({
           style={{ position: 'fixed', top: pos.top, left: pos.left, width: PANEL_WIDTH }}
         >
           {onRealtimeForcedChange && (
-            <label
+            <Checkbox
               className="chart-options__row"
               title="켜면 장 세션(프리/데이/애프터/정규)·주말과 무관하게 시세·차트를 계속 갱신합니다."
-            >
-              <input
-                type="checkbox"
-                checked={Boolean(realtimeForced)}
-                onChange={(e) => onRealtimeForcedChange(e.target.checked)}
-              />
-              실시간 갱신
-            </label>
-          )}
-          <label className="chart-options__row" title="볼린저밴드 표시 켜기/끄기">
-            <input
-              type="checkbox"
-              checked={bollingerVisible}
-              onChange={(e) => onBollingerVisibleChange(e.target.checked)}
+              label="실시간 갱신"
+              checked={Boolean(realtimeForced)}
+              onChange={onRealtimeForcedChange}
             />
-            볼린저밴드
-          </label>
-          <label
+          )}
+          <Checkbox
+            className="chart-options__row"
+            title="볼린저밴드 표시 켜기/끄기"
+            label="볼린저밴드"
+            checked={bollingerVisible}
+            onChange={onBollingerVisibleChange}
+          />
+          <Checkbox
             className="chart-options__row"
             title="슈퍼트렌드(ATR 추세선) — 상승=빨강, 하락=파랑"
-          >
-            <input
-              type="checkbox"
-              checked={supertrendVisible}
-              onChange={(e) => onSupertrendVisibleChange(e.target.checked)}
-            />
-            슈퍼트렌드
-          </label>
+            label="슈퍼트렌드"
+            checked={supertrendVisible}
+            onChange={onSupertrendVisibleChange}
+          />
         </div>
       )}
     </div>
