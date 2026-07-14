@@ -4369,9 +4369,12 @@ button.orderbook-price-btn:hover {
     height: 360px;
     min-height: 260px;
     max-height: 40dvh;
+    /* 차트↔주문폼 간격 축소: 레이아웃 flex gap(16px)을 음수 마진으로 상쇄해 총 ~8px */
+    margin-bottom: -8px;
   }
   .trading-layout.layout-v2--tab-order .order-column {
     display: flex;
+    padding-top: 0;
     /* v1(탭바 없음)용 하단 safe-area 패딩 제거 — v2 는 layout-v2 의 탭바 여백이 이미
        inset 을 포함해, 중복되면 버튼 아래 큰 공백이 생긴다. */
     padding-bottom: 0;
