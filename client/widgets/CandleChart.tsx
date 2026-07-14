@@ -37,6 +37,8 @@ interface CandleChartProps {
   loading?: boolean;
   error?: string | null;
   fitKey?: string;
+  /** 캔들 간격('1m'|'5m'|'10m'|'1d'...) — 15분 이하 분봉일 때만 봉 마감 카운트다운 표시. */
+  candleInterval?: string;
   hasMoreHistory?: boolean;
   loadingOlder?: boolean;
   onLoadOlder?: () => void;
@@ -63,6 +65,16 @@ function getPriceFormatOptions(currency?: string) {
 }
 
 const HISTORY_LOAD_THRESHOLD = 15;
+// 봉 마감 카운트다운을 표시할 최대 봉 간격(초) — 15분 이하 분봉만.
+const COUNTDOWN_MAX_INTERVAL_SEC = 15 * 60;
+
+/** '1m'|'5m'|'15m' 같은 분봉 문자열 → 초. 분봉이 아니면 null. */
+function parseMinuteIntervalSec(interval?: string): number | null {
+  const m = interval?.match(/^(\d+)m$/);
+  if (!m) return null;
+  const sec = Number(m[1]) * 60;
+  return sec > 0 ? sec : null;
+}
 const CHART_MIN_HEIGHT = 200;
 
 function getChartHeight(container: HTMLDivElement) {
@@ -478,6 +490,7 @@ export function CandleChart({
   loading,
   error,
   fitKey,
+  candleInterval,
   hasMoreHistory = false,
   loadingOlder = false,
   onLoadOlder,
@@ -518,6 +531,12 @@ export function CandleChart({
   const sortedCandlesRef = useRef<ChartCandle[]>([]);
   const markersUpdateScheduledRef = useRef(false);
   const [hoveredCandle, setHoveredCandle] = useState<HoveredCandleOhlc | null>(null);
+  // 봉 마감 카운트다운(분:초) — 15분 이하 분봉에서 현재가 라벨 아래에 표시.
+  const [barCountdown, setBarCountdown] = useState<{
+    text: string;
+    y: number;
+    axisWidth: number;
+  } | null>(null);
 
   onLoadOlderRef.current = onLoadOlder;
   hasMoreHistoryRef.current = hasMoreHistory;
@@ -879,6 +898,46 @@ export function CandleChart({
     };
   }, []);
 
+  // 봉 마감 카운트다운 — 마지막 캔들 시작시각 + 간격 대비 남은 시간을 1초마다 갱신.
+  // 위치는 현재가(마지막 종가)의 y 좌표 바로 아래(가격축 폭에 맞춤).
+  useEffect(() => {
+    const intervalSec = parseMinuteIntervalSec(candleInterval);
+    if (!intervalSec || intervalSec > COUNTDOWN_MAX_INTERVAL_SEC) {
+      setBarCountdown(null);
+      return;
+    }
+
+    const update = () => {
+      const chart = chartRef.current;
+      const series = seriesRef.current;
+      const last = sortedCandlesRef.current[sortedCandlesRef.current.length - 1];
+      if (!chart || !series || !last || chartWidthRef.current <= 0) {
+        setBarCountdown(null);
+        return;
+      }
+      const nowSec = Date.now() / 1000;
+      let remain = last.time + intervalSec - nowSec;
+      // 데이터 지연/폐장 등으로 범위를 벗어나면 벽시계 기준 경계로 폴백
+      if (remain <= 0 || remain > intervalSec) remain = intervalSec - (nowSec % intervalSec);
+      const y = series.priceToCoordinate(last.close);
+      if (y == null) {
+        setBarCountdown(null);
+        return;
+      }
+      const minutes = Math.floor(remain / 60);
+      const seconds = Math.floor(remain % 60);
+      setBarCountdown({
+        text: `${minutes}:${String(seconds).padStart(2, '0')}`,
+        y: Math.round(y) + 10, // 현재가 축 라벨 바로 아래
+        axisWidth: chart.priceScale('right').width(),
+      });
+    };
+
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [candleInterval]);
+
   useEffect(() => {
     if (!chartRef.current || !seriesRef.current) return;
     applyChartTheme(
@@ -1159,6 +1218,16 @@ export function CandleChart({
         </div>
       )}
       <div ref={containerRef} className="candle-chart" />
+      {barCountdown && (
+        <Typography
+          size={10}
+          className="chart-countdown"
+          style={{ top: barCountdown.y, width: barCountdown.axisWidth }}
+          aria-label="봉 마감까지 남은 시간"
+        >
+          {barCountdown.text}
+        </Typography>
+      )}
     </div>
   );
 }
