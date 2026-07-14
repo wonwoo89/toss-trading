@@ -1,12 +1,11 @@
 import { Link } from 'react-router-dom';
-import { MobileLayoutToggle } from './MobileLayoutToggle';
 import { ThemeToggle } from './ThemeToggle';
 import { WakeLockToggle } from './WakeLockToggle';
 import { Typography } from '../shared/ui/Typography';
 
 /**
- * v2(하단 탭) 레이아웃의 설정 탭. 헤더 제거로 갈 곳을 잃은 컨트롤들을 모아 표시:
- * 테마 · 화면 꺼짐 방지 · 레이아웃 전환(v1 복귀) · 백테스트 진입.
+ * 모바일(하단 탭) 레이아웃의 설정 탭. 헤더 제거로 갈 곳을 잃은 컨트롤들을 모아 표시:
+ * 테마 · 화면 꺼짐 방지 · 백테스트 진입.
  */
 export function MobileSettingsPanel() {
   return (
@@ -18,10 +17,6 @@ export function MobileSettingsPanel() {
       <div className="mobile-settings-row">
         <Typography size={14} className="mobile-settings-row__label">화면 꺼짐 방지</Typography>
         <WakeLockToggle />
-      </div>
-      <div className="mobile-settings-row">
-        <Typography size={14} className="mobile-settings-row__label">신규 레이아웃 (끄면 기존 화면)</Typography>
-        <MobileLayoutToggle />
       </div>
       <div className="mobile-settings-row">
         <Typography size={14} className="mobile-settings-row__label">신호 백테스트</Typography>

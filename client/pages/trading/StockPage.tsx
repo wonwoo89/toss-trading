@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MarketPanel } from '../../widgets/MarketPanel';
 import { OrderForm } from '../../widgets/OrderForm';
@@ -9,15 +9,11 @@ import { MobileSettingsPanel } from '../../widgets/MobileSettingsPanel';
 import { MobileTabBar, type MobileTab } from '../../widgets/MobileTabBar';
 import { SymbolSearch } from '../../widgets/SymbolSearch';
 import { RecentSearchChips } from '../../widgets/RecentSearchChips';
-import { setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
+import { getLastSelectedSymbol, setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
 
 import { useAppContext } from '../../app/providers/AppContext';
 import { useToast } from '../../app/providers/ToastContext';
 import { HOLDINGS_POLL_MS, useTrading, useFocusOnSymbol } from '../../features/trade';
-import {
-  getMobileLayoutV2,
-  subscribeMobileLayout,
-} from '../../shared/lib/mobileLayoutPreference';
 import { floorToTick } from '../../shared/lib/usTick';
 import { formatOrderSuccessMessage } from '../../shared/lib/formatOrderToast';
 import type { CreateOrderPayload } from '../../shared/types';
@@ -32,8 +28,7 @@ export function StockPage() {
   const layoutRef = useRef<HTMLElement | null>(null);
   const navigate = useNavigate();
 
-  // 모바일 신규 레이아웃(v2, 하단 탭). 헤더 토글로 전환 — 커스텀 이벤트로 동기화.
-  const mobileV2 = useSyncExternalStore(subscribeMobileLayout, getMobileLayoutV2);
+  // 모바일 레이아웃은 하단 탭(구 v2)으로 고정 — 이전 레이아웃 제거.
   const [mobileTab, setMobileTab] = useState<MobileTab>('chart');
 
   const {
@@ -87,7 +82,14 @@ export function StockPage() {
     }
   };
 
-  const v2Active = mobileV2 && hasSymbol;
+  const v2Active = hasSymbol;
+
+  // 심볼 없이 진입(/ 또는 /portfolio)하면 마지막 선택 종목(없으면 보유 첫 종목)으로 자동 이동.
+  useEffect(() => {
+    if (hasSymbol) return;
+    const target = getLastSelectedSymbol() || visibleHoldings[0]?.symbol;
+    if (target) navigate(`/stock/${target.toUpperCase()}`, { replace: true });
+  }, [hasSymbol, visibleHoldings, navigate]);
 
   // v2 활성 시 전역(헤더 숨김 등) 스타일 스위치 — body 클래스. 언마운트/비활성 시 해제.
   useEffect(() => {
