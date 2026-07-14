@@ -2637,13 +2637,22 @@ select:focus-visible {
   cursor: not-allowed;
 }
 
-.checkbox {
+/* 공통 체크박스 컴포넌트 — .order-form label 등의 column 강제(!important 로 상쇄)를 이기고
+   박스·라벨을 한 줄 중앙 정렬(수직 정렬 어긋남 방지). */
+.ui-checkbox {
+  display: inline-flex !important;
   flex-direction: row !important;
-  align-items: center;
-  gap: 0.3rem !important;
-  font-size: 0.75rem;
+  align-items: center !important;
+  gap: 0.35rem !important;
   cursor: pointer;
   user-select: none;
+}
+.ui-checkbox__label {
+  color: var(--text-primary);
+}
+/* 특정성(0,2,1): .order-form input 등의 margin-bottom(수직 정렬 어긋남 원인)을 상쇄 */
+.ui-checkbox input[type='checkbox'] {
+  margin: 0;
 }
 
 /* 모든 체크박스 통일: 네이티브(OS마다 동그라미/네모 제각각) 대신 직접 그린 '네모' 체크박스.

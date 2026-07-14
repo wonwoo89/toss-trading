@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NumberField } from './NumberField';
 import { Button } from '../shared/ui/Button';
+import { Checkbox } from '../shared/ui/Checkbox';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
 import { Typography } from '../shared/ui/Typography';
 import {
@@ -778,10 +779,13 @@ export function AutoTradePanel({
           value={stopLossPercent}
           onChange={setStopLossPercent}
         />
-        <label className="auto-trade__ai-toggle" title="AI(LLM)가 봉 마감·의미있는 변동 시 매수/매도/관망을 판단합니다. 손절·쿨다운 등 가드는 그대로 적용됩니다.">
-          <input type="checkbox" checked={useAi} onChange={(e) => setUseAi(e.target.checked)} />
-          AI 판단
-        </label>
+        <Checkbox
+          className="auto-trade__ai-toggle"
+          title="AI(LLM)가 봉 마감·의미있는 변동 시 매수/매도/관망을 판단합니다. 손절·쿨다운 등 가드는 그대로 적용됩니다."
+          label="AI 판단"
+          checked={useAi}
+          onChange={setUseAi}
+        />
       </div>
 
       <div className="auto-trade__controls">
