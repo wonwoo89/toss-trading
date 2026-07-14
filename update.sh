@@ -23,7 +23,11 @@ echo "▶ 1/4  git pull (origin/main)"
 git pull --ff-only
 
 echo "▶ 2/4  의존성 설치 (pnpm install)"
-pnpm install
+# 저우선순위로 실행 — 대용량 패키지(예: claude-agent-sdk 플랫폼 바이너리 ~250MB) 압축해제가
+# 버스트 인스턴스 CPU/IO 를 독점하면 tailscaled·sshd 가 굶어 SSH keepalive 가 끊긴다.
+NICE="nice -n 19"
+command -v ionice >/dev/null 2>&1 && NICE="$NICE ionice -c 3"
+$NICE pnpm install
 
 if [ "${SKIP_BUILD:-0}" = "1" ]; then
   echo "▶ 3/4  빌드 건너뜀 (SKIP_BUILD=1 — CI 에서 빌드된 dist 사용)"
