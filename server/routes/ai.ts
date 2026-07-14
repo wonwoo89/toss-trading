@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import {
+  getAiAuthMode,
   getAiTradeDecision,
   isAiConfigured,
   type AiDecisionRequest,
@@ -8,7 +9,7 @@ import {
 export const aiRouter = Router();
 
 aiRouter.get('/status', (_req, res) => {
-  res.json({ result: { configured: isAiConfigured() } });
+  res.json({ result: { configured: isAiConfigured(), mode: getAiAuthMode() } });
 });
 
 aiRouter.post('/decision', async (req, res, next) => {

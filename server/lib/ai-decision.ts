@@ -7,7 +7,13 @@ import Anthropic from '@anthropic-ai/sdk';
  *  - 모델은 BUY/SELL/HOLD '제안'만 한다. 손절·1회 한도·쿨다운·킬스위치·탭가시성 등
  *    하드 가드는 클라이언트(코드)에서 강제하며, 모델이 이를 우회할 수 없다.
  *  - 거부(refusal)·오류·미설정 등 어떤 실패든 fail-safe = HOLD(아무것도 안 함)로 폴백.
- *  - API 키는 서버 .env(ANTHROPIC_API_KEY)에만 둔다. 클라이언트로 노출하지 않는다.
+ *  - 자격증명은 서버 .env 에만 둔다. 클라이언트로 노출하지 않는다.
+ *
+ * 인증 경로(둘 중 하나):
+ *  - ANTHROPIC_API_KEY: Messages API 직접 호출(종량제 과금).
+ *  - CLAUDE_CODE_OAUTH_TOKEN: `claude setup-token`으로 발급한 구독(OAuth) 토큰.
+ *    Claude Agent SDK 경유로 호출하며 Max/Pro 구독 사용량에서 차감된다.
+ *    둘 다 있으면 API 키가 우선(기존 동작 유지).
  */
 
 export type AiAction = 'BUY' | 'SELL' | 'HOLD';
@@ -110,15 +116,22 @@ const OUTPUT_SCHEMA = {
   additionalProperties: false,
 } as const;
 
+export type AiAuthMode = 'api-key' | 'subscription';
+
+export function getAiAuthMode(): AiAuthMode | null {
+  if (process.env.ANTHROPIC_API_KEY?.trim()) return 'api-key';
+  if (process.env.CLAUDE_CODE_OAUTH_TOKEN?.trim()) return 'subscription';
+  return null;
+}
+
 let client: Anthropic | null = null;
-function getClient(): Anthropic | null {
-  if (!process.env.ANTHROPIC_API_KEY?.trim()) return null;
+function getClient(): Anthropic {
   if (!client) client = new Anthropic();
   return client;
 }
 
 export function isAiConfigured(): boolean {
-  return Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  return getAiAuthMode() !== null;
 }
 
 function holdFallback(reason: string, model = MODEL): AiDecision {
@@ -204,17 +217,107 @@ function buildUserPrompt(req: AiDecisionRequest): string {
     .join('\n');
 }
 
+/** 모델 응답(JSON 객체)을 안전 범위로 정규화 — 두 인증 경로가 공유. */
+function normalizeDecision(
+  parsed: { action?: unknown; sizePct?: unknown; confidence?: unknown; reason?: unknown },
+  model: string
+): AiDecision {
+  const action: AiAction =
+    parsed.action === 'BUY' || parsed.action === 'SELL' ? parsed.action : 'HOLD';
+  return {
+    action,
+    sizePct: clampNumber(parsed.sizePct, 0, 100, 0),
+    confidence: clampNumber(parsed.confidence, 0, 1, 0),
+    reason: typeof parsed.reason === 'string' ? parsed.reason.slice(0, 300) : '',
+    model,
+  };
+}
+
+/** Agent SDK 호출 상한 — CLI 스폰 + 추론까지 포함하므로 여유 있게. */
+const AGENT_SDK_TIMEOUT_MS = 90_000;
+
+let agentSdkModule: Promise<typeof import('@anthropic-ai/claude-agent-sdk')> | null = null;
+function loadAgentSdk() {
+  // 구독 경로를 쓰지 않는 서버에서 무거운 모듈을 로드하지 않도록 지연 로드.
+  agentSdkModule ??= import('@anthropic-ai/claude-agent-sdk');
+  return agentSdkModule;
+}
+
+/**
+ * 구독(OAuth) 경로 — Claude Agent SDK(query)로 단발 호출.
+ * 도구·세션 저장 없이 JSON 스키마 출력만 받는다. 인증은 CLAUDE_CODE_OAUTH_TOKEN 환경변수를
+ * SDK가 스폰하는 Claude Code 런타임이 그대로 상속해서 처리한다.
+ */
+async function decideViaSubscription(req: AiDecisionRequest): Promise<AiDecision> {
+  const { query } = await loadAgentSdk();
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), AGENT_SDK_TIMEOUT_MS);
+  try {
+    const stream = query({
+      prompt: buildUserPrompt(req),
+      options: {
+        model: MODEL,
+        systemPrompt: SYSTEM_PROMPT,
+        maxTurns: 1,
+        tools: [],
+        permissionMode: 'dontAsk',
+        settingSources: [],
+        persistSession: false,
+        outputFormat: { type: 'json_schema', schema: OUTPUT_SCHEMA as unknown as Record<string, unknown> },
+        abortController: abort,
+      },
+    });
+
+    for await (const message of stream) {
+      if (message.type !== 'result') continue;
+      if (message.subtype !== 'success') {
+        const detail = message.errors?.length ? message.errors.join('; ') : message.subtype;
+        return holdFallback(`AI 호출 실패(${detail}) — 보류`);
+      }
+      let raw: unknown = message.structured_output;
+      if (raw === undefined && typeof message.result === 'string') {
+        try {
+          raw = JSON.parse(message.result);
+        } catch {
+          return holdFallback('AI 응답 파싱 실패 — 보류');
+        }
+      }
+      if (!raw || typeof raw !== 'object') {
+        return holdFallback('AI 응답 없음 — 보류');
+      }
+      return normalizeDecision(raw as Record<string, unknown>, MODEL);
+    }
+    return holdFallback('AI 응답 없음 — 보류');
+  } catch (error) {
+    const message = abort.signal.aborted
+      ? `시간 초과(${AGENT_SDK_TIMEOUT_MS / 1000}s)`
+      : error instanceof Error
+        ? error.message
+        : '알 수 없는 오류';
+    return holdFallback(`AI 호출 실패: ${message} — 보류`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function getAiTradeDecision(req: AiDecisionRequest): Promise<AiDecision> {
-  const anthropic = getClient();
-  if (!anthropic) {
-    return holdFallback('AI 미설정(ANTHROPIC_API_KEY 없음) — 자동 판단 비활성', 'unconfigured');
+  const authMode = getAiAuthMode();
+  if (!authMode) {
+    return holdFallback(
+      'AI 미설정(ANTHROPIC_API_KEY 또는 CLAUDE_CODE_OAUTH_TOKEN 없음) — 자동 판단 비활성',
+      'unconfigured'
+    );
   }
   if (!req.currentPrice || !Number.isFinite(req.currentPrice) || !(req.candles?.length)) {
     return holdFallback('입력 데이터 부족 — 판단 보류');
   }
 
+  if (authMode === 'subscription') {
+    return decideViaSubscription(req);
+  }
+
   try {
-    const response = await anthropic.messages.create({
+    const response = await getClient().messages.create({
       model: MODEL,
       max_tokens: 2048,
       thinking: { type: 'adaptive' },
@@ -236,23 +339,14 @@ export async function getAiTradeDecision(req: AiDecisionRequest): Promise<AiDeci
       return holdFallback('AI 응답 없음 — 보류');
     }
 
-    let parsed: { action?: string; sizePct?: number; confidence?: number; reason?: string };
+    let parsed: Record<string, unknown>;
     try {
       parsed = JSON.parse(textBlock.text);
     } catch {
       return holdFallback('AI 응답 파싱 실패 — 보류');
     }
 
-    const action: AiAction =
-      parsed.action === 'BUY' || parsed.action === 'SELL' ? parsed.action : 'HOLD';
-
-    return {
-      action,
-      sizePct: clampNumber(parsed.sizePct, 0, 100, 0),
-      confidence: clampNumber(parsed.confidence, 0, 1, 0),
-      reason: typeof parsed.reason === 'string' ? parsed.reason.slice(0, 300) : '',
-      model: response.model ?? MODEL,
-    };
+    return normalizeDecision(parsed, response.model ?? MODEL);
   } catch (error) {
     const message = error instanceof Error ? error.message : '알 수 없는 오류';
     return holdFallback(`AI 호출 실패: ${message} — 보류`);
