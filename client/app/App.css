@@ -1847,6 +1847,12 @@ select:focus-visible {
     flex: 1 1 auto;
     min-height: 160px;
     overflow-y: auto;
+    /* 다른 섹션(.panel)과 동일한 카드 박스 */
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: 18px;
+    padding: 1rem;
+    backdrop-filter: blur(8px);
   }
   .trading-layout:not(.trading-layout--portfolio-only) .order-column .order-form {
     flex: 0 1 auto;
