@@ -1712,10 +1712,11 @@ select:focus-visible {
 }
 
 @media (min-width: 1101px) {
-  /* 데스크톱 차트 최소 높이 확보 — 하단 정보(지표·호가)가 차트를 과도하게 압박하지 않게.
-     (패널의 min-height:0 이 축소를 허용하므로 패널 단위로 지정해야 실제 높이가 보장된다) */
+  /* 데스크톱 차트 = 화면 높이의 50% 고정 — 하단 정보(지표)는 남는 공간에서 내부 스크롤 */
   .chart-panel {
-    min-height: 440px;
+    flex: 0 0 auto;
+    height: 50dvh;
+    min-height: 320px;
   }
   .chart-bleed {
     flex: 1 1 0;
@@ -4424,7 +4425,7 @@ input[type='checkbox']:focus-visible {
   .trading-layout.layout-v2--tab-chart .chart-panel {
     display: flex;
     position: static;
-    height: 62dvh;
+    height: 50dvh;
     min-height: 300px;
     max-height: none;
   }
@@ -4441,9 +4442,9 @@ input[type='checkbox']:focus-visible {
   }
   .trading-layout.layout-v2--tab-order .chart-panel {
     display: flex;
-    height: 360px;
+    height: 50dvh;
     min-height: 260px;
-    max-height: 40dvh;
+    max-height: none;
     /* 차트↔주문폼 간격 축소: 레이아웃 flex gap(16px)을 음수 마진으로 상쇄해 총 ~8px */
     margin-bottom: -8px;
   }
