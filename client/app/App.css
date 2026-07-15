@@ -1827,25 +1827,32 @@ select:focus-visible {
 .market-panel__below-info {
   min-width: 0;
 }
-.market-panel__side {
+/* 호가 섹션 — 주문 컬럼(주문폼 위)에 위치. 모바일은 호가 탭 전용으로 표시 */
+.orderbook-section {
   min-width: 0;
 }
 
 @media (min-width: 1101px) {
-  /* 데스크톱: 차트 아래 한 줄에 지표(좌) + 호가(우 고정폭) */
+  /* 데스크톱: 차트 아래는 지표만 — 차트 최소 높이 확보로 밀릴 때 내부 스크롤 */
   .market-panel__below {
-    flex-direction: row;
-    align-items: flex-start;
-    /* 차트 최소 높이 확보로 밀릴 때 하단 영역이 내부 스크롤되게 */
     flex: 0 1 auto;
     overflow-y: auto;
   }
-  .market-panel__below-info {
-    flex: 1 1 0;
+  /* 주문 컬럼: [호가] 위 + [주문폼] 아래 스택.
+     주문폼은 자연 높이(짧은 화면에선 내부 스크롤로 축소), 호가가 남는 공간을 채우고 내부 스크롤. */
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column {
+    gap: 1rem;
   }
-  .market-panel__side {
-    flex: 0 0 320px;
-    width: 320px;
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column .orderbook-section {
+    flex: 1 1 auto;
+    min-height: 160px;
+    overflow-y: auto;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column .order-form {
+    flex: 0 1 auto;
+    min-height: 0;
+    height: auto;
+    overflow-y: auto;
   }
 }
 
@@ -4337,7 +4344,7 @@ button.orderbook-price-btn:hover {
     padding-bottom: calc(64px + env(safe-area-inset-bottom));
   }
 
-  /* below 래퍼 해체 → 지표(info)/호가(side)를 독립 영역으로 탭에 배정.
+  /* below 래퍼 해체 → 지표(info)를 독립 영역으로 탭에 배정.
      contents 로 풀리면 order 가 초기화되므로 차트(2)·주문폼(3) 뒤로 명시 배치. */
   .trading-layout.layout-v2 .market-panel__below {
     display: contents;
@@ -4345,15 +4352,12 @@ button.orderbook-price-btn:hover {
   .trading-layout.layout-v2 .market-panel__below-info {
     order: 6;
   }
-  .trading-layout.layout-v2 .market-panel__side {
-    order: 7;
-  }
 
-  /* 기본은 전부 숨기고 탭별로 켠다 */
+  /* 기본은 전부 숨기고 탭별로 켠다 (호가 섹션은 주문 컬럼 내부라 개별 제어) */
   .trading-layout.layout-v2 .chart-panel,
   .trading-layout.layout-v2 .order-column,
   .trading-layout.layout-v2 .market-panel__below-info,
-  .trading-layout.layout-v2 .market-panel__side,
+  .trading-layout.layout-v2 .orderbook-section,
   .trading-layout.layout-v2 .portfolio-sidebar,
   .trading-layout.layout-v2 .warning-box,
   .trading-layout.layout-v2 .holdings-chip-bar {
@@ -4433,7 +4437,16 @@ button.orderbook-price-btn:hover {
   .trading-layout.layout-v2--tab-book .warning-box {
     display: block;
   }
-  .trading-layout.layout-v2--tab-book .market-panel__side {
+  /* 호가 섹션이 주문 컬럼 내부로 이동 — 컬럼은 켜고 주문폼만 끈다 */
+  .trading-layout.layout-v2--tab-book .order-column {
+    display: flex;
+    flex-direction: column;
+    padding-top: 0;
+  }
+  .trading-layout.layout-v2--tab-book .order-column .order-form {
+    display: none;
+  }
+  .trading-layout.layout-v2--tab-book .orderbook-section {
     display: block;
     padding: 0.25rem 12px 0;
   }

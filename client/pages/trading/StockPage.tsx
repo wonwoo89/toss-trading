@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MarketPanel } from '../../widgets/MarketPanel';
 import { OrderForm } from '../../widgets/OrderForm';
+import { OrderbookPanel } from '../../widgets/OrderbookPanel';
 import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
 import { HoldingsChipBar } from '../../widgets/HoldingsChipBar';
 import { AccountSummaryCard } from '../../widgets/AccountSummaryCard';
@@ -169,6 +170,16 @@ export function StockPage() {
         />
         {hasSymbol && symbol ? (
           <section className="order-column">
+            {/* 호가 — 데스크톱은 주문폼 위 별도 섹션, 모바일은 호가 탭 전용.
+                (MarketPanel 좌측 하단에서 이동 — 호가 심도가 늘어도 차트 높이를 잠식하지 않게) */}
+            <div className="orderbook-section">
+              <OrderbookPanel
+                bids={marketPanelProps.bids ?? []}
+                asks={marketPanelProps.asks ?? []}
+                trades={marketPanelProps.trades ?? []}
+                currency={marketPanelProps.currency}
+              />
+            </div>
             <OrderForm
               key={symbol}
               {...orderFormProps}
