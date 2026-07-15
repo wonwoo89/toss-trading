@@ -67,11 +67,13 @@ jobs:
         run: |
           # ServerAliveCountMax=12 → 15s×12 = 3분까지 무응답 허용.
           # 대용량 의존성 설치 중 서버가 일시적으로 바빠져도 세션을 끊지 않는다.
-          # git pull 을 먼저 해서 update.sh 자체의 수정이 이번 배포부터 적용되게 한다.
+          # 서버 체크아웃은 배포 전용(로컬 커밋 없음, .env 는 untracked)이므로
+          # fetch + reset --hard 로 원격 main 과 항상 일치시킨다 — 중단된 배포·스냅샷
+          # 복원으로 로컬이 분기해도 배포가 막히지 않는다. update.sh 수정도 당회 적용.
           ssh \
             -o StrictHostKeyChecking=accept-new \
             -o ConnectTimeout=20 \
             -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=12 \
             "${TS_SSH_USER}@${TS_SERVER_HOST}" \
-            'cd ~/toss-trading && git pull --ff-only && SKIP_BUILD=1 ./update.sh'
+            'cd ~/toss-trading && git fetch origin main && git checkout -f main && git reset --hard origin/main && SKIP_BUILD=1 ./update.sh'
