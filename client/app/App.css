@@ -2701,6 +2701,58 @@ body.is-row-resizing {
   margin: 0;
 }
 
+/* 토글 스위치(Switch) — on/off 설정용. 입력은 숨기고 트랙+썸만 그린다 */
+.ui-switch {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+.ui-switch.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+/* 전역 체크박스 스타일(appearance:none 사각형)을 무력화하고 시각적으로 숨김 */
+.ui-switch input[type='checkbox'] {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+.ui-switch__track {
+  position: relative;
+  width: 46px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-subtle);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.ui-switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  transition: transform 0.18s ease;
+}
+.ui-switch.is-on .ui-switch__track {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.ui-switch.is-on .ui-switch__thumb {
+  transform: translateX(20px);
+}
+.ui-switch input[type='checkbox']:focus-visible + .ui-switch__track {
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+}
+
 /* 모든 체크박스 통일: 네이티브(OS마다 동그라미/네모 제각각) 대신 직접 그린 '네모' 체크박스.
    appearance:none 으로 전역 적용 → 실시간·볼린저·금액주문·매수후매도 전부 동일 모양. */
 input[type='checkbox'] {
