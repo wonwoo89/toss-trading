@@ -300,6 +300,28 @@ async function decideViaSubscription(req: AiDecisionRequest): Promise<AiDecision
   }
 }
 
+/**
+ * 구독 경로 동시 실행 제한 — 호출마다 Claude Code 런타임 프로세스(수백 MB)가 뜨므로
+ * 저사양 인스턴스 보호를 위해 항상 1개씩 순차 실행한다. 대기열이 가득 차면
+ * 즉시 HOLD 폴백(봉이 이미 지나간 뒤의 늦은 판단은 가치가 없다).
+ */
+const MAX_PENDING_SUBSCRIPTION_CALLS = 2; // 실행 중 1 + 대기 1
+let pendingSubscriptionCalls = 0;
+let subscriptionChain: Promise<unknown> = Promise.resolve();
+
+function queueSubscriptionDecision(req: AiDecisionRequest): Promise<AiDecision> {
+  if (pendingSubscriptionCalls >= MAX_PENDING_SUBSCRIPTION_CALLS) {
+    return Promise.resolve(holdFallback('AI 판단 동시 요청 초과 — 보류'));
+  }
+  pendingSubscriptionCalls += 1;
+  const run = () => decideViaSubscription(req);
+  const result = subscriptionChain.then(run, run).finally(() => {
+    pendingSubscriptionCalls -= 1;
+  });
+  subscriptionChain = result.catch(() => undefined);
+  return result;
+}
+
 export async function getAiTradeDecision(req: AiDecisionRequest): Promise<AiDecision> {
   const authMode = getAiAuthMode();
   if (!authMode) {
@@ -313,7 +335,7 @@ export async function getAiTradeDecision(req: AiDecisionRequest): Promise<AiDeci
   }
 
   if (authMode === 'subscription') {
-    return decideViaSubscription(req);
+    return queueSubscriptionDecision(req);
   }
 
   try {
