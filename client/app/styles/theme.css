@@ -40,7 +40,7 @@
      고정색은 모바일(투명 패널→base)과 데스크톱(패널) 양쪽을 동시에 맞출 수 없어 투명으로 처리. */
   --chart-bg: rgba(0, 0, 0, 0);
   --chart-text: #a3a3a3;
-  --chart-grid: rgba(255, 255, 255, 0.18);
+  --chart-grid: rgba(255, 255, 255, 0.12);
   --chart-border: rgba(255, 255, 255, 0.1);
   --chart-crosshair: rgba(163, 163, 163, 0.45);
   --chart-separator: rgba(255, 255, 255, 0.14);
@@ -102,7 +102,7 @@
 
   --chart-bg: rgba(0, 0, 0, 0);
   --chart-text: #525252;
-  --chart-grid: rgba(0, 0, 0, 0.14);
+  --chart-grid: rgba(0, 0, 0, 0.1);
   --chart-border: rgba(0, 0, 0, 0.1);
   --chart-crosshair: rgba(82, 82, 82, 0.45);
   --chart-separator: rgba(0, 0, 0, 0.12);
