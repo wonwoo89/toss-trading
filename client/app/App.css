@@ -4498,18 +4498,26 @@ input[type='checkbox']:focus-visible {
   }
   .trading-layout.layout-v2--tab-book .orderbook-section {
     display: block;
-    padding: 0.25rem 12px 0;
+    padding: 0;
   }
-  /* 사다리 전체를 자산 탭 카드와 같은 톤의 카드로 감싸고, 행 높이·폰트를 키운다 */
+  /* 호가 탭은 호가만 보여주므로 카드 없이 페이지 전체 폭 사용(풀블리드) + 행 높이 확대 */
   .trading-layout.layout-v2--tab-book .orderbook {
     --obl-row-h: 50px;
-    background: var(--bg-panel);
-    border: 1px solid var(--border-subtle);
-    border-radius: 14px;
-    padding: 0.55rem 0.45rem 0.7rem;
+  }
+  /* 화면 가장자리에 닿는 정보·체결 영역만 최소 여백 확보 */
+  .trading-layout.layout-v2--tab-book .obl__info {
+    padding-right: 12px;
+  }
+  .trading-layout.layout-v2--tab-book .obl__trades {
+    padding-left: 12px;
   }
   .trading-layout.layout-v2--tab-book .obl__foot {
-    padding: 0.5rem 0.35rem 0;
+    padding: 0.5rem 12px 0;
+  }
+  /* 풀블리드에서는 중앙 열 라운드가 어색하므로 제거 */
+  .trading-layout.layout-v2--tab-book .obl__askp,
+  .trading-layout.layout-v2--tab-book .obl__bidp {
+    border-radius: 0;
   }
 
 
