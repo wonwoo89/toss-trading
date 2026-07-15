@@ -447,8 +447,8 @@ function applyChartTheme(
       },
     },
     grid: {
-      vertLines: { color: colors.grid },
-      horzLines: { color: colors.grid },
+      vertLines: { color: colors.grid, style: LineStyle.Dotted },
+      horzLines: { color: colors.grid, style: LineStyle.Dotted },
     },
     rightPriceScale: {
       borderColor: colors.border,
@@ -611,8 +611,8 @@ export function CandleChart({
         },
       },
       grid: {
-        vertLines: { color: colors.grid },
-        horzLines: { color: colors.grid },
+        vertLines: { color: colors.grid, style: LineStyle.Dotted },
+        horzLines: { color: colors.grid, style: LineStyle.Dotted },
       },
       rightPriceScale: {
         borderColor: colors.border,
