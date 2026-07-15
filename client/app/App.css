@@ -4487,11 +4487,16 @@ input[type='checkbox']:focus-visible {
   .trading-layout.layout-v2--tab-book .warning-box {
     display: block;
   }
-  /* 호가 섹션이 주문 컬럼 내부로 이동 — 컬럼은 켜고 주문폼만 끈다 */
+  /* 호가 섹션이 주문 컬럼 내부로 이동 — 컬럼은 켜고 주문폼만 끈다.
+     하단 패딩 제거: v1용 safe-area 패딩이 탭바 여백과 중복돼 푸터 아래 빈 공간을 만든다 */
   .trading-layout.layout-v2--tab-book .order-column {
     display: flex;
     flex-direction: column;
-    padding-top: 0;
+    padding: 0;
+  }
+  /* 탭바 여백도 주문 탭과 동일하게(64px 기본 → 53px) 축소해 푸터가 탭바에 붙게 */
+  .trading-layout.layout-v2--tab-book.layout-v2 {
+    padding-bottom: calc(53px + env(safe-area-inset-bottom));
   }
   .trading-layout.layout-v2--tab-book .order-column .order-form {
     display: none;
@@ -4512,7 +4517,7 @@ input[type='checkbox']:focus-visible {
     padding-left: 12px;
   }
   .trading-layout.layout-v2--tab-book .obl__foot {
-    padding: 0.5rem 12px 0;
+    padding: 0.5rem 12px 0.6rem;
   }
   /* 풀블리드에서는 중앙 열 라운드가 어색하므로 제거 */
   .trading-layout.layout-v2--tab-book .obl__askp,
