@@ -1,4 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
+import type {
+  CSSProperties,
+  KeyboardEvent as ReactKeyboardEvent,
+  PointerEvent as ReactPointerEvent,
+} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { MarketPanel } from '../../widgets/MarketPanel';
 import { OrderForm } from '../../widgets/OrderForm';
@@ -11,6 +16,12 @@ import { MobileTabBar, type MobileTab } from '../../widgets/MobileTabBar';
 import { SymbolSearch } from '../../widgets/SymbolSearch';
 import { RecentSearchChips } from '../../widgets/RecentSearchChips';
 import { getLastSelectedSymbol, setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
+import {
+  clampOrderbookSplitRatio,
+  clearStoredOrderbookSplitRatio,
+  getStoredOrderbookSplitRatio,
+  setStoredOrderbookSplitRatio,
+} from '../../shared/lib/orderbookSplitPreference';
 
 import { useAppContext } from '../../app/providers/AppContext';
 import { useToast } from '../../app/providers/ToastContext';
@@ -84,6 +95,55 @@ export function StockPage() {
   };
 
   const v2Active = hasSymbol;
+
+  // 데스크톱 주문 컬럼: 호가/주문폼 사이 드래그 핸들로 높이 비율 조절(localStorage 영속).
+  // null = 조절한 적 없음 → 기본 레이아웃(주문폼 자연 높이, 호가가 나머지).
+  const orderColumnRef = useRef<HTMLElement | null>(null);
+  const [orderbookRatio, setOrderbookRatio] = useState<number | null>(getStoredOrderbookSplitRatio);
+  const draggingRatioRef = useRef<number | null>(null);
+
+  const handleSplitPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const column = orderColumnRef.current;
+    if (!column || event.button !== 0) return;
+    event.preventDefault();
+    const rect = column.getBoundingClientRect();
+    if (rect.height <= 0) return;
+    document.body.classList.add('is-row-resizing');
+    const onMove = (ev: PointerEvent) => {
+      const ratio = clampOrderbookSplitRatio((ev.clientY - rect.top) / rect.height);
+      draggingRatioRef.current = ratio;
+      setOrderbookRatio(ratio);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      document.body.classList.remove('is-row-resizing');
+      if (draggingRatioRef.current !== null) {
+        setStoredOrderbookSplitRatio(draggingRatioRef.current);
+        draggingRatioRef.current = null;
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
+  // 더블클릭 = 기본 레이아웃으로 리셋, 화살표 키 = ±5%p 미세 조절(접근성).
+  const resetSplit = () => {
+    clearStoredOrderbookSplitRatio();
+    setOrderbookRatio(null);
+  };
+  const handleSplitKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    const delta = event.key === 'ArrowUp' ? -0.05 : 0.05;
+    setOrderbookRatio((current) => {
+      const next = clampOrderbookSplitRatio((current ?? 0.4) + delta);
+      setStoredOrderbookSplitRatio(next);
+      return next;
+    });
+  };
 
   // 심볼 없이 진입(/ 또는 /portfolio)하면 마지막 선택 종목(없으면 보유 첫 종목)으로 자동 이동.
   useEffect(() => {
@@ -169,7 +229,15 @@ export function StockPage() {
           onCancelOrder={cancelOrder}
         />
         {hasSymbol && symbol ? (
-          <section className="order-column">
+          <section
+            ref={orderColumnRef}
+            className={`order-column${orderbookRatio !== null ? ' order-column--split' : ''}`}
+            style={
+              orderbookRatio !== null
+                ? ({ '--orderbook-ratio': orderbookRatio } as CSSProperties)
+                : undefined
+            }
+          >
             {/* 호가 — 데스크톱은 주문폼 위 별도 섹션, 모바일은 호가 탭 전용.
                 (MarketPanel 좌측 하단에서 이동 — 호가 심도가 늘어도 차트 높이를 잠식하지 않게) */}
             <div className="orderbook-section">
@@ -180,6 +248,18 @@ export function StockPage() {
                 currency={marketPanelProps.currency}
               />
             </div>
+            {/* 데스크톱 전용 리사이즈 핸들 — 드래그로 호가/주문폼 비율 조절, 더블클릭 리셋 */}
+            <div
+              className="order-split-handle"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="호가·주문폼 높이 조절 (드래그, ↑↓ 키, 더블클릭=초기화)"
+              tabIndex={0}
+              title="드래그해서 호가/주문 높이 조절 · 더블클릭하면 초기화"
+              onPointerDown={handleSplitPointerDown}
+              onDoubleClick={resetSplit}
+              onKeyDown={handleSplitKeyDown}
+            />
             <OrderForm
               key={symbol}
               {...orderFormProps}
