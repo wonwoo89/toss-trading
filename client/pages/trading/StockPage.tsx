@@ -158,12 +158,12 @@ export function StockPage() {
     return () => document.body.classList.remove('mobile-v2-active');
   }, [v2Active]);
 
-  // 검색 탭에서 종목을 선택하면(라우트 변경) 차트 탭으로 자동 전환.
+  // 검색 탭에서 종목을 선택하면(라우트 변경) 주문 탭으로 자동 전환.
   const prevSymbolRef = useRef(symbol);
   useEffect(() => {
     if (prevSymbolRef.current !== symbol) {
       prevSymbolRef.current = symbol;
-      setMobileTab((tab) => (tab === 'search' ? 'chart' : tab));
+      setMobileTab((tab) => (tab === 'search' ? 'order' : tab));
     }
   }, [symbol]);
   const layoutClass = [
@@ -214,7 +214,7 @@ export function StockPage() {
           </>
         )}
         <PortfolioSidebar
-          onNavigateToStock={() => setMobileTab('chart')}
+          onNavigateToStock={() => setMobileTab('order')}
           buyingPower={buyingPower}
           totalMarketValue={portfolioTotals.totalMarketValue}
           totalProfitLoss={portfolioTotals.totalProfitLoss}
