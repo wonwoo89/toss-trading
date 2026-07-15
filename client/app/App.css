@@ -1729,94 +1729,6 @@ select:focus-visible {
   }
 }
 
-.market-panel__orderbook {
-  flex: 0 0 auto;
-  min-height: 0;
-}
-
-.market-panel__orderbook--expanded {
-  max-height: min(280px, 34vh);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
-.orderbook-summary {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.45rem 0.55rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--bg-panel) 96%, transparent);
-}
-
-.orderbook-summary__metrics {
-  display: flex;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  min-width: 0;
-}
-
-.orderbook-summary__metric {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  padding: 0.18rem 0.45rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-subtle);
-  font-size: 0.72rem;
-  background: color-mix(in srgb, var(--bg-panel) 88%, transparent);
-}
-
-.orderbook-summary__metric-label {
-  color: var(--text-secondary);
-}
-
-.orderbook-summary__metric-value {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.orderbook-summary__metric--bullish .orderbook-summary__metric-value {
-  color: var(--color-up);
-}
-
-.orderbook-summary__metric--bearish .orderbook-summary__metric-value {
-  color: var(--color-down);
-}
-
-.orderbook-summary__toggle {
-  flex: 0 0 auto;
-  padding: 0.28rem 0.55rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 6px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
-}
-
-.orderbook-summary__toggle:hover {
-  color: var(--text-primary);
-  border-color: color-mix(in srgb, var(--accent) 35%, var(--border-subtle));
-}
-
-.orderbook-detail {
-  margin-top: 0.55rem;
-}
-
-.orderbook-detail h3 {
-  font-size: 0.8rem;
-  margin-bottom: 0.35rem;
-}
-
-.orderbook-detail th,
-.orderbook-detail td {
-  padding: 0.25rem 0.3rem;
-  font-size: 0.72rem;
-}
-
 /* ── 차트는 풀폭 유지, 그 '아래'에서 좌(지표·시장정보) / 우(호가) 좌우 배치 ── */
 .market-panel__below {
   display: flex;
@@ -1909,165 +1821,231 @@ body.is-row-resizing {
   }
 }
 
-/* ── 호가 패널(OrderbookPanel) ── */
+/* ── 호가 패널(OrderbookPanel) — 토스형 3열 사다리 ── */
 .orderbook {
+  --obl-row-h: 44px;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-.orderbook-stats {
+.obl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
+  grid-template-areas:
+    'askq askp info'
+    'trades bidp bidq';
+}
+.obl__zone {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.obl__askq {
+  grid-area: askq;
+  justify-content: flex-end;
+}
+.obl__askp {
+  grid-area: askp;
+  justify-content: flex-end;
+}
+.obl__info {
+  grid-area: info;
+}
+.obl__trades {
+  grid-area: trades;
+}
+.obl__bidp {
+  grid-area: bidp;
+}
+.obl__bidq {
+  grid-area: bidq;
+}
+/* 가운데 가격 열은 살짝 다른 톤으로 구분(토스풍) */
+.obl__askp,
+.obl__bidp {
+  background: color-mix(in srgb, var(--bg-subtle) 55%, transparent);
+}
+.obl__askp {
+  border-radius: 10px 10px 0 0;
+}
+.obl__bidp {
+  border-radius: 0 0 10px 10px;
+}
+/* 매도/매수 구간 경계선 */
+.obl__trades,
+.obl__bidp,
+.obl__bidq {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.obl__row {
+  height: var(--obl-row-h);
+  flex: 0 0 var(--obl-row-h);
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 55%, transparent);
+}
+.obl__zone .obl__row:last-child {
+  border-bottom: none;
+}
+
+/* 잔량 셀 — 매도(좌)는 우측 정렬 + 우측에서 자라는 바, 매수(우)는 반대 */
+.obl__qty {
+  position: relative;
+  padding: 0 10px;
+  justify-content: flex-end;
+}
+.obl__qty.is-bid {
+  justify-content: flex-start;
+}
+.obl__qty-bar {
+  position: absolute;
+  top: 26%;
+  bottom: 26%;
+  border-radius: 5px;
+  opacity: 0.22;
+  pointer-events: none;
+  min-width: 4px;
+}
+.obl__qty.is-ask .obl__qty-bar {
+  right: 6px;
+  background: var(--color-down);
+}
+.obl__qty.is-bid .obl__qty-bar {
+  left: 6px;
+  background: var(--color-up);
+}
+.obl__qty-text {
+  position: relative;
+  z-index: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 가격 셀 — 탭하면 지정가 입력. 전일대비 방향으로 색·% 표시 */
+.obl__price {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.obl__price:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.obl__price-main {
+  font-weight: 700;
+}
+.obl__price-pct {
+  opacity: 0.85;
+}
+.obl__price.up {
+  color: var(--color-up);
+}
+.obl__price.down {
+  color: var(--color-down);
+}
+
+/* 우상단 정보 컬럼 */
+.obl__info {
+  padding: 4px 2px 4px 8px;
+  gap: 0;
+}
+.obl__info-group {
+  padding: 0.45rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.obl__info-group + .obl__info-group {
+  border-top: 1px solid var(--border-subtle);
+}
+.obl__info-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.obl__info-label {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.obl__info-value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.obl__info-value.up,
+.obl__info-value .up,
+.obl__trades-strength.up,
+.obl__trade-qty.up {
+  color: var(--color-up);
+}
+.obl__info-value.down,
+.obl__info-value .down,
+.obl__trades-strength.down,
+.obl__trade-qty.down {
+  color: var(--color-down);
+}
+
+/* 좌하단 체결강도 + 최근 체결 */
+.obl__trades {
+  padding: 6px 12px 4px 2px;
+  overflow: hidden;
+}
+.obl__trades-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-bottom: 0.3rem;
+  margin-bottom: 0.2rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.obl__trades-strength {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.obl__trade {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1.5px 0;
+  font-variant-numeric: tabular-nums;
+}
+.obl__trade-price {
+  color: var(--text-secondary);
+}
+.obl__trade-qty {
+  font-weight: 600;
+}
+
+.obl__empty {
+  padding: 0.6rem 0.4rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+/* 하단 요약(총잔량·불균형·스프레드·체결흐름) */
+.obl__foot {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.3rem 0.7rem;
-  padding: 0.4rem 0.55rem;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--bg-panel) 94%, transparent);
+  gap: 0.35rem 1rem;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--border-subtle);
 }
-.orderbook-stat {
+.obl__foot-stat {
   display: inline-flex;
   flex-direction: column;
   gap: 1px;
-}
-.orderbook-stat__label {
-  font-size: 0.64rem;
-  color: var(--text-secondary);
-}
-.orderbook-stat__value {
-  font-size: 0.74rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.orderbook-stat__value.up,
-.orderbook-stat__value .up {
-  color: var(--color-up);
-}
-.orderbook-stat__value.down,
-.orderbook-stat__value .down {
-  color: var(--color-down);
-}
-
-.orderbook-depth {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.orderbook-depth__head {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.3rem;
-  padding: 0.25rem 0.55rem;
-  font-size: 0.64rem;
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
-}
-.orderbook-depth__head span:nth-child(2) {
-  text-align: center;
-}
-.orderbook-depth__head span:nth-child(3) {
-  text-align: right;
-}
-.orderbook-row {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.3rem;
-  padding: 0.18rem 0.55rem;
-  font-size: 0.7rem;
-  font-variant-numeric: tabular-nums;
-}
-.orderbook-row__bar {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 0;
-  opacity: 0.16;
-  pointer-events: none;
-}
-.orderbook-row__bar.is-ask {
-  background: var(--color-down);
-}
-.orderbook-row__bar.is-bid {
-  background: var(--color-up);
-}
-.orderbook-row__cum,
-.orderbook-row__qty,
-.orderbook-row__price {
-  position: relative;
-  z-index: 1;
-}
-.orderbook-row__cum {
-  color: var(--text-secondary);
-}
-.orderbook-row__qty {
-  text-align: center;
-}
-.orderbook-row__price {
-  text-align: right;
-  font-weight: 600;
-}
-.orderbook-row__price.down {
-  color: var(--color-down);
-}
-.orderbook-row__price.up {
-  color: var(--color-up);
-}
-.orderbook-depth__mid {
-  display: flex;
-  justify-content: center;
-  gap: 0.4rem;
-  padding: 0.25rem 0.55rem;
-  font-size: 0.66rem;
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--bg-panel) 96%, transparent);
-  border-top: 1px solid var(--border-subtle);
-  border-bottom: 1px solid var(--border-subtle);
-}
-.orderbook-depth__empty {
-  padding: 0.45rem 0.55rem;
-  font-size: 0.7rem;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.orderbook-trades {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid var(--border-subtle);
-  border-radius: 8px;
-  overflow: hidden auto;
-  max-height: 240px;
-  overscroll-behavior: contain;
-}
-.orderbook-trades__head {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.3rem;
-  padding: 0.25rem 0.55rem;
-  font-size: 0.64rem;
-  color: var(--text-secondary);
-  background: color-mix(in srgb, var(--bg-panel) 90%, transparent);
-  position: sticky;
-  top: 0;
-}
-.orderbook-trades__head span:nth-child(2),
-.orderbook-trades__head span:nth-child(3) {
-  text-align: right;
-}
-.orderbook-trade {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 0.3rem;
-  padding: 0.16rem 0.55rem;
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-}
-.orderbook-trade span:nth-child(2),
-.orderbook-trade span:nth-child(3) {
-  text-align: right;
 }
 
 .chart-toolbar {
@@ -2882,21 +2860,6 @@ input[type='checkbox']:focus-visible {
   color: var(--text-secondary);
 }
 
-/* 호가 가격 버튼(탭 → 지정가 입력) — 기존 텍스트 스타일 유지한 무장식 버튼 */
-button.orderbook-price-btn {
-  background: none;
-  border: none;
-  padding: 0;
-  margin: 0;
-  font: inherit;
-  font-weight: 600;
-  text-align: right;
-  cursor: pointer;
-}
-button.orderbook-price-btn:hover {
-  text-decoration: underline;
-}
-
 .order-manual-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -3412,22 +3375,6 @@ button.orderbook-price-btn:hover {
     overflow: visible;
   }
 
-  .market-panel__orderbook {
-    max-height: none;
-    overflow-y: visible;
-  }
-
-  /* 호가 상세: 좁은 화면에서 3열 그리드는 가로로 화면을 벗어난다.
-     매도호가·매수호가는 2열로 나란히 두고, 체결(3열 데이터)은 전체 폭으로 내린다.
-     minmax(0,1fr) 로 트랙이 콘텐츠보다 줄어들 수 있게 해 오버플로를 막는다. */
-  .orderbook-detail {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .orderbook-detail > div:nth-child(3) {
-    grid-column: 1 / -1;
-  }
-
   .candle-chart {
     min-height: 220px;
     flex: 1 1 auto;
@@ -3580,7 +3527,6 @@ button.orderbook-price-btn:hover {
   .market-panel,
   .order-form,
   .market-context,
-  .orderbook-summary,
   .portfolio-sidebar,
   .chart-panel {
     background: transparent !important;
@@ -3594,8 +3540,7 @@ button.orderbook-price-btn:hover {
   /* 좌우 16px padding + 차트 최대폭 (trading-layout__main 제외, padding:0 통합) */
   .market-panel,
   .chart-panel,
-  .market-context,
-  .orderbook-summary {
+  .market-context {
     padding-left: 16px;
     padding-right: 16px;
   }
@@ -4503,69 +4448,18 @@ button.orderbook-price-btn:hover {
     display: block;
     padding: 0.25rem 12px 0;
   }
+  /* 사다리 전체를 자산 탭 카드와 같은 톤의 카드로 감싸고, 행 높이·폰트를 키운다 */
   .trading-layout.layout-v2--tab-book .orderbook {
-    gap: 0.75rem;
-  }
-  /* 요약(1호가·스프레드·체결흐름) 카드 — 모바일 flat 규칙(!important)을 되돌린다 */
-  .trading-layout.layout-v2--tab-book .orderbook-summary {
-    background: var(--bg-panel) !important;
-    border: 1px solid var(--border-subtle) !important;
-    border-radius: 14px !important;
-    padding: 0.8rem 0.85rem !important;
-  }
-  .trading-layout.layout-v2--tab-book .orderbook-detail {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-  /* 잔량 통계 / 뎁스 / 체결 — 자산 탭 카드와 같은 톤으로 */
-  .trading-layout.layout-v2--tab-book .orderbook-stats,
-  .trading-layout.layout-v2--tab-book .orderbook-depth,
-  .trading-layout.layout-v2--tab-book .orderbook-trades {
+    --obl-row-h: 50px;
     background: var(--bg-panel);
     border: 1px solid var(--border-subtle);
     border-radius: 14px;
+    padding: 0.55rem 0.45rem 0.7rem;
   }
-  .trading-layout.layout-v2--tab-book .orderbook-stats {
-    padding: 0.7rem 0.85rem;
-    gap: 0.45rem 1.1rem;
+  .trading-layout.layout-v2--tab-book .obl__foot {
+    padding: 0.5rem 0.35rem 0;
   }
-  .trading-layout.layout-v2--tab-book .orderbook-trades {
-    max-height: 320px;
-  }
-  /* 폰트 확대 — 좁은 화면 가독성 */
-  .trading-layout.layout-v2--tab-book .orderbook-summary__metric-label {
-    font-size: 0.74rem;
-  }
-  .trading-layout.layout-v2--tab-book .orderbook-summary__metric-value {
-    font-size: 0.95rem;
-  }
-  .trading-layout.layout-v2--tab-book .orderbook-stat__label {
-    font-size: 0.74rem;
-  }
-  .trading-layout.layout-v2--tab-book .orderbook-stat__value {
-    font-size: 0.9rem;
-  }
-  .trading-layout.layout-v2--tab-book .orderbook-depth__head,
-  .trading-layout.layout-v2--tab-book .orderbook-trades__head {
-    font-size: 0.72rem;
-    padding: 0.35rem 0.75rem;
-  }
-  .trading-layout.layout-v2--tab-book .orderbook-row {
-    font-size: 0.88rem;
-    padding: 0.32rem 0.75rem;
-  }
-  .trading-layout.layout-v2--tab-book .orderbook-depth__mid {
-    font-size: 0.78rem;
-    padding: 0.35rem 0.75rem;
-  }
-  .trading-layout.layout-v2--tab-book .orderbook-depth__empty {
-    font-size: 0.82rem;
-  }
-  .trading-layout.layout-v2--tab-book .orderbook-trade {
-    font-size: 0.84rem;
-    padding: 0.26rem 0.75rem;
-  }
+
 
   /* 자산 탭 */
   .trading-layout.layout-v2--tab-assets .portfolio-sidebar {

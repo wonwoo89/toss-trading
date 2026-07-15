@@ -100,6 +100,41 @@ function inferTradeSide(
   return price >= mid ? 'buy' : 'sell';
 }
 
+export interface ClassifiedTrade extends TradeTick {
+  side?: 'buy' | 'sell';
+}
+
+/**
+ * 체결 방향 추정(업틱=매수, 다운틱=매도, 동가는 직전 방향 유지 — 첫 체결은 중간값 기준).
+ * 표시용으로 최신순으로 반환한다.
+ */
+export function classifyTrades(
+  trades: TradeTick[],
+  bids: OrderbookLevel[],
+  asks: OrderbookLevel[]
+): ClassifiedTrade[] {
+  if (trades.length === 0) return [];
+
+  const bestBid = getBestBid(bids);
+  const bestAsk = getBestAsk(asks);
+  const mid = bestBid !== undefined && bestAsk !== undefined ? (bestBid + bestAsk) / 2 : undefined;
+
+  const sorted = [...trades].sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  let previousPrice: number | undefined;
+  let previousSide: 'buy' | 'sell' | undefined;
+  const classified = sorted.map((trade) => {
+    const side = inferTradeSide(trade.price, previousPrice, previousSide, mid);
+    if (side) previousSide = side;
+    previousPrice = trade.price;
+    return { ...trade, side };
+  });
+
+  return classified.reverse();
+}
+
 export function buildTradeFlowSnapshot(
   trades: TradeTick[],
   bids: OrderbookLevel[],
@@ -117,31 +152,11 @@ export function buildTradeFlowSnapshot(
     };
   }
 
-  const bestBid = getBestBid(bids);
-  const bestAsk = getBestAsk(asks);
-  const mid = bestBid !== undefined && bestAsk !== undefined ? (bestBid + bestAsk) / 2 : undefined;
-
-  const sorted = [...trades].sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
-
   let buyVolume = 0;
   let sellVolume = 0;
-  let previousPrice: number | undefined;
-  let previousSide: 'buy' | 'sell' | undefined;
-
-  for (const trade of sorted) {
-    const side = inferTradeSide(trade.price, previousPrice, previousSide, mid);
-
-    if (side === 'buy') {
-      buyVolume += trade.quantity;
-      previousSide = 'buy';
-    } else if (side === 'sell') {
-      sellVolume += trade.quantity;
-      previousSide = 'sell';
-    }
-
-    previousPrice = trade.price;
+  for (const trade of classifyTrades(trades, bids, asks)) {
+    if (trade.side === 'buy') buyVolume += trade.quantity;
+    else if (trade.side === 'sell') sellVolume += trade.quantity;
   }
 
   const total = buyVolume + sellVolume;

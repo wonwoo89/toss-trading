@@ -246,6 +246,9 @@ export function StockPage() {
                 asks={marketPanelProps.asks ?? []}
                 trades={marketPanelProps.trades ?? []}
                 currency={marketPanelProps.currency}
+                previousClose={marketPanelProps.previousClose}
+                candles={marketPanelProps.candles}
+                candleInterval={marketPanelProps.candleInterval}
               />
             </div>
             {/* 데스크톱 전용 리사이즈 핸들 — 드래그로 호가/주문폼 비율 조절, 더블클릭 리셋 */}

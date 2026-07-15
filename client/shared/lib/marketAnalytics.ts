@@ -92,6 +92,45 @@ function getPositionBias(percent: number): MicrostructureBias {
   return 'neutral';
 }
 
+export interface DaySummary {
+  open: number;
+  high: number;
+  low: number;
+  volume: number;
+  vwap?: number;
+}
+
+/**
+ * 오늘 세션의 시가·고저·거래량·VWAP (호가창 정보 컬럼용, 절대값).
+ * 분봉은 KST 오늘 캔들 필터, 일/주/월봉은 마지막 봉 기준 — 로드된 캔들 범위 내 근사치.
+ */
+export function buildDaySummary(
+  candles: ChartCandle[],
+  interval: CandleInterval
+): DaySummary | null {
+  const todayCandles = getTodayCandles(candles, interval);
+  if (todayCandles.length === 0) return null;
+
+  const sorted = [...todayCandles].sort((a, b) => a.time - b.time);
+  let high = -Infinity;
+  let low = Infinity;
+  let volume = 0;
+  let vwapNumerator = 0;
+  for (const candle of sorted) {
+    high = Math.max(high, candle.high);
+    low = Math.min(low, candle.low);
+    volume += candle.volume;
+    vwapNumerator += ((candle.high + candle.low + candle.close) / 3) * candle.volume;
+  }
+  return {
+    open: sorted[0].open,
+    high,
+    low,
+    volume,
+    vwap: volume > 0 ? vwapNumerator / volume : undefined,
+  };
+}
+
 export function buildDayPriceMetrics(
   candles: ChartCandle[],
   interval: CandleInterval,
