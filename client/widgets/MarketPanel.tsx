@@ -7,7 +7,6 @@ import { ChartMarketContextPanel } from './ChartMarketContextPanel';
 import { ChartOptionsMenu } from './ChartOptionsMenu';
 import { AutoTradePanel } from './AutoTradePanel';
 import { Button } from '../shared/ui/Button';
-import { OrderbookPanel } from './OrderbookPanel';
 import { StockLabel } from './StockLabel';
 import { BacktestModal } from './BacktestModal';
 import {
@@ -39,7 +38,6 @@ interface MarketPanelProps {
   previousClose?: number;
   bids?: OrderbookEntry[];
   asks?: OrderbookEntry[];
-  trades?: { price: number; quantity: number; timestamp: string }[];
   candles?: ChartCandle[];
   averagePrice?: number;
   candleInterval: CandleInterval;
@@ -78,7 +76,6 @@ export function MarketPanel({
   previousClose,
   bids = [],
   asks = [],
-  trades = [],
   candles = [],
   averagePrice,
   candleInterval,
@@ -210,7 +207,7 @@ export function MarketPanel({
         </div>
       </div>
 
-      {/* 차트 아래: 좌(지표·시장정보) / 우(호가) 좌우 배치 */}
+      {/* 차트 아래: 자동매매 + 지표·시장정보 (호가는 주문 컬럼의 별도 섹션으로 이동) */}
       <div className="market-panel__below">
         <div className="market-panel__below-info">
       {/* 자동매매 — 차트 페이지에 상주. 탭을 오가도(종목이 같으면) 마운트가 유지돼 상태 보존.
@@ -262,15 +259,6 @@ export function MarketPanel({
           />
         </div>
       </div>
-        </div>
-
-        <div className="market-panel__side">
-          <OrderbookPanel
-            bids={bids}
-            asks={asks}
-            trades={trades}
-            currency={currency}
-          />
         </div>
       </div>
 
