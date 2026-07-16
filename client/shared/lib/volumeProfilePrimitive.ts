@@ -11,7 +11,7 @@ import type { VolumeProfile } from './volumeProfile';
 type DrawTarget = Parameters<IPrimitivePaneRenderer['draw']>[0];
 
 /** 매물대 바가 차지할 수 있는 최대 폭(캔들 pane 폭 대비). */
-const MAX_WIDTH_RATIO = 0.28;
+const MAX_WIDTH_RATIO = 0.5;
 /** 투명도 범위 — 거래량 비중이 클수록 진하게(토스 스타일). */
 const MIN_ALPHA = 0.25;
 const MAX_ALPHA = 0.8;
