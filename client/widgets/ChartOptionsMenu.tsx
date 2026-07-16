@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Checkbox } from '../shared/ui/Checkbox';
-import { SegmentedControl } from '../shared/ui/SegmentedControl';
-import { Typography } from '../shared/ui/Typography';
-import { VOLUME_PROFILE_BIN_CHOICES } from '../shared/lib/volumeProfileVisiblePreference';
+import { NumberField } from './NumberField';
+import {
+  VOLUME_PROFILE_BINS_MAX,
+  VOLUME_PROFILE_BINS_MIN,
+} from '../shared/lib/volumeProfileVisiblePreference';
 
 interface ChartOptionsMenuProps {
   realtimeForced?: boolean;
@@ -152,16 +154,16 @@ export function ChartOptionsMenu({
           />
           {volumeProfileVisible && (
             <div className="chart-options__sub">
-              <Typography size={10} className="chart-options__sub-label">매물대 구간</Typography>
-              <SegmentedControl
-                aria-label="매물대 구간 수"
+              <NumberField
                 className="chart-options__bins"
-                options={VOLUME_PROFILE_BIN_CHOICES.map((n) => ({
-                  value: String(n),
-                  label: String(n),
-                }))}
-                value={String(volumeProfileBins)}
-                onChange={(value) => onVolumeProfileBinsChange(Number(value))}
+                label="매물대 구간"
+                aria-label="매물대 구간 수"
+                title={`가격 범위를 나눌 구간 수 (${VOLUME_PROFILE_BINS_MIN}~${VOLUME_PROFILE_BINS_MAX}, 기본 30)`}
+                value={volumeProfileBins}
+                onChange={onVolumeProfileBinsChange}
+                min={VOLUME_PROFILE_BINS_MIN}
+                max={VOLUME_PROFILE_BINS_MAX}
+                integer
               />
             </div>
           )}
