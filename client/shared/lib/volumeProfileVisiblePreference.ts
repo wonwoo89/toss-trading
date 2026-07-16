@@ -21,22 +21,29 @@ export function setStoredVolumeProfileVisible(visible: boolean) {
 }
 
 const BINS_STORAGE_KEY = 'toss-trading:chart-volume-profile-bins';
-export const VOLUME_PROFILE_BIN_CHOICES = [10, 20, 30, 50] as const;
+export const VOLUME_PROFILE_BINS_MIN = 5;
+export const VOLUME_PROFILE_BINS_MAX = 120;
+export const VOLUME_PROFILE_BINS_DEFAULT = 30;
 
-/** 매물대 구간 수(기본 30). 허용 목록 밖 값은 30으로 정규화. */
+export function clampVolumeProfileBins(bins: number): number {
+  if (!Number.isFinite(bins)) return VOLUME_PROFILE_BINS_DEFAULT;
+  return Math.min(VOLUME_PROFILE_BINS_MAX, Math.max(VOLUME_PROFILE_BINS_MIN, Math.round(bins)));
+}
+
+/** 매물대 구간 수 — 지정된 값이 없으면 기본 30. 모든 종목 차트에 동일 적용(전역 저장). */
 export function getStoredVolumeProfileBins(): number {
   try {
-    const parsed = Number(localStorage.getItem(BINS_STORAGE_KEY));
-    if ((VOLUME_PROFILE_BIN_CHOICES as readonly number[]).includes(parsed)) return parsed;
+    const raw = localStorage.getItem(BINS_STORAGE_KEY);
+    if (raw === null) return VOLUME_PROFILE_BINS_DEFAULT;
+    return clampVolumeProfileBins(Number(raw));
   } catch {
-    // ignore storage read errors
+    return VOLUME_PROFILE_BINS_DEFAULT;
   }
-  return 30;
 }
 
 export function setStoredVolumeProfileBins(bins: number) {
   try {
-    localStorage.setItem(BINS_STORAGE_KEY, String(bins));
+    localStorage.setItem(BINS_STORAGE_KEY, String(clampVolumeProfileBins(bins)));
   } catch {
     // ignore storage write errors
   }
