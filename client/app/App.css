@@ -1008,6 +1008,9 @@ textarea {
   min-width: 0;
   width: 100%;
   height: 100%;
+  /* .order-form__section input 의 margin-bottom(구 마크업용 간격)이 박스 내부 인풋에
+     적용되면 플렉스 중앙정렬이 (인풋+마진) 기준이 되어 텍스트가 위로 밀린다 — 상쇄. */
+  margin: 0;
   padding: 0 0.75rem;
   border: none;
   border-radius: 0;
