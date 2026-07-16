@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Checkbox } from '../shared/ui/Checkbox';
 
 interface ChartOptionsMenuProps {
@@ -8,6 +9,8 @@ interface ChartOptionsMenuProps {
   onBollingerVisibleChange: (visible: boolean) => void;
   supertrendVisible: boolean;
   onSupertrendVisibleChange: (visible: boolean) => void;
+  volumeProfileVisible: boolean;
+  onVolumeProfileVisibleChange: (visible: boolean) => void;
 }
 
 const PANEL_WIDTH = 220;
@@ -25,11 +28,14 @@ export function ChartOptionsMenu({
   onBollingerVisibleChange,
   supertrendVisible,
   onSupertrendVisibleChange,
+  volumeProfileVisible,
+  onVolumeProfileVisibleChange,
 }: ChartOptionsMenuProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
 
   const toggleOpen = () => {
     setOpen((prev) => {
@@ -50,7 +56,11 @@ export function ChartOptionsMenu({
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (rootRef.current && event.target instanceof Node && !rootRef.current.contains(event.target)) {
+      if (
+        event.target instanceof Node &&
+        !rootRef.current?.contains(event.target) &&
+        !panelRef.current?.contains(event.target)
+      ) {
         setOpen(false);
       }
     };
@@ -93,8 +103,11 @@ export function ChartOptionsMenu({
         </svg>
       </button>
 
-      {open && pos && (
+      {open &&
+        pos &&
+        createPortal(
         <div
+          ref={panelRef}
           className="chart-options__panel"
           role="menu"
           aria-label="차트 표시 옵션"
@@ -123,7 +136,15 @@ export function ChartOptionsMenu({
             checked={supertrendVisible}
             onChange={onSupertrendVisibleChange}
           />
-        </div>
+          <Checkbox
+            className="chart-options__row"
+            title="매물대 분석 — 가격대별 누적 거래량(양봉=빨강, 음봉=파랑)을 차트 좌측에 표시"
+            label="매물대 분석"
+            checked={volumeProfileVisible}
+            onChange={onVolumeProfileVisibleChange}
+          />
+        </div>,
+        document.body
       )}
     </div>
   );

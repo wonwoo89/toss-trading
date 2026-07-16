@@ -18,6 +18,10 @@ import {
   setStoredSupertrendVisible,
 } from '../shared/lib/supertrendVisiblePreference';
 import {
+  getStoredVolumeProfileVisible,
+  setStoredVolumeProfileVisible,
+} from '../shared/lib/volumeProfileVisiblePreference';
+import {
   CANDLE_INTERVALS,
   type CandleInterval,
   type ChartCandle,
@@ -118,6 +122,12 @@ export function MarketPanel({
     setStoredSupertrendVisible(visible);
   };
 
+  const [volumeProfileVisible, setVolumeProfileVisible] = useState(getStoredVolumeProfileVisible);
+  const handleVolumeProfileVisibleChange = (visible: boolean) => {
+    setVolumeProfileVisible(visible);
+    setStoredVolumeProfileVisible(visible);
+  };
+
   // isDesktop 은 호가 항상 펼침 판정 + 자동매매 모바일 안내 노출에 사용.
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.innerWidth > 1100
@@ -157,6 +167,8 @@ export function MarketPanel({
               onBollingerVisibleChange={handleBollingerVisibleChange}
               supertrendVisible={supertrendVisible}
               onSupertrendVisibleChange={handleSupertrendVisibleChange}
+              volumeProfileVisible={volumeProfileVisible}
+              onVolumeProfileVisibleChange={handleVolumeProfileVisibleChange}
             />
             <select
               className="chart-interval"
@@ -201,6 +213,7 @@ export function MarketPanel({
               onLoadOlder={onLoadOlderCandles}
               showBollinger={bollingerVisible}
               showSupertrend={supertrendVisible}
+              showVolumeProfile={volumeProfileVisible}
               currency={currency}
             />
           </Suspense>
