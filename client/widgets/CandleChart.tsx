@@ -134,9 +134,17 @@ function formatOhlcLegendValue(value: number, open: number, currency?: string) {
   return `${formatChartPrice(value, currency)}${formatPercentFromOpen(value, open)}`;
 }
 
-// lightweight-charts 는 시간 축/크로스헤어를 기본 UTC 로 표기한다. 한국(KST, UTC+9) 기준으로
-// 보이도록 축 눈금과 크로스헤어 시간을 Asia/Seoul 로 포맷한다. (데이터 타임스탬프는 그대로 UTC)
-const CHART_TZ = 'Asia/Seoul';
+// lightweight-charts 는 타임스탬프를 UTC 기준으로 해석해 '날짜 경계(굵은 날짜 눈금)'를
+// UTC 자정에 잡는다. UTC 자정(=KST 09시)엔 미국장 캔들이 없어 날짜 라벨이 장 시작 캔들에
+// 붙는 문제가 있어, 차트에 넣는 타임스탬프를 KST(+9h)로 시프트한다 → 날짜 경계가 KST 00시.
+// 시프트된 시간은 UTC 로 포맷해야 KST 로 표시된다. (도메인 데이터의 타임스탬프는 원본 유지 —
+// 시프트는 차트 표시 계층(setData·marker.time)에서만 적용한다)
+const KST_OFFSET_SEC = 9 * 3600;
+const CHART_TZ = 'UTC';
+
+function toChartTime(sec: number): UTCTimestamp {
+  return (sec + KST_OFFSET_SEC) as UTCTimestamp;
+}
 
 function formatKstTickMark(time: Time, tickMarkType: TickMarkType): string {
   const date = new Date((time as number) * 1000);
@@ -235,8 +243,9 @@ function isNearRealtimeViewport(viewport: ChartViewport, chart: IChartApi, barSp
 }
 
 // 최고/최저 마커 라벨용 시각 표기 — KST 'MM.DD HH:mm'
+// (원본 타임스탬프를 받으므로 시프트된 축 시간과 달리 Asia/Seoul 로 직접 포맷)
 const KST_MARKER_TIME = new Intl.DateTimeFormat('ko-KR', {
-  timeZone: CHART_TZ,
+  timeZone: 'Asia/Seoul',
   month: '2-digit',
   day: '2-digit',
   hour: '2-digit',
@@ -290,7 +299,7 @@ function buildHighLowMarkers(
   const lo = candles[loIdx];
   return [
     {
-      time: hi.time as UTCTimestamp,
+      time: toChartTime(hi.time),
       position: 'aboveBar',
       shape: 'arrowDown',
       color: colors.candleUp,
@@ -298,7 +307,7 @@ function buildHighLowMarkers(
       text: `${formatMarkerPrice(hi.high)} (${pctFrom(hi.high)}${formatMarkerTime(hi.time)})`,
     },
     {
-      time: lo.time as UTCTimestamp,
+      time: toChartTime(lo.time),
       position: 'belowBar',
       shape: 'arrowUp',
       color: colors.candleDown,
@@ -1066,7 +1075,7 @@ export function CandleChart({
     const sortedCandles = candles.slice().sort((a, b) => a.time - b.time);
 
     const data = sortedCandles.map((candle) => ({
-      time: candle.time as UTCTimestamp,
+      time: toChartTime(candle.time),
       open: candle.open,
       high: candle.high,
       low: candle.low,
@@ -1074,7 +1083,7 @@ export function CandleChart({
     }));
 
     const volumeData = sortedCandles.map((candle) => ({
-      time: candle.time as UTCTimestamp,
+      time: toChartTime(candle.time),
       value: candle.volume,
       color: candle.close >= candle.open ? colors.candleUp : colors.candleDown,
     }));
@@ -1118,7 +1127,12 @@ export function CandleChart({
     seriesRef.current.setData(data);
     volumeSeriesRef.current.setData(volumeData);
 
-    const bollingerBands = calculateBollingerBandSeries(sortedCandles);
+    // 밴드 시간도 차트 표시 시간(KST 시프트)으로 통일 — fill primitive 의
+    // timeToCoordinate 조회가 시리즈 타임스탬프와 일치해야 한다.
+    const bollingerBands = calculateBollingerBandSeries(sortedCandles).map((point) => ({
+      ...point,
+      time: toChartTime(point.time) as number,
+    }));
     const upperBandData = bollingerBands.map((point) => ({
       time: point.time as UTCTimestamp,
       value: point.upper,
@@ -1141,16 +1155,16 @@ export function CandleChart({
     // 끊고, 추세 전환봉에선 이전 봉 점을 새 라인에도 넣어 색 경계가 끊기지 않게 연결한다.
     const supertrend = calculateSupertrendSeries(sortedCandles);
     type StDatum = { time: UTCTimestamp; value: number } | { time: UTCTimestamp };
-    const stUp: StDatum[] = supertrend.map((p) => ({ time: p.time as UTCTimestamp }));
-    const stDown: StDatum[] = supertrend.map((p) => ({ time: p.time as UTCTimestamp }));
+    const stUp: StDatum[] = supertrend.map((p) => ({ time: toChartTime(p.time) }));
+    const stDown: StDatum[] = supertrend.map((p) => ({ time: toChartTime(p.time) }));
     for (let i = 0; i < supertrend.length; i += 1) {
       const p = supertrend[i];
-      const point = { time: p.time as UTCTimestamp, value: p.value };
+      const point = { time: toChartTime(p.time), value: p.value };
       if (p.dir === 'up') stUp[i] = point;
       else stDown[i] = point;
       if (i > 0 && supertrend[i].dir !== supertrend[i - 1].dir) {
         const prev = supertrend[i - 1];
-        const prevPoint = { time: prev.time as UTCTimestamp, value: prev.value };
+        const prevPoint = { time: toChartTime(prev.time), value: prev.value };
         if (p.dir === 'up') stUp[i - 1] = prevPoint;
         else stDown[i - 1] = prevPoint;
       }
