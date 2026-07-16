@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Checkbox } from '../shared/ui/Checkbox';
+import { SegmentedControl } from '../shared/ui/SegmentedControl';
+import { Typography } from '../shared/ui/Typography';
+import { VOLUME_PROFILE_BIN_CHOICES } from '../shared/lib/volumeProfileVisiblePreference';
 
 interface ChartOptionsMenuProps {
   realtimeForced?: boolean;
@@ -11,6 +14,8 @@ interface ChartOptionsMenuProps {
   onSupertrendVisibleChange: (visible: boolean) => void;
   volumeProfileVisible: boolean;
   onVolumeProfileVisibleChange: (visible: boolean) => void;
+  volumeProfileBins: number;
+  onVolumeProfileBinsChange: (bins: number) => void;
 }
 
 const PANEL_WIDTH = 220;
@@ -30,6 +35,8 @@ export function ChartOptionsMenu({
   onSupertrendVisibleChange,
   volumeProfileVisible,
   onVolumeProfileVisibleChange,
+  volumeProfileBins,
+  onVolumeProfileBinsChange,
 }: ChartOptionsMenuProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -138,11 +145,26 @@ export function ChartOptionsMenu({
           />
           <Checkbox
             className="chart-options__row"
-            title="매물대 분석 — 가격대별 누적 거래량(양봉=빨강, 음봉=파랑)을 차트 좌측에 표시"
+            title="매물대 분석 — 가격대별 누적 거래량을 차트 좌측에 표시(거래량이 많을수록 진하게)"
             label="매물대 분석"
             checked={volumeProfileVisible}
             onChange={onVolumeProfileVisibleChange}
           />
+          {volumeProfileVisible && (
+            <div className="chart-options__sub">
+              <Typography size={10} className="chart-options__sub-label">매물대 구간</Typography>
+              <SegmentedControl
+                aria-label="매물대 구간 수"
+                className="chart-options__bins"
+                options={VOLUME_PROFILE_BIN_CHOICES.map((n) => ({
+                  value: String(n),
+                  label: String(n),
+                }))}
+                value={String(volumeProfileBins)}
+                onChange={(value) => onVolumeProfileBinsChange(Number(value))}
+              />
+            </div>
+          )}
         </div>,
         document.body
       )}

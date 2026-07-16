@@ -18,7 +18,9 @@ import {
   setStoredSupertrendVisible,
 } from '../shared/lib/supertrendVisiblePreference';
 import {
+  getStoredVolumeProfileBins,
   getStoredVolumeProfileVisible,
+  setStoredVolumeProfileBins,
   setStoredVolumeProfileVisible,
 } from '../shared/lib/volumeProfileVisiblePreference';
 import {
@@ -128,6 +130,12 @@ export function MarketPanel({
     setStoredVolumeProfileVisible(visible);
   };
 
+  const [volumeProfileBins, setVolumeProfileBins] = useState(getStoredVolumeProfileBins);
+  const handleVolumeProfileBinsChange = (bins: number) => {
+    setVolumeProfileBins(bins);
+    setStoredVolumeProfileBins(bins);
+  };
+
   // isDesktop 은 호가 항상 펼침 판정 + 자동매매 모바일 안내 노출에 사용.
   const [isDesktop, setIsDesktop] = useState(
     () => typeof window !== 'undefined' && window.innerWidth > 1100
@@ -169,6 +177,8 @@ export function MarketPanel({
               onSupertrendVisibleChange={handleSupertrendVisibleChange}
               volumeProfileVisible={volumeProfileVisible}
               onVolumeProfileVisibleChange={handleVolumeProfileVisibleChange}
+              volumeProfileBins={volumeProfileBins}
+              onVolumeProfileBinsChange={handleVolumeProfileBinsChange}
             />
             <select
               className="chart-interval"
@@ -214,6 +224,7 @@ export function MarketPanel({
               showBollinger={bollingerVisible}
               showSupertrend={supertrendVisible}
               showVolumeProfile={volumeProfileVisible}
+              volumeProfileBins={volumeProfileBins}
               currency={currency}
             />
           </Suspense>

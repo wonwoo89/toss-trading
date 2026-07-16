@@ -4700,6 +4700,24 @@ input[type='checkbox']:focus-visible {
   background: color-mix(in srgb, var(--bg-panel) 80%, var(--bg-hover, #888) 20%);
 }
 
+/* 매물대 구간 수 선택 — 체크박스 하위 옵션 행 */
+.chart-options__sub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.15rem 0.5rem 0.45rem 1.75rem; /* 체크박스 라벨 들여쓰기에 맞춤 */
+}
+.chart-options__sub-label {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.chart-options__bins .ui-segmented__item {
+  padding: 0 0.55rem;
+  height: 26px;
+  font-size: 0.72rem;
+}
+
 @media (max-width: 1100px) {
   /* v2: 상단 안전영역(노치/상태바) 마스크 — sticky 차트 위 틈으로 스크롤 콘텐츠가
      비쳐 보이던 문제. 고정 오버레이로 그 띠를 배경색으로 덮는다. */
