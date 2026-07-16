@@ -585,7 +585,7 @@ export function CandleChart({
   const initializeViewportNowRef = useRef(initializeViewportNow);
   initializeViewportNowRef.current = initializeViewportNow;
 
-  // 보이는 범위의 최고/최저 캔들 마커 갱신 (rAF 스로틀 — 팬/줌 중 과도한 재계산 방지).
+  // 보이는 범위 파생 오버레이(최고/최저 마커 + 매물대) 갱신 — rAF 스로틀로 팬/줌 중 과도한 재계산 방지.
   const scheduleHighLowMarkersUpdate = () => {
     if (markersUpdateScheduledRef.current) return;
     markersUpdateScheduledRef.current = true;
@@ -597,6 +597,18 @@ export function CandleChart({
       const range = chart.timeScale().getVisibleLogicalRange();
       markersApi.setMarkers(
         buildHighLowMarkers(sortedCandlesRef.current, range, getChartThemeColors())
+      );
+
+      // 매물대 — 실제 렌더링 중인(보이는) 캔들만으로 계산해 팬/줌을 따라간다.
+      const candlesAll = sortedCandlesRef.current;
+      let visibleCandles = candlesAll;
+      if (range) {
+        const from = Math.max(0, Math.ceil(range.from));
+        const to = Math.min(candlesAll.length - 1, Math.floor(range.to));
+        visibleCandles = from <= to ? candlesAll.slice(from, to + 1) : [];
+      }
+      volumeProfilePrimitiveRef.current?.setProfile(
+        buildVolumeProfile(visibleCandles, volumeProfileBinsRef.current)
       );
     });
   };
@@ -999,11 +1011,9 @@ export function CandleChart({
     volumeProfilePrimitiveRef.current?.setVisible(showVolumeProfile);
   }, [showVolumeProfile]);
 
-  // 매물대 구간 수 변경 — 현재 캔들로 재계산.
+  // 매물대 구간 수 변경 — 보이는 구간 기준으로 재계산.
   useEffect(() => {
-    volumeProfilePrimitiveRef.current?.setProfile(
-      buildVolumeProfile(sortedCandlesRef.current, volumeProfileBins)
-    );
+    scheduleHighLowMarkersUpdateRef.current();
   }, [volumeProfileBins]);
 
   // 슈퍼트렌드 on/off — 상승/하락 라인 표시 토글(데이터는 유지).
@@ -1206,10 +1216,7 @@ export function CandleChart({
 
     // 데이터 갱신 후 보이는 범위 기준 최고/최저 마커 갱신 (뷰포트 적용이 settle 된 뒤 rAF 로)
     sortedCandlesRef.current = sortedCandles;
-    volumeProfilePrimitiveRef.current?.setProfile(
-      buildVolumeProfile(sortedCandles, volumeProfileBinsRef.current)
-    );
-    scheduleHighLowMarkersUpdateRef.current();
+    scheduleHighLowMarkersUpdateRef.current(); // 마커 + 매물대(보이는 구간) 갱신
     updateBarCountdownRef.current(); // 현재가 라벨 이동을 즉시 추적
   }, [candles, fitKey]);
 
