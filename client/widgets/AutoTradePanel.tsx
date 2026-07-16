@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { NumberField } from './NumberField';
 import { Button } from '../shared/ui/Button';
 import { Checkbox } from '../shared/ui/Checkbox';
@@ -919,7 +920,8 @@ export function AutoTradePanel({
         </ul>
       )}
 
-      {tipPos && (
+      {tipPos &&
+        createPortal(
         <div
           className="auto-trade__tip"
           role="tooltip"
@@ -934,7 +936,8 @@ export function AutoTradePanel({
           매수는 AI 판단 전용. 익절=목표 도달, 손절=손절률 도달, 트레일링=고점 대비 하락 시 전량 매도.
           일일 손실 한도 도달 시 강제 OFF. 쿨다운(30s)·탭 숨김 일시정지로 보호. 현재 종목만.
           설정·로그는 저장되어 새로고침 후에도 유지. 모바일은 앱을 포그라운드로 유지(화면 꺼짐 방지 권장).
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

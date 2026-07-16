@@ -20,6 +20,8 @@ import {
 import { calculateBollingerBandSeries } from '../shared/lib/bollingerBands';
 import { calculateSupertrendSeries } from '../shared/lib/supertrend';
 import { BollingerBandFillPrimitive } from '../shared/lib/bollingerBandFillPrimitive';
+import { VolumeProfilePrimitive } from '../shared/lib/volumeProfilePrimitive';
+import { buildVolumeProfile } from '../shared/lib/volumeProfile';
 import { useTheme } from '../app/providers/ThemeContext';
 import {
   getStoredChartViewport,
@@ -43,6 +45,8 @@ interface CandleChartProps {
   loadingOlder?: boolean;
   onLoadOlder?: () => void;
   showBollinger?: boolean;
+  /** 매물대(볼륨 프로파일) 표시 여부. */
+  showVolumeProfile?: boolean;
   showSupertrend?: boolean;
   currency?: string;
 }
@@ -496,6 +500,7 @@ export function CandleChart({
   loadingOlder = false,
   onLoadOlder,
   showBollinger = true,
+  showVolumeProfile = true,
   showSupertrend = false,
   currency = 'USD',
 }: CandleChartProps) {
@@ -510,6 +515,9 @@ export function CandleChart({
   const bbMiddleSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbFillPrimitiveRef = useRef<BollingerBandFillPrimitive | null>(null);
+  const volumeProfilePrimitiveRef = useRef<VolumeProfilePrimitive | null>(null);
+  const showVolumeProfileRef = useRef(showVolumeProfile);
+  showVolumeProfileRef.current = showVolumeProfile;
   // 슈퍼트렌드: 상승/하락 구간을 색으로 구분하기 위해 두 라인 시리즈로 분리(상승=빨강/하락=파랑).
   const stUpSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const stDownSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
@@ -646,6 +654,13 @@ export function CandleChart({
     });
 
     series.applyOptions(getCandlePriceScaleOptions());
+
+    // 매물대(볼륨 프로파일) — 캔들 pane 좌측 가로 바. 캔들 시리즈 좌표계를 사용.
+    const volumeProfilePrimitive = new VolumeProfilePrimitive();
+    volumeProfilePrimitive.setColors(colors.candleUp, colors.candleDown);
+    volumeProfilePrimitive.setVisible(showVolumeProfileRef.current);
+    series.attachPrimitive(volumeProfilePrimitive);
+    volumeProfilePrimitiveRef.current = volumeProfilePrimitive;
 
     const bbUpperSeries = chart.addSeries(
       LineSeries,
@@ -890,6 +905,7 @@ export function CandleChart({
       chartRef.current = null;
       markersApiRef.current = null;
       seriesRef.current = null;
+      volumeProfilePrimitiveRef.current = null;
       bbUpperSeriesRef.current = null;
       bbMiddleSeriesRef.current = null;
       bbLowerSeriesRef.current = null;
@@ -961,6 +977,10 @@ export function CandleChart({
       },
       getChartThemeColors()
     );
+    {
+      const themed = getChartThemeColors();
+      volumeProfilePrimitiveRef.current?.setColors(themed.candleUp, themed.candleDown);
+    }
     scheduleHighLowMarkersUpdateRef.current(); // 테마 색 반영
   }, [theme]);
 
@@ -971,6 +991,11 @@ export function CandleChart({
     bbLowerSeriesRef.current?.applyOptions({ visible: showBollinger });
     bbFillPrimitiveRef.current?.setVisible(showBollinger);
   }, [showBollinger]);
+
+  // 매물대 on/off — primitive 표시 여부만 토글(데이터는 유지).
+  useEffect(() => {
+    volumeProfilePrimitiveRef.current?.setVisible(showVolumeProfile);
+  }, [showVolumeProfile]);
 
   // 슈퍼트렌드 on/off — 상승/하락 라인 표시 토글(데이터는 유지).
   useEffect(() => {
@@ -1172,6 +1197,7 @@ export function CandleChart({
 
     // 데이터 갱신 후 보이는 범위 기준 최고/최저 마커 갱신 (뷰포트 적용이 settle 된 뒤 rAF 로)
     sortedCandlesRef.current = sortedCandles;
+    volumeProfilePrimitiveRef.current?.setProfile(buildVolumeProfile(sortedCandles));
     scheduleHighLowMarkersUpdateRef.current();
     updateBarCountdownRef.current(); // 현재가 라벨 이동을 즉시 추적
   }, [candles, fitKey]);
