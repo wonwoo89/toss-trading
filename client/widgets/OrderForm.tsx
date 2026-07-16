@@ -430,6 +430,28 @@ export function OrderForm({
     const next = selectedQuantityPercent === percent ? undefined : percent;
     setStoredQuantityPercent(next);
     setSelectedQuantityPercent(next);
+    // 비율 우선 — 직접 입력한 수량은 초기화한다.
+    if (next !== undefined) setQuantity('');
+  };
+
+  // 직접 입력 우선 — 값을 입력하면 비율 선택을 해제한다.
+  const handleQuantityInput = (value: string) => {
+    const sanitized = sanitizeDecimalInput(value);
+    setQuantity(sanitized);
+    if (sanitized.trim() !== '') setSelectedQuantityPercent(undefined);
+  };
+
+  // 수량 스테퍼(±1주) — 스텝 결과도 직접 입력으로 취급(비율 해제). 0 이하는 빈 값.
+  const stepQuantity = (delta: number) => {
+    const parsed = Number(quantity);
+    const base = Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+    const next = Math.round((base + delta) * 10000) / 10000;
+    if (next <= 0) {
+      setQuantity('');
+      return;
+    }
+    setQuantity(String(next));
+    setSelectedQuantityPercent(undefined);
   };
 
   const clearSelectedQuantityPercent = () => {
@@ -461,6 +483,7 @@ export function OrderForm({
         if (state.useAmountOrder) return;
         event.preventDefault();
         setSelectedQuantityPercent(quantityPercent);
+        setQuantity(''); // 비율 우선 — 직접 입력 수량 초기화
         return;
       }
 
@@ -543,7 +566,7 @@ export function OrderForm({
     } else {
       const submitQuantity = pendingQuantity ?? effectiveQuantity;
       if (submitQuantity === undefined || submitQuantity <= 0) {
-        showToast('비율(%)을 선택해 주세요.', 'error');
+        showToast('수량을 입력하거나 비율(%)을 선택해 주세요.', 'error');
         return;
       }
 
@@ -732,7 +755,35 @@ export function OrderForm({
             </div>
 
             <div className="order-form__section">
-              <Typography as="div" size={12} className="order-form__section-title">수량 비율</Typography>
+              <Typography as="div" size={12} className="order-form__section-title">수량</Typography>
+              {/* 직접 입력 시 비율 해제(입력 우선), 비율 선택 시 입력 초기화(비율 우선) */}
+              <div className="order-price-row">
+                <TextField
+                  className="order-price-field"
+                  type="number"
+                  value={quantity}
+                  placeholder={
+                    selectedQuantityPercent !== undefined
+                      ? `비율 ${selectedQuantityPercent}% 적용중`
+                      : '수량 직접 입력'
+                  }
+                  onChange={(e) => handleQuantityInput(e.target.value)}
+                />
+                <Button
+                  className="order-price-step"
+                  aria-label="1주 빼기"
+                  onClick={() => stepQuantity(-1)}
+                >
+                  −
+                </Button>
+                <Button
+                  className="order-price-step"
+                  aria-label="1주 더하기"
+                  onClick={() => stepQuantity(1)}
+                >
+                  ＋
+                </Button>
+              </div>
               {showQuantityPercentButtons && (
                 <SegmentedControl
                   className="order-quantity-percents"
