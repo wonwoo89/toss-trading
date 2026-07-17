@@ -448,6 +448,14 @@ export function AutoTradePanel({
   useEffect(() => {
     if (!active) return;
     if (slReached && sellQty !== undefined && currentPrice !== undefined) {
+      // 오토 모드 가드: 실제 보유 수량이 1주 이하이면 손절 매도를 실행하지 않는다
+      // (소액 잔여 포지션의 자동 손절은 무의미 — 드라이런/세미오토는 기록·수동 확인이라 유지).
+      if (mode === 'auto' && (holding?.quantity ?? 0) <= 1) {
+        if (shouldFire('SL', currentPrice, sellQty)) {
+          pushLog('block', 'SELL', `손절 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
+        }
+        return;
+      }
       if (shouldFire('SL', currentPrice, sellQty)) {
         const label = `손절 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (손절 -${stopLossPercent}%)`;
         fireTrigger(
