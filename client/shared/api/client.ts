@@ -143,8 +143,8 @@ export interface AutoLogEntry {
   reason: string;
   fallback: boolean;
   currentPrice: number;
+  /** 페이퍼 장부 기준 포지션(판단 시점) — 실계좌 보유와 무관. */
   position?: { quantity: number; averagePrice: number; profitLossPct?: number };
-  planned?: { side: 'BUY' | 'SELL'; quantity: number; note: string };
   paper?: {
     fill?: { side: 'BUY' | 'SELL'; quantity: number; price: number };
     returnPct: number;

@@ -417,12 +417,6 @@ export function ServerAiPage() {
                 <Typography size={14} as="p" className="server-ai-log__reason">
                   {log.reason}
                 </Typography>
-                {log.planned && (
-                  <Typography size={12} as="p" className="server-ai-log__planned">
-                    계획(드라이런): {log.planned.side === 'BUY' ? '매수' : '매도'}{' '}
-                    {log.planned.quantity}주 — {log.planned.note}
-                  </Typography>
-                )}
                 {log.paper?.fill && (
                   <Typography size={12} as="p" className="server-ai-log__paper">
                     가상 체결: {log.paper.fill.side === 'BUY' ? '매수' : '매도'}{' '}

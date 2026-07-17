@@ -4979,11 +4979,6 @@ input[type='checkbox']:focus-visible {
   line-height: 1.45;
 }
 
-.server-ai-log__planned {
-  margin: 0;
-  color: var(--accent, #3182f6);
-}
-
 @media (max-width: 640px) {
   .server-ai-status {
     grid-template-columns: 1fr;
