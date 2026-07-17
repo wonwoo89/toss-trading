@@ -21,8 +21,9 @@ import {
   type AutoTradeMode,
 } from '../shared/lib/autoTradeSettings';
 import { api, type AiDecision } from '../shared/api/client';
-import type { ChartCandle, HoldingItem, Order, UsMarketCalendarRaw } from '../shared/types';
+import type { ChartCandle, CommissionRaw, HoldingItem, Order, UsMarketCalendarRaw } from '../shared/types';
 import { resolveUsMarketSession } from '../shared/lib/usMarketCalendar';
+import { resolveUsCommissionRatePercent } from '../shared/lib/commissionBreakEven';
 
 type AutoActionKind = 'BUY' | 'TP' | 'SL' | 'TS'; // 매수 / 익절 매도 / 손절 매도 / 트레일링 스탑 매도
 
@@ -63,6 +64,8 @@ interface AutoTradePanelProps {
   currency?: string;
   /** 미국장 캘린더 — 정규장(소수점 매도 가능) 판별에 사용. */
   usMarketCalendar?: UsMarketCalendarRaw | null;
+  /** 계좌 수수료율 — 익절 목표가에 실제 수수료(왕복)를 반영하기 위함. */
+  commissions?: CommissionRaw[];
 }
 
 interface LogEntry {
@@ -142,6 +145,7 @@ export function AutoTradePanel({
   openOrders = [],
   currency = 'USD',
   usMarketCalendar,
+  commissions = [],
 }: AutoTradePanelProps) {
   // 설정은 localStorage 에서 복원(모바일 PWA 재시작 후에도 유지). 변경 시 즉시 저장.
   const [initialSettings] = useState(getAutoTradeSettings);
@@ -381,7 +385,8 @@ export function AutoTradePanel({
           holding!.averagePrice,
           sellQty!,
           targetPercent,
-          getTakeProfitCostContext(holding)
+          getTakeProfitCostContext(holding),
+          resolveUsCommissionRatePercent(commissions)
         )
       : undefined;
   const tpReached = tpPrice !== undefined && currentPrice !== undefined && currentPrice >= tpPrice;

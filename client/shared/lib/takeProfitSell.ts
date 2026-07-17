@@ -1,8 +1,17 @@
 import type { HoldingItem } from '../types';
 
+/** 계좌 수수료율을 모를 때의 보수적 기본값(0.1%). 실제 요율은 commissionRatePercent 로 주입. */
 const US_COMMISSION_RATE = 0.001;
 const MIN_GROSS_PROFIT = 0.01;
 const MAX_COST_RATIO = 0.99;
+
+/** 요율(%) 입력을 소수 비율로 — 미지정/비정상이면 기본 0.1%. */
+function toCommissionRate(commissionRatePercent?: number): number {
+  if (commissionRatePercent === undefined || !Number.isFinite(commissionRatePercent)) {
+    return US_COMMISSION_RATE;
+  }
+  return Math.min(Math.max(commissionRatePercent, 0), 5) / 100;
+}
 
 export interface TakeProfitCostContext {
   holdingQuantity?: number;
@@ -15,6 +24,11 @@ export interface TakeProfitCostContext {
 function roundUsdPrice(price: number) {
   // USD 지정가는 센트(0.01) 단위만 유효. 소수점은 내림 처리한다.
   return Math.floor(price * 100) / 100;
+}
+
+function ceilUsdPrice(price: number) {
+  // 하한가는 올림 — 내림하면 목표 실수익에서 1센트만큼 미달할 수 있다. (fp 오차 보정 포함)
+  return Math.ceil(price * 100 - 1e-9) / 100;
 }
 
 function scaleCostContext(
@@ -99,12 +113,22 @@ export function calculateTakeProfitSellPrice(
   averagePrice: number,
   sellQuantity: number,
   targetAfterCostRatePercent: number,
-  costContext?: TakeProfitCostContext
+  costContext?: TakeProfitCostContext,
+  commissionRatePercent?: number
 ) {
   const targetRate = targetAfterCostRatePercent / 100;
+  const commissionRate = toCommissionRate(commissionRatePercent);
   const purchaseAmount = sellQuantity * averagePrice;
   const targetAfterCostProfit = purchaseAmount * targetRate;
   const scaledCost = scaleCostContext(costContext, sellQuantity);
+
+  // 수수료 하한가 — 왕복 수수료(매수·매도)를 내고도 목표 실수익이 남는 최소 매도가.
+  // 비용 스냅샷이 비어 있거나(수수료를 0으로 오해석) 매도측 비용을 빠뜨려도
+  // 목표 수익이 수수료에 잠식되지 않도록 모든 경로에 하한으로 적용한다.
+  // net = P(1-r) - avg(1+r) ≥ avg·target → P ≥ avg(1+target+r)/(1-r)
+  const commissionFloor = ceilUsdPrice(
+    (averagePrice * (1 + targetRate + commissionRate)) / (1 - commissionRate)
+  );
 
   const grossRef = scaledCost?.grossProfitLoss;
   const costDragRef =
@@ -121,7 +145,7 @@ export function calculateTakeProfitSellPrice(
   ) {
     const costRatio = Math.min(costDragRef / grossRef, MAX_COST_RATIO);
     const grossProfitNeeded = targetAfterCostProfit / (1 - costRatio);
-    return roundUsdPrice(averagePrice + grossProfitNeeded / sellQuantity);
+    return Math.max(roundUsdPrice(averagePrice + grossProfitNeeded / sellQuantity), commissionFloor);
   }
 
   const commission = scaledCost?.costCommission ?? 0;
@@ -131,12 +155,15 @@ export function calculateTakeProfitSellPrice(
       : undefined;
 
   if (inferredTaxRate !== undefined) {
-    return roundUsdPrice(
-      calculateWithCommissionAndTax(averagePrice, targetRate, US_COMMISSION_RATE, inferredTaxRate)
+    return Math.max(
+      roundUsdPrice(
+        calculateWithCommissionAndTax(averagePrice, targetRate, commissionRate, inferredTaxRate)
+      ),
+      commissionFloor
     );
   }
 
-  return roundUsdPrice((averagePrice * (1 + targetRate)) / (1 - US_COMMISSION_RATE));
+  return commissionFloor;
 }
 
 export interface ExpectedSellProfit {
@@ -159,10 +186,12 @@ export function estimateNetSellProfit(
   sellQuantity: number,
   sellPrice: number,
   costContext?: TakeProfitCostContext,
-  referencePrice?: number
+  referencePrice?: number,
+  commissionRatePercent?: number
 ): ExpectedSellProfit | undefined {
   if (!(averagePrice > 0) || !(sellQuantity > 0) || !(sellPrice > 0)) return undefined;
 
+  const commissionRate = toCommissionRate(commissionRatePercent);
   const purchaseAmount = sellQuantity * averagePrice;
   const grossProfit = (sellPrice - averagePrice) * sellQuantity;
   const scaledCost = scaleCostContext(costContext, sellQuantity);
@@ -201,13 +230,13 @@ export function estimateNetSellProfit(
     if (inferredTaxRate !== undefined) {
       // 역산 모델: price = avg*(rate+1-tax)/(1-comm-tax) → rate 로 풀어 실수익률 산출.
       const rate =
-        (sellPrice * (1 - US_COMMISSION_RATE - inferredTaxRate)) / averagePrice -
+        (sellPrice * (1 - commissionRate - inferredTaxRate)) / averagePrice -
         1 +
         inferredTaxRate;
       netProfit = purchaseAmount * rate;
     } else {
-      // 기본: 매도 수수료만 차감 — price = avg*(1+rate)/(1-comm) → rate.
-      const rate = (sellPrice * (1 - US_COMMISSION_RATE)) / averagePrice - 1;
+      // 기본: 왕복(매수·매도) 수수료 차감 — net = P(1-r) - avg(1+r).
+      const rate = (sellPrice * (1 - commissionRate)) / averagePrice - 1 - commissionRate;
       netProfit = purchaseAmount * rate;
     }
   }

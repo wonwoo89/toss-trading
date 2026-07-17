@@ -18,8 +18,11 @@ export function buildHoldingPositionSnapshot(params: {
   currentPrice?: number;
   profitLossRate?: number;
   targetProfitRatePercent: number;
+  /** 계좌 수수료율(%) — 목표가에 실제 수수료를 반영. 미지정 시 보수적 기본값. */
+  commissionRatePercent?: number;
 }): HoldingPositionSnapshot {
-  const { holding, currentPrice, profitLossRate, targetProfitRatePercent } = params;
+  const { holding, currentPrice, profitLossRate, targetProfitRatePercent, commissionRatePercent } =
+    params;
 
   if (!holding || holding.quantity <= 0) {
     return {
@@ -38,7 +41,8 @@ export function buildHoldingPositionSnapshot(params: {
       averagePrice,
       holding.quantity,
       targetProfitRatePercent,
-      getTakeProfitCostContext(holding)
+      getTakeProfitCostContext(holding),
+      commissionRatePercent
     );
   }
 
