@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { NumberField } from './NumberField';
 import { Button } from '../shared/ui/Button';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
+import { Switch } from '../shared/ui/Switch';
 import { Typography } from '../shared/ui/Typography';
 import {
   calculateTakeProfitSellPrice,
@@ -108,6 +109,8 @@ interface AiHistoryEntry {
 
 const MAX_LOG = 40;
 const MAX_AI_HISTORY = 10;
+/** 추세 홀드 중 고점 대비 허용 하락(%) — 트레일링 설정이 0(끔)일 때의 기본값. */
+const TP_HOLD_TRAIL_PCT = 0.5;
 const COOLDOWN_MS = 30_000; // 연속 실행 최소 간격(오토). 손절 반응성을 위해 60→30s 로 단축.
 // 트리거 재기록 정책: 같은 종류(익절/손절/트레일링) 신호는 "의미 있는 변동"이 있을 때만 다시 올린다.
 // - 최소 간격(MIN_RELOG_MS) 안에선 무조건 억제(도배 방지 바닥)
@@ -180,6 +183,8 @@ export function AutoTradePanel({
   );
   const [buyMaxPercent, setBuyMaxPercent] = useState(initialSettings.buyMaxPercent);
   const [dailyLossLimitUsd, setDailyLossLimitUsd] = useState(initialSettings.dailyLossLimitUsd);
+  // 추세 홀드 — 목표 도달 시 상승 추세면 익절을 보류하고 고점 추적(보전선 이탈 시 매도).
+  const [holdTpOnTrend, setHoldTpOnTrend] = useState(initialSettings.holdTpOnTrend);
   // 매수는 항상 AI 판단으로만 이루어진다(오토=AI 매매 모드). 별도 토글 없음.
   const useAi = true;
   const [dailyRealizedUsd, setDailyRealizedUsd] = useState(getDailyRealizedUsd);
@@ -215,6 +220,8 @@ export function AutoTradePanel({
   >({ BUY: null, TP: null, SL: null, TS: null });
   // 트레일링 스탑 고점 추적 — 포지션 관찰 시작 이후의 최고가(초기값은 max(평단, 현재가)).
   const trailPeakRef = useRef<number | null>(null);
+  // 추세 홀드 상태 — 목표 도달 후 매도를 보류 중이면 고점을 담는다(null=홀드 아님).
+  const tpHoldRef = useRef<{ peak: number } | null>(null);
   // 손절 생략(보유 ≤1주) 로그를 에피소드당 1회로 제한하는 플래그.
   const slSkipLoggedRef = useRef(false);
   const tpSkipLoggedRef = useRef(false);
@@ -232,8 +239,9 @@ export function AutoTradePanel({
       trailingStopPercent,
       buyMaxPercent,
       dailyLossLimitUsd,
+      holdTpOnTrend,
     });
-  }, [mode, useAi, targetPercent, stopLossPercent, trailingStopPercent, buyMaxPercent, dailyLossLimitUsd, symbol]);
+  }, [mode, useAi, targetPercent, stopLossPercent, trailingStopPercent, buyMaxPercent, dailyLossLimitUsd, holdTpOnTrend, symbol]);
 
   // 로그 영속화 — 새로고침 후에도 감사 기록 유지.
   useEffect(() => {
@@ -487,18 +495,69 @@ export function AutoTradePanel({
     pushLog('trigger', action.side, `대기: ${action.label} — '실행'을 눌러야 주문됩니다`);
   };
 
-  // 익절 매도 트리거
+  // 익절 매도 트리거 — '추세 홀드'가 켜져 있으면 목표 도달 시 상승 추세에서는 매도를 보류하고
+  // 고점을 추적한다. 이후 보전선(익절 목표가) 또는 고점 대비 트레일 % 이탈 시 전량 매도해,
+  // 최악의 경우에도 목표 수익은 확보하면서 추세 연장 이익을 노린다.
   useEffect(() => {
     if (!active) return;
+    if (!hasPosition) tpHoldRef.current = null; // 포지션 종료 → 홀드 해제
+
+    // 오토 모드 가드: 정규장 밖에서는 소수점 매도가 불가해 실제 보유 1주 이하면 익절을 생략.
+    const blockedByFractional =
+      mode === 'auto' && !isRegularSession && (holding?.quantity ?? 0) <= 1;
+
+    // 1) 홀드 중: 고점 갱신 + 이탈 판정. 보전선 아래로 내려오면 tpReached 가 false 여도 매도.
+    const hold = tpHoldRef.current;
+    if (hold && sellQty !== undefined && currentPrice !== undefined && tpPrice !== undefined) {
+      if (currentPrice > hold.peak) hold.peak = currentPrice;
+      const trailPct = trailingStopPercent > 0 ? trailingStopPercent : TP_HOLD_TRAIL_PCT;
+      const floorHit = currentPrice <= tpPrice;
+      const trailHit = currentPrice <= hold.peak * (1 - trailPct / 100);
+      if (floorHit || trailHit) {
+        if (blockedByFractional) {
+          if (!tpSkipLoggedRef.current) {
+            tpSkipLoggedRef.current = true;
+            pushLog('block', 'SELL', `익절 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
+          }
+          return;
+        }
+        if (shouldFire('TP', currentPrice, sellQty)) {
+          const why = floorHit
+            ? `보전선 $${fmtPrice(tpPrice)} 이탈`
+            : `고점 $${fmtPrice(hold.peak)} 대비 -${trailPct}%`;
+          const label = `익절 매도(전량·추세홀드 종료) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (${why})`;
+          fireTrigger(
+            { id: crypto.randomUUID(), kind: 'TP', side: 'SELL', quantity: sellQty, limitPrice: currentPrice, label },
+            `모의 ${label}`,
+            currentPrice,
+            sellQty
+          );
+        }
+      }
+      return; // 홀드 유지 중엔 신규 익절 판정을 하지 않는다
+    }
+
+    // 2) 목표 도달 판정
     if (tpReached && sellQty !== undefined && currentPrice !== undefined) {
-      // 오토 모드 가드: 정규장 밖에서는 소수점 매도가 불가해 실제 보유 1주 이하면 익절을 생략.
-      // 정규장은 소수점 전량 매도가 가능하므로 생략하지 않는다.
-      if (mode === 'auto' && !isRegularSession && (holding?.quantity ?? 0) <= 1) {
+      if (blockedByFractional) {
         if (!tpSkipLoggedRef.current) {
           tpSkipLoggedRef.current = true;
           pushLog('block', 'SELL', `익절 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
         }
         return;
+      }
+      // 추세 홀드: 완성봉 기준 상승 추세가 확정이면 매도를 보류하고 고점 추적 시작.
+      if (holdTpOnTrend) {
+        const trend = computeCandleTrend(candles);
+        if (trend.confirmedUp) {
+          tpHoldRef.current = { peak: currentPrice };
+          pushLog(
+            'skip',
+            'SELL',
+            `익절 보류(상승 추세 ${trend.confirmedBars}봉 확정) — 고점 추적 시작, 보전선 $${fmtPrice(tpPrice ?? currentPrice)}`
+          );
+          return;
+        }
       }
       if (shouldFire('TP', currentPrice, sellQty)) {
         const label = `익절 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (목표 +${targetPercent}%)`;
@@ -514,7 +573,7 @@ export function AutoTradePanel({
       tpSkipLoggedRef.current = false; // 익절 조건 해소 → 다음 에피소드에서 다시 1회 안내
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, mode, isTabVisible, tpReached, sellQty, currentPrice, symbol, targetPercent]);
+  }, [active, mode, isTabVisible, tpReached, sellQty, currentPrice, symbol, targetPercent, holdTpOnTrend, trailingStopPercent, candles, hasPosition]);
 
   // 손절 매도 트리거
   useEffect(() => {
@@ -568,8 +627,10 @@ export function AutoTradePanel({
       currentPrice !== undefined &&
       currentPrice <= trailStopPrice &&
       // 익절/손절이 이미 발화하는 상황이면 그 트리거에 맡긴다(중복 매도 방지).
+      // 추세 홀드 중에도 익절 트리거(보전선/홀드 트레일)가 출구를 담당한다.
       !tpReached &&
-      !slReached;
+      !slReached &&
+      tpHoldRef.current === null;
 
     if (tsReached && sellQty !== undefined && currentPrice !== undefined && trailPeak !== null) {
       if (shouldFire('TS', currentPrice, sellQty)) {
@@ -914,6 +975,17 @@ export function AutoTradePanel({
           value={dailyLossLimitUsd}
           onChange={setDailyLossLimitUsd}
         />
+        <div
+          className="auto-trade__field auto-trade__hold-toggle"
+          title={`목표 도달 시 상승 추세면 매도를 보류하고 고점을 추적합니다. 보전선(목표가) 또는 고점 대비 -${trailingStopPercent > 0 ? trailingStopPercent : TP_HOLD_TRAIL_PCT}% 이탈 시 전량 매도해 목표 수익은 확보합니다.`}
+        >
+          <Typography size={12} className="auto-trade__hold-label">추세 홀드</Typography>
+          <Switch
+            checked={holdTpOnTrend}
+            onChange={setHoldTpOnTrend}
+            aria-label="목표 도달 시 추세 홀드(익절 보류 후 고점 추적)"
+          />
+        </div>
       </div>
 
       {dailyLossLimitUsd > 0 && (

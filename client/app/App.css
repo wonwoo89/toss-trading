@@ -5025,3 +5025,17 @@ input[type='checkbox']:focus-visible {
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+
+/* 추세 홀드 토글 — 자동매매 설정 행의 인풋들과 같은 구조(라벨 위 + 컨트롤 아래) */
+.auto-trade__hold-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.auto-trade__hold-label {
+  color: var(--text-secondary);
+  white-space: nowrap;
+}

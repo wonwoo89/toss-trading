@@ -22,6 +22,8 @@ export interface AutoTradeSettings {
   buyMaxPercent: number;
   /** 일일 실현 손실 한도(USD). 초과 시 자동매매 강제 OFF. 0 이면 비활성. */
   dailyLossLimitUsd: number;
+  /** 목표 도달 시 상승 추세면 익절을 보류하고 고점 추적(보전선 이탈 시 매도). */
+  holdTpOnTrend: boolean;
 }
 
 export const AUTO_TRADE_DEFAULTS: AutoTradeSettings = {
@@ -32,6 +34,7 @@ export const AUTO_TRADE_DEFAULTS: AutoTradeSettings = {
   trailingStopPercent: 0,
   buyMaxPercent: 5,
   dailyLossLimitUsd: 0,
+  holdTpOnTrend: true,
 };
 
 /**
@@ -80,6 +83,10 @@ export function getAutoTradeSettings(): AutoTradeSettings {
         parsed.dailyLossLimitUsd,
         AUTO_TRADE_DEFAULTS.dailyLossLimitUsd
       ),
+      holdTpOnTrend:
+        typeof parsed.holdTpOnTrend === 'boolean'
+          ? parsed.holdTpOnTrend
+          : AUTO_TRADE_DEFAULTS.holdTpOnTrend,
     };
   } catch {
     return AUTO_TRADE_DEFAULTS;
