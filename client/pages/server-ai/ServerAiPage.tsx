@@ -310,10 +310,7 @@ export function ServerAiPage() {
                       const tone =
                         paper.returnPct > 0 ? 'is-up' : paper.returnPct < 0 ? 'is-down' : '';
                       return (
-                        <span
-                          className={`server-ai-symbol__paper ${tone}`}
-                          title={`가상 $1,000 기준 — 평가금 $${paper.equityUsd.toFixed(2)}, 보유 ${paper.quantity}주, 실현 $${paper.realizedPnlUsd.toFixed(2)}`}
-                        >
+                        <span className={`server-ai-symbol__paper ${tone}`}>
                           {sign}
                           {paper.returnPct.toFixed(2)}%
                         </span>
@@ -331,6 +328,29 @@ export function ServerAiPage() {
                     </Button>
                   </div>
                 </div>
+                {(() => {
+                  const paper = paperBySymbol.get(s.symbol);
+                  if (!paper) {
+                    return (
+                      <Typography size={12} as="p" className="server-ai-symbol__paper-detail hint">
+                        가상 $1,000 대기 — 엔진의 첫 판단(정규장 5분봉) 이후 수익 상황이 표시됩니다.
+                      </Typography>
+                    );
+                  }
+                  const parts = [
+                    `가상 평가 $${paper.equityUsd.toFixed(2)}`,
+                    `현금 $${paper.cash.toFixed(2)}`,
+                    paper.quantity > 0
+                      ? `보유 ${paper.quantity}주 @ $${paper.averagePrice.toFixed(2)}`
+                      : '보유 없음',
+                    `실현 ${paper.realizedPnlUsd >= 0 ? '+' : ''}$${paper.realizedPnlUsd.toFixed(2)}`,
+                  ];
+                  return (
+                    <Typography size={12} as="p" className="server-ai-symbol__paper-detail">
+                      {parts.join(' · ')}
+                    </Typography>
+                  );
+                })()}
                 <div className="server-ai-symbol__fields">
                   <NumberField
                     label="목표"
