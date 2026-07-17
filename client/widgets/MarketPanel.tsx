@@ -257,6 +257,7 @@ export function MarketPanel({
             maxBuyQuantity={maxBuyQuantity}
             openOrders={openOrders}
             currency={currency}
+            usMarketCalendar={usMarketCalendar}
           />
         </div>
       )}
