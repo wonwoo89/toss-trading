@@ -117,6 +117,10 @@ const TP_HOLD_TRAIL_PCT = 0.5;
 const STALE_UNFILLED_MS = 90_000;
 /** …가격이 지정가에서 불리한 방향으로 이 % 이상 이탈했으면 취소 후 재판단. */
 const STALE_PRICE_AWAY_PCT = 0.2;
+/** 체결 우선 지정가: 상대 호가를 넘어 즉시 체결을 노리는 버퍼(%). */
+const CROSS_BUFFER_PCT = 0.1;
+/** 체결 우선 지정가의 추격 상한(%) — 판단가에서 이 이상 벗어난 가격으로는 걸지 않는다. */
+const MAX_CHASE_PCT = 0.5;
 const COOLDOWN_MS = 30_000; // 연속 실행 최소 간격(오토). 손절 반응성을 위해 60→30s 로 단축.
 // 트리거 재기록 정책: 같은 종류(익절/손절/트레일링) 신호는 "의미 있는 변동"이 있을 때만 다시 올린다.
 // - 최소 간격(MIN_RELOG_MS) 안에선 무조건 억제(도배 방지 바닥)
@@ -410,6 +414,20 @@ export function AutoTradePanel({
     holding.averagePrice > 0 &&
     sellQty !== undefined;
 
+  // 체결 우선 지정가 — 판단 시점 현재가에 걸면 상승세에 밀려 미체결되기 쉽다.
+  // 매수는 매도1호가(+버퍼)를 넘겨 즉시 체결을 노리되 판단가 +0.5% 를 상한으로,
+  // 매도는 매수1호가(−버퍼)로 즉시 체결하되 판단가 −0.5% 를 하한으로 캡한다.
+  const marketableBuyPrice = (price: number) => {
+    const ask = asks[0]?.price;
+    const base = ask !== undefined && ask > 0 ? Math.max(ask, price) : price;
+    return Math.min(base * (1 + CROSS_BUFFER_PCT / 100), price * (1 + MAX_CHASE_PCT / 100));
+  };
+  const marketableSellPrice = (price: number) => {
+    const bid = bids[0]?.price;
+    const base = bid !== undefined && bid > 0 ? Math.min(bid, price) : price;
+    return Math.max(base * (1 - CROSS_BUFFER_PCT / 100), price * (1 - MAX_CHASE_PCT / 100));
+  };
+
   const tpPrice =
     hasPosition && holding!.averagePrice
       ? calculateTakeProfitSellPrice(
@@ -538,7 +556,7 @@ export function AutoTradePanel({
             : `고점 $${fmtPrice(hold.peak)} 대비 -${trailPct}%`;
           const label = `익절 매도(전량·추세홀드 종료) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (${why})`;
           fireTrigger(
-            { id: crypto.randomUUID(), kind: 'TP', side: 'SELL', quantity: sellQty, limitPrice: currentPrice, label },
+            { id: crypto.randomUUID(), kind: 'TP', side: 'SELL', quantity: sellQty, limitPrice: marketableSellPrice(currentPrice), label },
             `모의 ${label}`,
             currentPrice,
             sellQty
@@ -573,7 +591,7 @@ export function AutoTradePanel({
       if (shouldFire('TP', currentPrice, sellQty)) {
         const label = `익절 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (목표 +${targetPercent}%)`;
         fireTrigger(
-          { id: crypto.randomUUID(), kind: 'TP', side: 'SELL', quantity: sellQty, limitPrice: currentPrice, label },
+          { id: crypto.randomUUID(), kind: 'TP', side: 'SELL', quantity: sellQty, limitPrice: marketableSellPrice(currentPrice), label },
           `모의 ${label}`,
           currentPrice,
           sellQty
@@ -603,7 +621,7 @@ export function AutoTradePanel({
       if (shouldFire('SL', currentPrice, sellQty)) {
         const label = `손절 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (손절 -${stopLossPercent}%)`;
         fireTrigger(
-          { id: crypto.randomUUID(), kind: 'SL', side: 'SELL', quantity: sellQty, limitPrice: currentPrice, label },
+          { id: crypto.randomUUID(), kind: 'SL', side: 'SELL', quantity: sellQty, limitPrice: marketableSellPrice(currentPrice), label },
           `모의 ${label}`,
           currentPrice,
           sellQty
@@ -647,7 +665,7 @@ export function AutoTradePanel({
       if (shouldFire('TS', currentPrice, sellQty)) {
         const label = `트레일링 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (고점 $${fmtPrice(trailPeak)} 대비 -${trailingStopPercent}%)`;
         fireTrigger(
-          { id: crypto.randomUUID(), kind: 'TS', side: 'SELL', quantity: sellQty, limitPrice: currentPrice, label },
+          { id: crypto.randomUUID(), kind: 'TS', side: 'SELL', quantity: sellQty, limitPrice: marketableSellPrice(currentPrice), label },
           `모의 ${label}`,
           currentPrice,
           sellQty
@@ -783,8 +801,8 @@ export function AutoTradePanel({
           kind: 'BUY',
           side: 'BUY',
           quantity: qty,
-          limitPrice: price,
-          label: `AI 매수 ${symbol} ${qty}주(비중 ${effectivePct}%) @ $${fmtPrice(price)} — ${decision.reason}`,
+          limitPrice: marketableBuyPrice(price),
+          label: `AI 매수 ${symbol} ${qty}주(비중 ${effectivePct}%) @ $${fmtPrice(marketableBuyPrice(price))} — ${decision.reason}`,
           aiHistoryId: historyId,
         };
       }
@@ -799,8 +817,8 @@ export function AutoTradePanel({
         kind: 'TP',
         side: 'SELL',
         quantity: sellQty,
-        limitPrice: currentPrice,
-        label: `AI 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} — ${decision.reason}`,
+        limitPrice: marketableSellPrice(currentPrice),
+        label: `AI 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(marketableSellPrice(currentPrice))} — ${decision.reason}`,
         aiHistoryId: historyId,
       };
     }
