@@ -2730,9 +2730,10 @@ body.is-row-resizing {
   width: 46px;
   height: 26px;
   border-radius: 13px;
-  background: var(--bg-subtle);
-  border: 1px solid var(--border-subtle);
-  transition: background 0.18s ease, border-color 0.18s ease;
+  /* 보더 없는 iOS 풍 — 꺼짐은 회색 필, 켜짐은 세그먼티드 활성색과 동일한 accent 필 */
+  background: color-mix(in srgb, var(--text-secondary) 28%, transparent);
+  border: none;
+  transition: background 0.18s ease;
 }
 .ui-switch__thumb {
   position: absolute;
@@ -2746,14 +2747,14 @@ body.is-row-resizing {
   transition: transform 0.18s ease;
 }
 .ui-switch.is-on .ui-switch__track {
-  background: var(--accent);
-  border-color: var(--accent);
+  /* --accent 는 테마에 미정의(전역이 폴백 사용) — 반드시 폴백 포함 */
+  background: var(--accent, #3182f6);
 }
 .ui-switch.is-on .ui-switch__thumb {
   transform: translateX(20px);
 }
 .ui-switch input[type='checkbox']:focus-visible + .ui-switch__track {
-  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--accent, #3182f6) 60%, transparent);
   outline-offset: 2px;
 }
 
