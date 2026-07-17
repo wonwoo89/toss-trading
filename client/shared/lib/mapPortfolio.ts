@@ -17,7 +17,9 @@ function mapHoldingItemRaw(item: HoldingsItemRaw): HoldingItem {
     (currentPrice !== undefined ? quantity * currentPrice : undefined);
 
   const grossProfitLoss = toNumber(item.profitLoss?.amount);
-  const afterCostProfitLoss = toNumber(item.profitLoss?.amountAfterCost ?? item.profitLoss?.amount);
+  // 비용 반영 손익은 응답에 실제 있을 때만 신뢰한다. 없다고 gross 로 대체해 버리면
+  // costDrag(비용)=0 으로 오해석되어 익절 목표가에 수수료·세금이 전혀 안 잡힌다.
+  const afterCostProfitLoss = toNumber(item.profitLoss?.amountAfterCost);
   const profitLossCostDrag =
     grossProfitLoss !== undefined && afterCostProfitLoss !== undefined
       ? grossProfitLoss - afterCostProfitLoss
@@ -31,7 +33,7 @@ function mapHoldingItemRaw(item: HoldingsItemRaw): HoldingItem {
     currentPrice,
     purchaseAmount,
     marketValue,
-    profitLoss: afterCostProfitLoss,
+    profitLoss: afterCostProfitLoss ?? grossProfitLoss,
     profitLossRate: toNumber(item.profitLoss?.rateAfterCost ?? item.profitLoss?.rate),
     grossProfitLoss,
     profitLossCostDrag,

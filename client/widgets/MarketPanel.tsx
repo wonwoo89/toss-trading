@@ -258,6 +258,7 @@ export function MarketPanel({
             openOrders={openOrders}
             currency={currency}
             usMarketCalendar={usMarketCalendar}
+            commissions={commissions}
           />
         </div>
       )}

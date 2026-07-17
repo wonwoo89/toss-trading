@@ -130,6 +130,11 @@ export function ChartMarketContextPanel({
     [marketCalendar, now]
   );
 
+  const commissionRatePercent = useMemo(
+    () => resolveUsCommissionRatePercent(commissions),
+    [commissions]
+  );
+
   const position = useMemo(
     () =>
       buildHoldingPositionSnapshot({
@@ -137,13 +142,9 @@ export function ChartMarketContextPanel({
         currentPrice,
         profitLossRate,
         targetProfitRatePercent,
+        commissionRatePercent,
       }),
-    [currentPrice, holding, profitLossRate, targetProfitRatePercent]
-  );
-
-  const commissionRatePercent = useMemo(
-    () => resolveUsCommissionRatePercent(commissions),
-    [commissions]
+    [currentPrice, holding, profitLossRate, targetProfitRatePercent, commissionRatePercent]
   );
 
   const dayPriceMetrics = useMemo(

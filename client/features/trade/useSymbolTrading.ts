@@ -637,7 +637,8 @@ export function useSymbolTrading(
         averagePrice,
         sellQuantity,
         profitRatePercent,
-        getTakeProfitCostContext(state.holding)
+        getTakeProfitCostContext(state.holding),
+        resolveUsCommissionRatePercent(commissionsPolling.data ?? undefined)
       );
 
       const createdOrder = unwrapResult(
@@ -662,7 +663,7 @@ export function useSymbolTrading(
         message: `세금·수수료 반영 ${profitRatePercent}% 실수익률 목표가 ${sellPrice.toFixed(2)} USD에 ${sellQuantity}주 매도 주문을 넣었습니다.`,
       };
     },
-    [symbol, accountSeq]
+    [symbol, accountSeq, commissionsPolling.data]
   );
 
   const executePostBuyTakeProfit = useCallback(
