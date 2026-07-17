@@ -142,7 +142,14 @@ export function AutoTradePanel({
 }: AutoTradePanelProps) {
   // 설정은 localStorage 에서 복원(모바일 PWA 재시작 후에도 유지). 변경 시 즉시 저장.
   const [initialSettings] = useState(getAutoTradeSettings);
-  const [mode, setMode] = useState<AutoTradeMode>(initialSettings.mode);
+  // 세미/오토는 켜뒀던 종목에서만 복원 — 다른 종목으로 이동(패널 리마운트)하면 안전을 위해 OFF.
+  const restoredModeBlockedBySymbolChange =
+    (initialSettings.mode === 'auto' || initialSettings.mode === 'semi') &&
+    initialSettings.activeSymbol !== undefined &&
+    initialSettings.activeSymbol !== symbol;
+  const [mode, setMode] = useState<AutoTradeMode>(
+    restoredModeBlockedBySymbolChange ? 'off' : initialSettings.mode
+  );
   const [targetPercent, setTargetPercent] = useState(() =>
     takeProfitRatePercent && takeProfitRatePercent > 0
       ? takeProfitRatePercent
@@ -186,6 +193,8 @@ export function AutoTradePanel({
   useEffect(() => {
     saveAutoTradeSettings({
       mode,
+      // 세미/오토일 때만 현재 종목을 기록 — 종목 변경 시 자동 OFF 판정 기준.
+      activeSymbol: mode === 'auto' || mode === 'semi' ? symbol : undefined,
       useAi,
       targetPercent,
       stopLossPercent,
@@ -193,7 +202,7 @@ export function AutoTradePanel({
       buyMaxPercent,
       dailyLossLimitUsd,
     });
-  }, [mode, useAi, targetPercent, stopLossPercent, trailingStopPercent, buyMaxPercent, dailyLossLimitUsd]);
+  }, [mode, useAi, targetPercent, stopLossPercent, trailingStopPercent, buyMaxPercent, dailyLossLimitUsd, symbol]);
 
   // 로그 영속화 — 새로고침 후에도 감사 기록 유지.
   useEffect(() => {
@@ -257,6 +266,16 @@ export function AutoTradePanel({
         );
       if (!ok) return;
     }
+    // OFF → 재시작: 이전 세션의 로그·신호 스냅샷·AI 판단 이력을 모두 비우고 새로 시작.
+    if (mode === 'off' && next !== 'off') {
+      setLogs([]);
+      lastSignalRef.current = { BUY: null, TP: null, SL: null, TS: null };
+      aiHistoryRef.current = [];
+      setAiHistory([]);
+      setAiDecision(null);
+      pendingRef.current = null;
+      setPending(null);
+    }
     setMode(next);
   };
 
@@ -308,7 +327,13 @@ export function AutoTradePanel({
   useEffect(() => {
     if (restoredNoticeRef.current) return;
     restoredNoticeRef.current = true;
-    if (initialSettings.mode === 'auto' || initialSettings.mode === 'semi') {
+    if (restoredModeBlockedBySymbolChange) {
+      pushLog(
+        'block',
+        'BUY',
+        `종목 변경으로 자동매매 OFF (이전: ${initialSettings.activeSymbol} ${initialSettings.mode === 'auto' ? '오토' : '세미오토'})`
+      );
+    } else if (initialSettings.mode === 'auto' || initialSettings.mode === 'semi') {
       pushLog(
         'trigger',
         'BUY',
