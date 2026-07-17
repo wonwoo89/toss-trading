@@ -11,6 +11,8 @@ export type AutoTradeMode = 'off' | 'dryrun' | 'semi' | 'auto';
 
 export interface AutoTradeSettings {
   mode: AutoTradeMode;
+  /** 세미/오토 모드가 켜져 있던 종목 — 다른 종목으로 이동 시 자동 OFF 판정에 사용. */
+  activeSymbol?: string;
   useAi: boolean;
   targetPercent: number;
   stopLossPercent: number;
@@ -52,6 +54,7 @@ export function getAutoTradeSettings(): AutoTradeSettings {
     const parsed = JSON.parse(raw) as Partial<AutoTradeSettings>;
     return {
       mode: isMode(parsed.mode) ? parsed.mode : AUTO_TRADE_DEFAULTS.mode,
+      activeSymbol: typeof parsed.activeSymbol === 'string' ? parsed.activeSymbol : undefined,
       useAi: typeof parsed.useAi === 'boolean' ? parsed.useAi : AUTO_TRADE_DEFAULTS.useAi,
       targetPercent: numberOr(parsed.targetPercent, AUTO_TRADE_DEFAULTS.targetPercent),
       stopLossPercent: numberOr(parsed.stopLossPercent, AUTO_TRADE_DEFAULTS.stopLossPercent),
