@@ -50,9 +50,9 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
 
   const [interval, setIntervalValue] = useState<CandleInterval>('5m');
   const [forwardBars, setForwardBars] = useState(15);
-  const [targetPct, setTargetPct] = useState(5);
-  const [stopPct, setStopPct] = useState(1);
-  const [costPct, setCostPct] = useState(0.05);
+  const [targetPct, setTargetPct] = useState(1);
+  const [stopPct, setStopPct] = useState(3);
+  const [costPct, setCostPct] = useState(0.2);
 
   const [rows, setRows] = useState<BacktestRow[]>(() => {
     const seeded = holdingsToRows(getCachedHoldings(selectedAccountSeq));
