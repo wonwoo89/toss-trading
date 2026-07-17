@@ -68,23 +68,40 @@ export function StockPage() {
   const { showToast } = useToast();
   const [autoTradeActive, setAutoTradeActive] = useState(false);
   const [autoSubmitting, setAutoSubmitting] = useState(false);
-  const executeAutoOrder = async (side: 'BUY' | 'SELL', quantity: number, limitPrice?: number) => {
-    if (!symbol || autoSubmitting || quantity <= 0) return;
+  const executeAutoOrder = async (
+    side: 'BUY' | 'SELL',
+    quantity: number,
+    limitPrice?: number,
+    orderAmount?: number
+  ) => {
+    const amountBuy = side === 'BUY' && orderAmount !== undefined && orderAmount > 0;
+    if (!symbol || autoSubmitting || (!amountBuy && quantity <= 0)) return;
     const payload: CreateOrderPayload = {
       symbol,
       side,
       orderType: 'LIMIT',
-      quantity,
       clientOrderId: crypto.randomUUID(),
     };
-    // 토스 제약: 소수점 수량 주문은 미국 주식 '시장가 매도'에서만 허용된다.
-    // 정규장 소수점 전량 매도(손절/익절/트레일링/AI 매도)가 지정가로 나가면 거절되므로
-    // 소수점 매도는 시장가로 강제한다(트리거 시점 현재가 부근에서 즉시 체결).
-    const fractionalSell = side === 'SELL' && !Number.isInteger(quantity);
-    if (!fractionalSell && limitPrice !== undefined && Number.isFinite(limitPrice) && limitPrice > 0) {
-      payload.price = floorToTick(limitPrice);
-    } else {
+    if (amountBuy) {
+      // 금액(달러) 시장가 매수 — 배정 금액이 1주 미만일 때의 소수점 매수(토스 지원 경로).
+      payload.orderAmount = orderAmount;
       payload.orderType = 'MARKET';
+    } else {
+      payload.quantity = quantity;
+      // 토스 제약: 소수점 수량 주문은 미국 주식 '시장가 매도'에서만 허용된다.
+      // 정규장 소수점 전량 매도(손절/익절/트레일링/AI 매도)가 지정가로 나가면 거절되므로
+      // 소수점 매도는 시장가로 강제한다(트리거 시점 현재가 부근에서 즉시 체결).
+      const fractionalSell = side === 'SELL' && !Number.isInteger(quantity);
+      if (
+        !fractionalSell &&
+        limitPrice !== undefined &&
+        Number.isFinite(limitPrice) &&
+        limitPrice > 0
+      ) {
+        payload.price = floorToTick(limitPrice);
+      } else {
+        payload.orderType = 'MARKET';
+      }
     }
     setAutoSubmitting(true);
     try {
