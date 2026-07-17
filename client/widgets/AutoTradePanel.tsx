@@ -813,9 +813,7 @@ export function AutoTradePanel({
           value={stopLossPercent}
           onChange={setStopLossPercent}
         />
-      </div>
 
-      <div className="auto-trade__controls">
         <NumberField
           className="auto-trade__field"
           label="트레일링"
