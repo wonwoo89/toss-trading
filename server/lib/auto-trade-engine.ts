@@ -23,7 +23,11 @@ import {
   type PaperSummary,
 } from './paper-portfolio.js';
 import { tossRequest } from './toss-client.js';
-import { getUsMarketSession, type UsMarketSessionKind } from './us-market-session.js';
+import {
+  getUsMarketSession,
+  isTradeableSession,
+  type UsMarketSessionKind,
+} from './us-market-session.js';
 
 /**
  * 서버 백그라운드 자동매매 엔진 — 2단계(드라이런/페이퍼 트레이딩).
@@ -39,7 +43,8 @@ import { getUsMarketSession, type UsMarketSessionKind } from './us-market-sessio
  *
  * 안전:
  *  - 전역 킬스위치(config.enabled=false) 면 어떤 종목도 판단하지 않는다.
- *  - '정규장'에서만 AI를 호출한다 — 프리/애프터는 유동성이 얕고 소수점 주문도 불가하다.
+ *  - 미국장이 열린 세션(데이/프리/정규/애프터)에서만 AI를 호출한다 — 마감/휴장엔 생략.
+ *    (페이퍼 체결은 가상이라 세션별 소수점 제약이 없다)
  *  - 구독(OAuth) 경로는 호출마다 무거운 런타임이 뜨므로 종목을 '순차'로 처리한다.
  */
 
@@ -284,7 +289,7 @@ async function runTick(): Promise<void> {
 
   const session = await getUsMarketSession();
   status.lastTickSession = session;
-  if (session !== 'regular') return; // 정규장 전용 — 프리/애프터/데이마켓·마감·휴장은 판단 생략
+  if (!isTradeableSession(session)) return; // 장 마감/휴장만 생략 — 열린 세션은 모두 판단
 
   ticking = true;
   try {
@@ -338,7 +343,7 @@ export function startAutoTradeEngine(): void {
   if (status.running) return;
   status.running = true;
   scheduleNext();
-  console.log('[auto-trade] 백그라운드 엔진 시작(드라이런) — 정규장 5분봉마다 페이퍼 장부로 판단');
+  console.log('[auto-trade] 백그라운드 엔진 시작(드라이런) — 열린 세션 동안 5분봉마다 페이퍼 장부로 판단');
 }
 
 export function stopAutoTradeEngine(): void {

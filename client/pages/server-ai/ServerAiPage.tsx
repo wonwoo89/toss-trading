@@ -202,9 +202,10 @@ export function ServerAiPage() {
       </div>
 
       <Typography size={14} as="p" className="hint server-ai-intro">
-        브라우저를 꺼도 서버가 <strong>정규장 동안</strong> 5분봉 마감마다 등록 종목을 AI로
-        판단합니다. 현재는 <strong>드라이런 단계</strong>로 실제 주문 없이, 종목마다{' '}
-        <strong>가상 $1,000</strong> 로 모의 매매(수수료 반영)해 수익률을 추적합니다.
+        브라우저를 꺼도 서버가 <strong>미국장이 열려 있는 동안</strong>(데이·프리·정규·애프터)
+        5분봉 마감마다 등록 종목을 AI로 판단합니다. 현재는 <strong>드라이런 단계</strong>로 실제
+        주문 없이, 종목마다 <strong>가상 $1,000</strong> 로 모의 매매(수수료 반영)해 수익률을
+        추적합니다.
       </Typography>
 
       {loadError && <div className="banner error">{loadError}</div>}
@@ -333,7 +334,7 @@ export function ServerAiPage() {
                   if (!paper) {
                     return (
                       <Typography size={12} as="p" className="server-ai-symbol__paper-detail hint">
-                        가상 $1,000 대기 — 엔진의 첫 판단(정규장 5분봉) 이후 수익 상황이 표시됩니다.
+                        가상 $1,000 대기 — 엔진의 첫 판단(장 열림 중 5분봉) 이후 수익 상황이 표시됩니다.
                       </Typography>
                     );
                   }
@@ -412,7 +413,7 @@ export function ServerAiPage() {
         </div>
         {logs.length === 0 ? (
           <Typography size={14} as="p" className="hint">
-            아직 기록이 없습니다. 엔진이 켜져 있고 정규장이 열려 있으면 5분마다 판단이 쌓입니다.
+            아직 기록이 없습니다. 엔진이 켜져 있고 미국장이 열려 있으면 5분마다 판단이 쌓입니다.
           </Typography>
         ) : (
           <ul className="server-ai-logs">
