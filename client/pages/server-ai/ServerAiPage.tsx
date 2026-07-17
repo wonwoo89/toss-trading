@@ -7,6 +7,7 @@ import {
   type AutoSymbolConfig,
   type AutoTradeConfig,
   type AutoTradeLimits,
+  type PaperSummary,
 } from '../../shared/api/client';
 import { Button } from '../../shared/ui/Button';
 import { Switch } from '../../shared/ui/Switch';
@@ -184,6 +185,13 @@ export function ServerAiPage() {
     ? SESSION_LABELS[status.lastTickSession] ?? status.lastTickSession
     : '—';
 
+  // 페이퍼(가상 $1,000) 수익률 — 종목별 뱃지 표시용 맵.
+  const paperBySymbol = useMemo(() => {
+    const map = new Map<string, PaperSummary>();
+    for (const p of status?.paper ?? []) map.set(p.symbol, p);
+    return map;
+  }, [status]);
+
   return (
     <main className="server-ai-page">
       <div className="backtest-head">
@@ -195,8 +203,8 @@ export function ServerAiPage() {
 
       <Typography size={14} as="p" className="hint server-ai-intro">
         브라우저를 꺼도 서버가 <strong>정규장 동안</strong> 5분봉 마감마다 등록 종목을 AI로
-        판단합니다. 현재는 <strong>드라이런 단계</strong>로 판단·계획만 기록하고 실제 주문은 내지
-        않습니다.
+        판단합니다. 현재는 <strong>드라이런 단계</strong>로 실제 주문 없이, 종목마다{' '}
+        <strong>가상 $1,000</strong> 로 모의 매매(수수료 반영)해 수익률을 추적합니다.
       </Typography>
 
       {loadError && <div className="banner error">{loadError}</div>}
@@ -293,7 +301,25 @@ export function ServerAiPage() {
             {draft.symbols.map((s, index) => (
               <li key={s.symbol} className="server-ai-symbol">
                 <div className="server-ai-symbol__head">
-                  <Typography size={14} className="server-ai-symbol__name">{s.symbol}</Typography>
+                  <div className="server-ai-symbol__title">
+                    <Typography size={14} className="server-ai-symbol__name">{s.symbol}</Typography>
+                    {(() => {
+                      const paper = paperBySymbol.get(s.symbol);
+                      if (!paper) return null;
+                      const sign = paper.returnPct > 0 ? '+' : '';
+                      const tone =
+                        paper.returnPct > 0 ? 'is-up' : paper.returnPct < 0 ? 'is-down' : '';
+                      return (
+                        <span
+                          className={`server-ai-symbol__paper ${tone}`}
+                          title={`가상 $1,000 기준 — 평가금 $${paper.equityUsd.toFixed(2)}, 보유 ${paper.quantity}주, 실현 $${paper.realizedPnlUsd.toFixed(2)}`}
+                        >
+                          {sign}
+                          {paper.returnPct.toFixed(2)}%
+                        </span>
+                      );
+                    })()}
+                  </div>
                   <div className="server-ai-symbol__controls">
                     <Switch
                       checked={s.active}
@@ -395,6 +421,14 @@ export function ServerAiPage() {
                   <Typography size={12} as="p" className="server-ai-log__planned">
                     계획(드라이런): {log.planned.side === 'BUY' ? '매수' : '매도'}{' '}
                     {log.planned.quantity}주 — {log.planned.note}
+                  </Typography>
+                )}
+                {log.paper?.fill && (
+                  <Typography size={12} as="p" className="server-ai-log__paper">
+                    가상 체결: {log.paper.fill.side === 'BUY' ? '매수' : '매도'}{' '}
+                    {log.paper.fill.quantity}주 @ ${log.paper.fill.price} — 가상 수익률{' '}
+                    {log.paper.returnPct > 0 ? '+' : ''}
+                    {log.paper.returnPct.toFixed(2)}%
                   </Typography>
                 )}
               </li>

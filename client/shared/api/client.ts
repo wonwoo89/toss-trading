@@ -104,6 +104,19 @@ export interface AutoTradeLimits {
   candleInterval: string;
 }
 
+/** 페이퍼(가상 $1,000/종목) 포트폴리오 요약 — 드라이런 수익률 표시용. */
+export interface PaperSummary {
+  symbol: string;
+  cash: number;
+  quantity: number;
+  averagePrice: number;
+  realizedPnlUsd: number;
+  lastPrice: number;
+  updatedAt: number;
+  equityUsd: number;
+  returnPct: number;
+}
+
 export interface AutoEngineStatus {
   running: boolean;
   mode: 'dry-run';
@@ -116,6 +129,7 @@ export interface AutoEngineStatus {
   nextTickAt: number | null;
   lastError: string | null;
   candleInterval: string;
+  paper: PaperSummary[];
 }
 
 export interface AutoLogEntry {
@@ -131,6 +145,11 @@ export interface AutoLogEntry {
   currentPrice: number;
   position?: { quantity: number; averagePrice: number; profitLossPct?: number };
   planned?: { side: 'BUY' | 'SELL'; quantity: number; note: string };
+  paper?: {
+    fill?: { side: 'BUY' | 'SELL'; quantity: number; price: number };
+    returnPct: number;
+    equityUsd: number;
+  };
   model: string;
 }
 

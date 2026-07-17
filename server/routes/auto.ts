@@ -7,6 +7,7 @@ import {
   saveAutoTradeConfig,
 } from '../lib/auto-trade-config.js';
 import { getAutoEngineLogs, getAutoEngineStatus } from '../lib/auto-trade-engine.js';
+import { prunePaperPortfolio } from '../lib/paper-portfolio.js';
 
 export const autoRouter = Router();
 
@@ -27,6 +28,8 @@ autoRouter.get('/config', (_req, res) => {
 /** 설정 저장(전체 교체). 서버가 상한·중복·범위를 정규화해 되돌려준다. */
 autoRouter.put('/config', (req, res) => {
   const config = saveAutoTradeConfig(req.body);
+  // 설정에서 빠진 종목의 페이퍼 장부는 정리 — 다시 추가하면 새 $1,000 로 시작.
+  prunePaperPortfolio(config.symbols.map((s) => s.symbol));
   res.json({ result: { config } });
 });
 

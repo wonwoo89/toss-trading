@@ -4989,3 +4989,36 @@ input[type='checkbox']:focus-visible {
     grid-template-columns: 1fr;
   }
 }
+
+/* 페이퍼(가상 $1,000) 수익률 뱃지 — 종목 이름 옆 */
+.server-ai-symbol__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.server-ai-symbol__paper {
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 0.05rem 0.4rem;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  background: var(--bg-subtle, rgba(128, 128, 128, 0.12));
+}
+
+.server-ai-symbol__paper.is-up {
+  color: var(--color-up);
+  background: var(--color-up-bg);
+}
+
+.server-ai-symbol__paper.is-down {
+  color: var(--color-down);
+  background: var(--color-down-bg);
+}
+
+.server-ai-log__paper {
+  margin: 0;
+  color: var(--text-secondary);
+}
