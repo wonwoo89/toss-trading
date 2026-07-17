@@ -1,3 +1,4 @@
+import { exec } from 'node:child_process';
 import Anthropic from '@anthropic-ai/sdk';
 
 /**
@@ -319,12 +320,24 @@ const SUBSCRIPTION_HARD_TIMEOUT_MS = AGENT_SDK_TIMEOUT_MS + 15_000;
 let pendingSubscriptionCalls = 0;
 let subscriptionChain: Promise<unknown> = Promise.resolve();
 
+/**
+ * 매달린 Claude Code 런타임(네이티브 'claude' 바이너리, 개당 수백 MB) 강제 정리.
+ * abort 가 안 먹은 좀비가 누적되면 인스턴스 메모리가 고갈돼 서버 전체가 먹통이 된다(실제 장애).
+ * 구독 호출은 직렬 실행이라 이 시점에 떠 있는 claude 프로세스는 매달린 호출(+이전 좀비)뿐이다.
+ * 정리 후 잠시 기다렸다가 폴백을 돌려 다음 호출이 새 프로세스와 경합하지 않게 한다.
+ */
+function killStaleClaudeRuntimes(onDone: () => void): void {
+  exec('pkill -9 -x claude', () => setTimeout(onDone, 500));
+}
+
 /** 실행 하드 타임아웃 — 내부 abort 실패로 스트림이 안 끝나도 폴백으로 정리(never-reject). */
 function runWithHardTimeout(req: AiDecisionRequest): Promise<AiDecision> {
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
-      console.error('[ai] 구독 호출 무응답 — 하드 타임아웃으로 슬롯 회수(런타임 프로세스 잔존 가능)');
-      resolve(holdFallback('AI 호출 무응답(하드 타임아웃) — 보류'));
+      console.error('[ai] 구독 호출 무응답 — 하드 타임아웃: 런타임 프로세스 정리 후 슬롯 회수');
+      killStaleClaudeRuntimes(() =>
+        resolve(holdFallback('AI 호출 무응답(하드 타임아웃) — 보류'))
+      );
     }, SUBSCRIPTION_HARD_TIMEOUT_MS);
     decideViaSubscription(req).then(
       (value) => {
