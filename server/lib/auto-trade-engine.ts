@@ -15,7 +15,7 @@ import { aggregateCandles, getRequiredSourceCount, type AggregatedCandle } from 
 import { computeSignal, computeTrend } from './candle-signals.js';
 import { fetchSourceCandles } from './fetch-source-candles.js';
 import { getDefaultAccountSeq, tossRequest } from './toss-client.js';
-import { getUsMarketSession, isTradeableSession, type UsMarketSessionKind } from './us-market-session.js';
+import { getUsMarketSession, type UsMarketSessionKind } from './us-market-session.js';
 
 /**
  * 서버 백그라운드 자동매매 엔진 — 2단계(드라이런).
@@ -26,7 +26,7 @@ import { getUsMarketSession, isTradeableSession, type UsMarketSessionKind } from
  *
  * 안전:
  *  - 전역 킬스위치(config.enabled=false) 면 어떤 종목도 판단하지 않는다.
- *  - 미국장이 열린 세션(데이/프리/정규/애프터)에서만 AI를 호출한다(마감 중엔 호출 낭비 방지).
+ *  - '정규장'에서만 AI를 호출한다 — 프리/애프터는 유동성이 얕고 소수점 주문도 불가하다.
  *  - 구독(OAuth) 경로는 호출마다 무거운 런타임이 뜨므로 종목을 '순차'로 처리한다.
  */
 
@@ -73,6 +73,7 @@ export interface AutoEngineStatus {
 }
 
 interface AccountContext {
+  accountSeq: string;
   buyingPower?: number;
   holdings: Map<string, { quantity: number; averagePrice: number }>;
 }
@@ -133,8 +134,29 @@ function toAiCandle(c: AggregatedCandle): AiDecisionCandle {
   };
 }
 
+/**
+ * 계좌 번호 해석 — .env(TOSS_ACCOUNT_SEQ) 우선, 없으면 계좌 목록을 조회해 첫 계좌를 쓴다
+ * (개인용 단일 계좌 전제). 브라우저 요청과 달리 엔진에는 X-Account-Seq 헤더 컨텍스트가
+ * 없어서, 이 해석 없이는 계좌 API 가 "x-tossinvest-account 헤더가 필요합니다"로 실패한다.
+ */
+let cachedAccountSeq: string | null = null;
+async function resolveAccountSeq(): Promise<string> {
+  const fromEnv = getDefaultAccountSeq();
+  if (fromEnv) return fromEnv;
+  if (cachedAccountSeq) return cachedAccountSeq;
+  const res = await tossRequest<{ result?: { accountSeq?: number | string }[] }>({
+    path: '/api/v1/accounts',
+  });
+  const first = res.result?.[0]?.accountSeq;
+  if (first === undefined || first === null || String(first) === '') {
+    throw new Error('계좌를 찾지 못했습니다(TOSS_ACCOUNT_SEQ 미설정 + 계좌 목록 비어 있음)');
+  }
+  cachedAccountSeq = String(first);
+  return cachedAccountSeq;
+}
+
 async function fetchAccountContext(): Promise<AccountContext> {
-  const accountSeq = getDefaultAccountSeq();
+  const accountSeq = await resolveAccountSeq();
   const [bpRes, holdingsRes] = await Promise.all([
     tossRequest<{ result: { cashBuyingPower?: string } }>({
       path: '/api/v1/buying-power',
@@ -155,7 +177,7 @@ async function fetchAccountContext(): Promise<AccountContext> {
       averagePrice: Number(item.averagePurchasePrice),
     });
   }
-  return { buyingPower: Number.isFinite(bp) ? bp : undefined, holdings };
+  return { accountSeq, buyingPower: Number.isFinite(bp) ? bp : undefined, holdings };
 }
 
 /** 드라이런 계획 산출 — 실제 주문은 하지 않고 "실행됐다면" 수량만 계산해 로그에 남긴다. */
@@ -199,7 +221,7 @@ async function evaluateSymbol(
   session: UsMarketSessionKind
 ): Promise<void> {
   const symbol = symCfg.symbol;
-  const accountSeq = getDefaultAccountSeq();
+  const accountSeq = account.accountSeq;
 
   // 1) 5분봉 — 1분봉을 받아 서버에서 집계.
   const sourceCount = getRequiredSourceCount(AUTO_CANDLE_INTERVAL, CANDLE_TARGET);
@@ -365,7 +387,7 @@ async function runTick(): Promise<void> {
 
   const session = await getUsMarketSession();
   status.lastTickSession = session;
-  if (!isTradeableSession(session)) return; // 장 마감/휴장 — AI 호출 생략
+  if (session !== 'regular') return; // 정규장 전용 — 프리/애프터/데이마켓·마감·휴장은 판단 생략
 
   ticking = true;
   try {

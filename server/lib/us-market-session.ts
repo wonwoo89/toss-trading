@@ -90,8 +90,3 @@ export async function getUsMarketSession(now = Date.now()): Promise<UsMarketSess
   // 진행 중인 세션이 없다 — 오늘 세션 자체가 없으면 휴장, 있으면 장 마감(개장 전/후).
   return dayHasAnySession(calendar.today) ? 'closed' : 'holiday';
 }
-
-/** 거래 가능한(열려 있는) 세션인지 — 데이/프리/정규/애프터 마켓은 모두 매매 가능. */
-export function isTradeableSession(kind: UsMarketSessionKind): boolean {
-  return kind === 'day' || kind === 'pre' || kind === 'regular' || kind === 'after';
-}
