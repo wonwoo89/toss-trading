@@ -189,6 +189,7 @@ export function AutoTradePanel({
   const trailPeakRef = useRef<number | null>(null);
   // 손절 생략(보유 ≤1주) 로그를 에피소드당 1회로 제한하는 플래그.
   const slSkipLoggedRef = useRef(false);
+  const tpSkipLoggedRef = useRef(false);
   pendingRef.current = pending;
 
   // 설정 영속화 — 어떤 값이든 바뀌면 저장.
@@ -456,6 +457,15 @@ export function AutoTradePanel({
   useEffect(() => {
     if (!active) return;
     if (tpReached && sellQty !== undefined && currentPrice !== undefined) {
+      // 오토 모드 가드: 실제 보유 수량이 1주 이하이면 익절 매도를 실행하지 않는다(손절과 동일).
+      // 생략 로그는 이 익절 에피소드당 1회만(도배 방지).
+      if (mode === 'auto' && (holding?.quantity ?? 0) <= 1) {
+        if (!tpSkipLoggedRef.current) {
+          tpSkipLoggedRef.current = true;
+          pushLog('block', 'SELL', `익절 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
+        }
+        return;
+      }
       if (shouldFire('TP', currentPrice, sellQty)) {
         const label = `익절 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (목표 +${targetPercent}%)`;
         fireTrigger(
@@ -467,6 +477,7 @@ export function AutoTradePanel({
       }
     } else {
       lastSignalRef.current.TP = null;
+      tpSkipLoggedRef.current = false; // 익절 조건 해소 → 다음 에피소드에서 다시 1회 안내
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mode, isTabVisible, tpReached, sellQty, currentPrice, symbol, targetPercent]);
