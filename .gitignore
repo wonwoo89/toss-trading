@@ -26,3 +26,4 @@ public/_icon-source.svg
 *.njsproj
 *.sln
 *.sw?
+server/data/auto-trade-config.json
