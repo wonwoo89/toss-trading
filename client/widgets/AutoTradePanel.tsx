@@ -55,6 +55,8 @@ interface AutoTradePanelProps {
     limitPrice?: number,
     orderAmount?: number
   ) => void;
+  /** 미체결 주문 취소 — 가격 이탈로 잡히지 않는 자동 지정가 주문을 정리하고 재판단하기 위함. */
+  onCancelOrder?: (orderId: string) => Promise<void> | void;
   /** 세미오토/오토(실주문 모드) 활성 여부 변경 알림 — OrderForm 이 주문 입력 영역을 숨기는 데 사용. */
   onExecModeChange?: (active: boolean) => void;
   /** 모바일(좁은 폭) 여부 — 화면 꺼짐/백그라운드 시 멈춤 안내를 노출하기 위함. */
@@ -111,6 +113,10 @@ const MAX_LOG = 40;
 const MAX_AI_HISTORY = 10;
 /** 추세 홀드 중 고점 대비 허용 하락(%) — 트레일링 설정이 0(끔)일 때의 기본값. */
 const TP_HOLD_TRAIL_PCT = 0.5;
+/** 미체결 자동 취소: 이 시간 이상 미체결이고(90s)… */
+const STALE_UNFILLED_MS = 90_000;
+/** …가격이 지정가에서 불리한 방향으로 이 % 이상 이탈했으면 취소 후 재판단. */
+const STALE_PRICE_AWAY_PCT = 0.2;
 const COOLDOWN_MS = 30_000; // 연속 실행 최소 간격(오토). 손절 반응성을 위해 60→30s 로 단축.
 // 트리거 재기록 정책: 같은 종류(익절/손절/트레일링) 신호는 "의미 있는 변동"이 있을 때만 다시 올린다.
 // - 최소 간격(MIN_RELOG_MS) 안에선 무조건 억제(도배 방지 바닥)
@@ -157,6 +163,7 @@ export function AutoTradePanel({
   currency = 'USD',
   usMarketCalendar,
   commissions = [],
+  onCancelOrder,
 }: AutoTradePanelProps) {
   // 설정은 localStorage 에서 복원(모바일 PWA 재시작 후에도 유지). 변경 시 즉시 저장.
   const [initialSettings] = useState(getAutoTradeSettings);
@@ -222,6 +229,10 @@ export function AutoTradePanel({
   const trailPeakRef = useRef<number | null>(null);
   // 추세 홀드 상태 — 목표 도달 후 매도를 보류 중이면 고점을 담는다(null=홀드 아님).
   const tpHoldRef = useRef<{ peak: number } | null>(null);
+  // AI 매매(오토) 활성 시각 — 그 이후 접수된 주문만 미체결 자동 취소 대상(수동 주문 보호).
+  const autoSinceRef = useRef<number | null>(null);
+  // 이미 취소 요청한 주문 id — 폴링 반영 지연 동안 중복 취소 방지.
+  const cancelRequestedRef = useRef<Set<string>>(new Set());
   // 손절 생략(보유 ≤1주) 로그를 에피소드당 1회로 제한하는 플래그.
   const slSkipLoggedRef = useRef(false);
   const tpSkipLoggedRef = useRef(false);
@@ -647,6 +658,56 @@ export function AutoTradePanel({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mode, isTabVisible, hasPosition, tpReached, slReached, sellQty, currentPrice, symbol, trailingStopPercent]);
+
+  // AI 매매(오토) 활성 시각 기록 — 이후 접수된 주문만 미체결 자동 취소 대상.
+  useEffect(() => {
+    if (mode === 'auto') {
+      autoSinceRef.current ??= Date.now();
+    } else {
+      autoSinceRef.current = null;
+      cancelRequestedRef.current.clear();
+    }
+  }, [mode]);
+
+  // 미체결 자동 취소 — 자동 지정가 주문이 오래(90s+) 미체결이고 가격이 불리한 방향으로
+  // 이탈(매수: 급등, 매도: 급락)했으면 취소한다. 미체결이 사라지면 다음 AI 트리거에서
+  // "미체결 중복 진입 금지" 제약 없이 새로 판단한다.
+  useEffect(() => {
+    if (mode !== 'auto' || !onCancelOrder) return;
+    const since = autoSinceRef.current;
+    if (since === null || currentPrice === undefined || currentPrice <= 0) return;
+
+    const now = Date.now();
+    for (const order of openOrders) {
+      if (order.symbol?.toUpperCase() !== symbol.toUpperCase()) continue;
+      if (order.orderType !== 'LIMIT' || order.price === undefined || order.price <= 0) continue;
+      if (!order.orderedAt) continue;
+      if (cancelRequestedRef.current.has(order.orderId)) continue;
+      const orderedAtMs = new Date(order.orderedAt).getTime();
+      if (!Number.isFinite(orderedAtMs) || orderedAtMs < since) continue; // 오토 이전 주문(수동) 보호
+      if (now - orderedAtMs < STALE_UNFILLED_MS) continue;
+      const away = STALE_PRICE_AWAY_PCT / 100;
+      const priceRanAway =
+        order.side === 'BUY'
+          ? currentPrice >= order.price * (1 + away)
+          : currentPrice <= order.price * (1 - away);
+      if (!priceRanAway) continue;
+
+      cancelRequestedRef.current.add(order.orderId);
+      const label = `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity ?? '-'}주 @ $${fmtPrice(order.price)} — 가격 이탈(현재 $${fmtPrice(currentPrice)}), 다음 트리거에서 재판단`;
+      void Promise.resolve(onCancelOrder(order.orderId))
+        .then(() => pushLog('exec', order.side, label))
+        .catch((err: unknown) => {
+          cancelRequestedRef.current.delete(order.orderId);
+          pushLog(
+            'block',
+            order.side,
+            `미체결 취소 실패(이미 체결됐을 수 있음): ${err instanceof Error ? err.message : '오류'}`
+          );
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, openOrders, currentPrice, symbol]);
 
   // ── AI 판단 이력 관리 ─────────────────────────────────────────
   const pushAiHistory = (decision: AiDecision): string => {
