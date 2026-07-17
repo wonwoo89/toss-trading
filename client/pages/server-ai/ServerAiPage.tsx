@@ -48,7 +48,7 @@ function unwrap<T>(res: { result: T }): T {
 const EMPTY_CONFIG: AutoTradeConfig = { enabled: false, dailyLossLimitUsd: 0, symbols: [] };
 
 /**
- * 서버 AI 매매 페이지 — 백그라운드(브라우저 불필요) 자동매매 엔진의 관리·모니터링 화면.
+ * 백그라운드 AI 매매 페이지 — 서버 상주(브라우저 불필요) 자동매매 엔진의 관리·모니터링 화면.
  * 현재 엔진은 드라이런: 판단·계획만 기록하고 실주문은 내지 않는다.
  */
 export function ServerAiPage() {
@@ -135,7 +135,7 @@ export function ServerAiPage() {
   const toggleEnabled = (nextEnabled: boolean) => {
     void persist(
       { ...savedConfig, enabled: nextEnabled },
-      nextEnabled ? '서버 AI 매매를 켰습니다.' : '서버 AI 매매를 껐습니다(전 종목 정지).'
+      nextEnabled ? '백그라운드 AI 매매를 켰습니다.' : '백그라운드 AI 매매를 껐습니다(전 종목 정지).'
     );
   };
 
@@ -195,7 +195,7 @@ export function ServerAiPage() {
   return (
     <main className="server-ai-page">
       <div className="backtest-head">
-        <Typography size={18} as="h1">서버 AI 매매</Typography>
+        <Typography size={18} as="h1">백그라운드 AI 매매</Typography>
         <Link to="/" className="backtest-back">
           ← 트레이딩으로
         </Link>
@@ -221,7 +221,7 @@ export function ServerAiPage() {
               checked={savedConfig.enabled}
               onChange={toggleEnabled}
               disabled={saving}
-              aria-label="서버 AI 매매 전체 켜기/끄기 (킬스위치)"
+              aria-label="백그라운드 AI 매매 전체 켜기/끄기 (킬스위치)"
             />
           </div>
         </div>
