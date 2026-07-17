@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import cors from 'cors';
 import express from 'express';
 import { getLastAuthError, getTokenCacheStatus, warmUpAuth } from './lib/auth.js';
+import { startAutoTradeEngine } from './lib/auto-trade-engine.js';
 import { warmUpStockSearchIndex } from './lib/stock-search.js';
 import { TossApiError } from './lib/toss-client.js';
 import { accountRouter } from './routes/account.js';
@@ -121,6 +122,8 @@ app.listen(port, () => {
     })
     .then(() => {
       console.log('Stock search index ready');
+      // 인증 준비 후 백그라운드 자동매매 엔진 시작(드라이런). 브라우저 없이도 5분봉마다 판단.
+      startAutoTradeEngine();
     })
     .catch((error: unknown) => {
       const message = error instanceof Error ? error.message : 'Unknown auth error';

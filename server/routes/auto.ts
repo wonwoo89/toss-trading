@@ -6,6 +6,7 @@ import {
   getAutoTradeConfig,
   saveAutoTradeConfig,
 } from '../lib/auto-trade-config.js';
+import { getAutoEngineLogs, getAutoEngineStatus } from '../lib/auto-trade-engine.js';
 
 export const autoRouter = Router();
 
@@ -27,4 +28,15 @@ autoRouter.get('/config', (_req, res) => {
 autoRouter.put('/config', (req, res) => {
   const config = saveAutoTradeConfig(req.body);
   res.json({ result: { config } });
+});
+
+/** 백그라운드 엔진 현재 상태 — 클라이언트가 동작 여부·다음 틱·활성 종목을 확인. */
+autoRouter.get('/status', (_req, res) => {
+  res.json({ result: getAutoEngineStatus() });
+});
+
+/** 엔진 판단 로그(최근→과거). 드라이런 판단·계획을 클라이언트에서 열람. */
+autoRouter.get('/logs', (req, res) => {
+  const limit = req.query.limit ? Math.min(Number(req.query.limit), 300) : 100;
+  res.json({ result: getAutoEngineLogs(Number.isFinite(limit) ? limit : 100) });
 });
