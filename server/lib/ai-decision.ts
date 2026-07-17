@@ -308,17 +308,48 @@ async function decideViaSubscription(req: AiDecisionRequest): Promise<AiDecision
  * 구독 경로 동시 실행 제한 — 호출마다 Claude Code 런타임 프로세스(수백 MB)가 뜨므로
  * 저사양 인스턴스 보호를 위해 항상 1개씩 순차 실행한다. 대기열이 가득 차면
  * 즉시 HOLD 폴백(봉이 이미 지나간 뒤의 늦은 판단은 가치가 없다).
+ *
+ * 슬롯 누수 방지: abort 가 스트림을 끝내지 못해 호출이 영원히 매달리면 슬롯이
+ * 반환되지 않아 이후 모든 판단이 "동시 요청 초과"로 즉시 거절된다(실제 발생).
+ * 실행 단계에 하드 타임아웃을 걸어 어떤 경우에도 슬롯이 회수되게 한다.
  */
-const MAX_PENDING_SUBSCRIPTION_CALLS = 2; // 실행 중 1 + 대기 1
+const MAX_PENDING_SUBSCRIPTION_CALLS = 4; // 실행 중 1 + 대기 3(서버 엔진 2종목 + 클라이언트 여유)
+/** 실행 시작 후 이 시간 안에 무조건 결론(폴백 포함) — SDK 타임아웃 + 여유. */
+const SUBSCRIPTION_HARD_TIMEOUT_MS = AGENT_SDK_TIMEOUT_MS + 15_000;
 let pendingSubscriptionCalls = 0;
 let subscriptionChain: Promise<unknown> = Promise.resolve();
 
+/** 실행 하드 타임아웃 — 내부 abort 실패로 스트림이 안 끝나도 폴백으로 정리(never-reject). */
+function runWithHardTimeout(req: AiDecisionRequest): Promise<AiDecision> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.error('[ai] 구독 호출 무응답 — 하드 타임아웃으로 슬롯 회수(런타임 프로세스 잔존 가능)');
+      resolve(holdFallback('AI 호출 무응답(하드 타임아웃) — 보류'));
+    }, SUBSCRIPTION_HARD_TIMEOUT_MS);
+    decideViaSubscription(req).then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        resolve(
+          holdFallback(
+            `AI 호출 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'} — 보류`
+          )
+        );
+      }
+    );
+  });
+}
+
 function queueSubscriptionDecision(req: AiDecisionRequest): Promise<AiDecision> {
   if (pendingSubscriptionCalls >= MAX_PENDING_SUBSCRIPTION_CALLS) {
+    console.error(`[ai] 구독 대기열 초과(pending=${pendingSubscriptionCalls}) — 보류 폴백`);
     return Promise.resolve(holdFallback('AI 판단 동시 요청 초과 — 보류'));
   }
   pendingSubscriptionCalls += 1;
-  const run = () => decideViaSubscription(req);
+  const run = () => runWithHardTimeout(req);
   const result = subscriptionChain.then(run, run).finally(() => {
     pendingSubscriptionCalls -= 1;
   });
