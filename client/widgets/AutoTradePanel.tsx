@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { NumberField } from './NumberField';
 import { Button } from '../shared/ui/Button';
-import { Checkbox } from '../shared/ui/Checkbox';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
 import { Typography } from '../shared/ui/Typography';
 import {
@@ -111,7 +110,7 @@ const AI_PRICE_MOVE_PCT = 0.3;
  *  - OFF: 비활성(킬 스위치)
  *  - 드라이런: AI 판단·익절/손절/트레일링 신호를 감지해 "했을 주문"을 기록만(실주문 X)
  *  - 세미오토: 트리거 시 대기 카드 노출 → 사용자가 '실행' 탭해야 실제 주문(확인 탭 필수)
- *  - 오토: 트리거 + 가드 통과 시 확인 없이 자동 실주문(켤 때 확인, 탭 숨김 시 일시정지)
+ *  - AI 매매(auto): AI 판단 + 가드 통과 시 확인 없이 자동 실주문(켤 때 확인, 탭 숨김 시 일시정지)
  *
  * 매수 진입은 AI 판단(useAi)으로만 이루어지고, 익절/손절/트레일링 보호 매도는 항상 동작한다.
  * 설정(모드·비율·한도)과 로그는 localStorage 에 영속돼 새로고침 후에도 유지된다.
@@ -161,7 +160,8 @@ export function AutoTradePanel({
   );
   const [buyMaxPercent, setBuyMaxPercent] = useState(initialSettings.buyMaxPercent);
   const [dailyLossLimitUsd, setDailyLossLimitUsd] = useState(initialSettings.dailyLossLimitUsd);
-  const [useAi, setUseAi] = useState(initialSettings.useAi);
+  // 매수는 항상 AI 판단으로만 이루어진다(오토=AI 매매 모드). 별도 토글 없음.
+  const useAi = true;
   const [dailyRealizedUsd, setDailyRealizedUsd] = useState(getDailyRealizedUsd);
 
   const [logs, setLogs] = useState<LogEntry[]>(loadAutoTradeLogs);
@@ -255,14 +255,14 @@ export function AutoTradePanel({
   };
   const closeTip = () => setTipPos(null);
 
-  // 오토 모드 켜기는 실수 방지를 위해 명시적 확인을 받는다.
+  // AI 매매 모드 켜기는 실수 방지를 위해 명시적 확인을 받는다.
   const selectMode = (next: AutoTradeMode) => {
     if (next === mode) return;
     if (next === 'auto') {
       const ok =
         typeof window !== 'undefined' &&
         window.confirm(
-          '오토 모드를 켭니다.\n트리거 발생 시 확인 없이 자동으로 실제 주문이 나갑니다(취소 없음).\n탭을 가리면 일시정지되고, 끄려면 OFF 를 누르면 됩니다.\n계속할까요?'
+          'AI 매매 모드를 켭니다.\nAI 판단에 따라 확인 없이 자동으로 실제 매수/매도 주문이 나갑니다(취소 없음).\n탭을 가리면 일시정지되고, 끄려면 OFF 를 누르면 됩니다.\n계속할까요?'
         );
       if (!ok) return;
     }
@@ -331,13 +331,13 @@ export function AutoTradePanel({
       pushLog(
         'block',
         'BUY',
-        `종목 변경으로 자동매매 OFF (이전: ${initialSettings.activeSymbol} ${initialSettings.mode === 'auto' ? '오토' : '세미오토'})`
+        `종목 변경으로 자동매매 OFF (이전: ${initialSettings.activeSymbol} ${initialSettings.mode === 'auto' ? 'AI 매매' : '세미오토'})`
       );
     } else if (initialSettings.mode === 'auto' || initialSettings.mode === 'semi') {
       pushLog(
         'trigger',
         'BUY',
-        `설정 복원: ${initialSettings.mode === 'auto' ? '오토' : '세미오토'} 모드로 재시작됨 (끄려면 OFF)`
+        `설정 복원: ${initialSettings.mode === 'auto' ? 'AI 매매' : '세미오토'} 모드로 재시작됨 (끄려면 OFF)`
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -791,7 +791,7 @@ export function AutoTradePanel({
             { value: 'off', label: 'OFF' },
             { value: 'dryrun', label: '드라이런' },
             { value: 'semi', label: '세미오토' },
-            { value: 'auto', label: '오토', activeClassName: 'is-danger' },
+            { value: 'auto', label: 'AI 매매', activeClassName: 'is-danger' },
           ]}
         />
       </div>
@@ -812,13 +812,6 @@ export function AutoTradePanel({
           min={0.1}
           value={stopLossPercent}
           onChange={setStopLossPercent}
-        />
-        <Checkbox
-          className="auto-trade__ai-toggle"
-          title="AI(LLM)가 봉 마감·의미있는 변동 시 매수/매도/관망을 판단합니다. 손절·쿨다운 등 가드는 그대로 적용됩니다."
-          label="AI 판단"
-          checked={useAi}
-          onChange={setUseAi}
         />
       </div>
 
@@ -860,8 +853,7 @@ export function AutoTradePanel({
         </Typography>
       )}
 
-      {useAi && (
-        <div className="auto-trade__ai">
+      <div className="auto-trade__ai">
           <Typography size={12} className="auto-trade__ai-head">
             🤖 AI {aiLoading ? '판단 중…' : aiDecision ? '' : '대기'}
           </Typography>
@@ -892,8 +884,7 @@ export function AutoTradePanel({
               </ul>
             </details>
           )}
-        </div>
-      )}
+      </div>
 
       {isMobile && active && (
         <Typography as="p" size={12} className="auto-trade__mobile-hint">
@@ -964,7 +955,7 @@ export function AutoTradePanel({
           <br />
           <Typography as="b" size={12}>세미오토</Typography> 트리거 시 “실행” 탭해야 실주문
           <br />
-          <Typography as="b" size={12}>오토</Typography> 트리거 시 확인 없이 자동 실주문
+          <Typography as="b" size={12}>AI 매매</Typography> AI 판단으로 확인 없이 자동 실주문
           <br />
           매수는 AI 판단 전용. 익절=목표 도달, 손절=손절률 도달, 트레일링=고점 대비 하락 시 전량 매도.
           일일 손실 한도 도달 시 강제 OFF. 쿨다운(30s)·탭 숨김 일시정지로 보호. 현재 종목만.
