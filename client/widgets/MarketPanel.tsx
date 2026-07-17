@@ -75,6 +75,8 @@ interface MarketPanelProps {
     limitPrice?: number,
     orderAmount?: number
   ) => void;
+  /** 자동매매 미체결 취소(가격 이탈 시) — StockPage 의 cancelOrder 직결. */
+  onAutoCancelOrder?: (orderId: string) => Promise<void> | void;
   /** 자동매매 주문 제출 중 여부. */
   autoSubmitting?: boolean;
   /** 세미오토/오토 활성 여부 변경 알림 — 주문폼의 수동 주문 잠금에 사용. */
@@ -112,6 +114,7 @@ export function MarketPanel({
   realtimePollingForced = false,
   onRealtimePollingForcedChange,
   onAutoExecute,
+  onAutoCancelOrder,
   autoSubmitting = false,
   onAutoExecModeChange,
 }: MarketPanelProps) {
@@ -264,6 +267,7 @@ export function MarketPanel({
             currency={currency}
             usMarketCalendar={usMarketCalendar}
             commissions={commissions}
+            onCancelOrder={onAutoCancelOrder}
           />
         </div>
       )}

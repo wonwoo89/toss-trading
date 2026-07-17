@@ -207,6 +207,7 @@ export function StockPage() {
                 {...marketPanelProps}
                 symbol={symbol}
                 onAutoExecute={executeAutoOrder}
+                onAutoCancelOrder={cancelOrder}
                 autoSubmitting={autoSubmitting}
                 onAutoExecModeChange={setAutoTradeActive}
               />
