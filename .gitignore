@@ -27,3 +27,4 @@ public/_icon-source.svg
 *.sln
 *.sw?
 server/data/auto-trade-config.json
+server/data/paper-portfolio.json

@@ -14,6 +14,14 @@ import {
 import { aggregateCandles, getRequiredSourceCount, type AggregatedCandle } from './candle-aggregate.js';
 import { computeSignal, computeTrend } from './candle-signals.js';
 import { fetchSourceCandles } from './fetch-source-candles.js';
+import {
+  applyPaperDecision,
+  getPaperSummaries,
+  getPaperSummary,
+  markPaperPrice,
+  type PaperFill,
+  type PaperSummary,
+} from './paper-portfolio.js';
 import { getDefaultAccountSeq, tossRequest } from './toss-client.js';
 import { getUsMarketSession, type UsMarketSessionKind } from './us-market-session.js';
 
@@ -55,6 +63,8 @@ export interface AutoLogEntry {
   position?: { quantity: number; averagePrice: number; profitLossPct?: number };
   /** 드라이런: 실제 주문 대신 "실행됐다면" 계획. 3단계에서 실주문으로 승격. */
   planned?: AutoPlannedOrder;
+  /** 페이퍼(가상 $1,000) 체결 결과 — 체결됐을 때만 fill 이 있고, 수익률은 항상 기록. */
+  paper?: { fill?: PaperFill; returnPct: number; equityUsd: number };
   model: string;
 }
 
@@ -70,6 +80,8 @@ export interface AutoEngineStatus {
   nextTickAt: number | null;
   lastError: string | null;
   candleInterval: string;
+  /** 페이퍼(가상 $1,000/종목) 포트폴리오 현황 — 클라이언트 수익률 표시용. */
+  paper: PaperSummary[];
 }
 
 interface AccountContext {
@@ -95,7 +107,7 @@ let ticking = false;
 let logSeq = 0;
 const logs: AutoLogEntry[] = [];
 
-const status: AutoEngineStatus = {
+const status: Omit<AutoEngineStatus, 'paper'> = {
   running: false,
   mode: 'dry-run',
   enabled: false,
@@ -116,7 +128,7 @@ function pushLog(entry: Omit<AutoLogEntry, 'id'>): void {
 }
 
 export function getAutoEngineStatus(): AutoEngineStatus {
-  return { ...status, ticking };
+  return { ...status, ticking, paper: getPaperSummaries() };
 }
 
 export function getAutoEngineLogs(limit = 100): AutoLogEntry[] {
@@ -348,6 +360,18 @@ async function evaluateSymbol(
         effectiveSellable
       );
 
+  // 페이퍼 체결 — 가상 $1,000 장부에 반영. 매수는 종목 설정의 1회 매수 상한을 그대로 적용해
+  // 실주문 모드가 했을 비중과 동일하게 시뮬레이션한다. HOLD/폴백은 평가 가격만 갱신.
+  let paperFill: PaperFill | null = null;
+  if (!decision.fallback && decision.action !== 'HOLD') {
+    const paperPct =
+      decision.action === 'BUY' ? Math.min(decision.sizePct, symCfg.buyMaxPercent) : decision.sizePct;
+    paperFill = applyPaperDecision(symbol, decision.action, paperPct, currentPrice);
+  } else {
+    markPaperPrice(symbol, currentPrice);
+  }
+  const paperSummary = getPaperSummary(symbol);
+
   pushLog({
     t: Date.now(),
     symbol,
@@ -360,6 +384,13 @@ async function evaluateSymbol(
     currentPrice,
     position,
     planned,
+    paper: paperSummary
+      ? {
+          fill: paperFill ?? undefined,
+          returnPct: paperSummary.returnPct,
+          equityUsd: paperSummary.equityUsd,
+        }
+      : undefined,
     model: decision.model,
   });
 }
