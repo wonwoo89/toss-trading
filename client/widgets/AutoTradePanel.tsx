@@ -187,6 +187,8 @@ export function AutoTradePanel({
   >({ BUY: null, TP: null, SL: null, TS: null });
   // 트레일링 스탑 고점 추적 — 포지션 관찰 시작 이후의 최고가(초기값은 max(평단, 현재가)).
   const trailPeakRef = useRef<number | null>(null);
+  // 손절 생략(보유 ≤1주) 로그를 에피소드당 1회로 제한하는 플래그.
+  const slSkipLoggedRef = useRef(false);
   pendingRef.current = pending;
 
   // 설정 영속화 — 어떤 값이든 바뀌면 저장.
@@ -476,7 +478,9 @@ export function AutoTradePanel({
       // 오토 모드 가드: 실제 보유 수량이 1주 이하이면 손절 매도를 실행하지 않는다
       // (소액 잔여 포지션의 자동 손절은 무의미 — 드라이런/세미오토는 기록·수동 확인이라 유지).
       if (mode === 'auto' && (holding?.quantity ?? 0) <= 1) {
-        if (shouldFire('SL', currentPrice, sellQty)) {
+        // 생략 로그는 이 손절 에피소드당 1회만(조건이 계속 참이라 매 폴링마다 도배되는 것 방지).
+        if (!slSkipLoggedRef.current) {
+          slSkipLoggedRef.current = true;
           pushLog('block', 'SELL', `손절 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
         }
         return;
@@ -492,6 +496,7 @@ export function AutoTradePanel({
       }
     } else {
       lastSignalRef.current.SL = null;
+      slSkipLoggedRef.current = false; // 손절 조건 해소 → 다음 에피소드에서 다시 1회 안내
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mode, isTabVisible, slReached, sellQty, currentPrice, symbol, stopLossPercent]);
@@ -813,9 +818,7 @@ export function AutoTradePanel({
           value={stopLossPercent}
           onChange={setStopLossPercent}
         />
-      </div>
 
-      <div className="auto-trade__controls">
         <NumberField
           className="auto-trade__field"
           label="트레일링"
