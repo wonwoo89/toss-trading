@@ -3213,20 +3213,17 @@ input[type='checkbox']:focus-visible {
   margin-top: 0.5rem;
 }
 /* 자동매매 설정 필드 — ui-textfield(라벨 위·박스 아래) 기반. 3열 그리드로 정렬. */
+/* 값이 1~3자리 숫자뿐이라 열 폭을 박스 크기(92px)에 맞춰 좁힌다.
+   1fr 로 늘리면 박스가 넓은 칸 안에서 왼쪽에 몰려 오른쪽 빈 공간으로 들쭉날쭉해 보인다. */
 .auto-trade__controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, 92px);
+  justify-content: start;
   gap: 0.5rem;
   align-items: end;
 }
-/* 값이 1~3자리 숫자뿐이라 인풋 박스는 좁게 — 그리드 칸(모바일 ~114px)보다 더 줄인다.
-   박스를 라벨 아래 왼쪽 정렬로 두고 폭만 축소. */
-.auto-trade__controls .ui-textfield {
-  align-items: flex-start;
-}
 .auto-trade__controls .ui-textfield__box {
-  width: 92px;
-  max-width: 100%;
+  width: 100%;
 }
 .auto-trade .auto-trade__field {
   min-width: 0;
