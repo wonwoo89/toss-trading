@@ -46,8 +46,14 @@ interface AutoTradePanelProps {
   buyingPower?: number;
   /** 주문 제출 중 — 실행 버튼 비활성 */
   submitting?: boolean;
-  /** 실제 주문 실행(세미오토 '실행' 탭 시). OrderForm 의 검증된 제출 경로 재사용. */
-  onAutoExecute: (side: 'BUY' | 'SELL', quantity: number, limitPrice?: number) => void;
+  /** 실제 주문 실행(세미오토 '실행' 탭 시). OrderForm 의 검증된 제출 경로 재사용.
+   *  orderAmount 가 있으면 금액(달러) 시장가 소수점 매수(정규장 한정). */
+  onAutoExecute: (
+    side: 'BUY' | 'SELL',
+    quantity: number,
+    limitPrice?: number,
+    orderAmount?: number
+  ) => void;
   /** 세미오토/오토(실주문 모드) 활성 여부 변경 알림 — OrderForm 이 주문 입력 영역을 숨기는 데 사용. */
   onExecModeChange?: (active: boolean) => void;
   /** 모바일(좁은 폭) 여부 — 화면 꺼짐/백그라운드 시 멈춤 안내를 노출하기 위함. */
@@ -83,6 +89,8 @@ interface PendingAction {
   side: 'BUY' | 'SELL';
   quantity: number;
   limitPrice?: number;
+  /** 금액(달러) 시장가 매수 — 배정 금액이 1주 미만일 때 소수점 매수용(정규장 한정). */
+  orderAmount?: number;
   label: string;
   /** AI 판단에서 만들어진 액션이면 해당 이력 항목 id — 실행 시 executed 표시용. */
   aiHistoryId?: string;
@@ -418,7 +426,7 @@ export function AutoTradePanel({
       pushLog('block', action.side, `차단(쿨다운 ${wait}s 남음): ${action.label}`);
       return false;
     }
-    onAutoExecute(action.side, action.quantity, action.limitPrice);
+    onAutoExecute(action.side, action.quantity, action.limitPrice, action.orderAmount);
     lastExecRef.current = Date.now();
     pushLog('exec', action.side, `실행: ${action.label}`);
 
@@ -621,21 +629,43 @@ export function AutoTradePanel({
       }
       const effectivePct =
         decision.sizePct > 0 ? Math.min(decision.sizePct, buyMaxPercent) : buyMaxPercent;
-      let qty = Math.floor((buyingPower * (effectivePct / 100)) / price);
+      const budgetUsd = Math.floor(buyingPower * (effectivePct / 100) * 100) / 100;
+      let qty = Math.floor(budgetUsd / price);
       if (maxBuyQuantity !== undefined) qty = Math.min(qty, maxBuyQuantity);
       if (qty <= 0) {
-        pushLog('block', 'BUY', `AI 매수 보류 — 수량 0(주문가능 부족): ${decision.reason}`);
-        return;
+        // 배정 금액(주문가능 × 제안 비중)이 1주 가격 미만 — 주문가능 부족이 아니라 소량 제안.
+        // 정규장이면 금액(orderAmount) 시장가로 소수점 매수를 실행한다(토스 지원 경로).
+        if (isRegularSession && budgetUsd >= 1) {
+          action = {
+            id: crypto.randomUUID(),
+            kind: 'BUY',
+            side: 'BUY',
+            quantity: 0,
+            orderAmount: budgetUsd,
+            label: `AI 소수점 매수 ${symbol} $${budgetUsd}(비중 ${effectivePct}%) 시장가 — ${decision.reason}`,
+            aiHistoryId: historyId,
+          };
+        } else {
+          pushLog(
+            'block',
+            'BUY',
+            `AI 매수 신호(비중 ${effectivePct}%) 보류 — 배정 $${budgetUsd}로 1주($${fmtPrice(price)}) 미만` +
+              (isRegularSession ? '' : ' (소수점 매수는 정규장만 가능)') +
+              `: ${decision.reason}`
+          );
+          return;
+        }
+      } else {
+        action = {
+          id: crypto.randomUUID(),
+          kind: 'BUY',
+          side: 'BUY',
+          quantity: qty,
+          limitPrice: price,
+          label: `AI 매수 ${symbol} ${qty}주(비중 ${effectivePct}%) @ $${fmtPrice(price)} — ${decision.reason}`,
+          aiHistoryId: historyId,
+        };
       }
-      action = {
-        id: crypto.randomUUID(),
-        kind: 'BUY',
-        side: 'BUY',
-        quantity: qty,
-        limitPrice: price,
-        label: `AI 매수 ${symbol} ${qty}주(비중 ${effectivePct}%) @ $${fmtPrice(price)} — ${decision.reason}`,
-        aiHistoryId: historyId,
-      };
     } else {
       // SELL: 보유분 전량 청산 제안. (TP/SL 보호와 별개의 재량 매도)
       if (sellQty === undefined || sellQty <= 0 || currentPrice === undefined) {

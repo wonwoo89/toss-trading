@@ -68,8 +68,13 @@ interface MarketPanelProps {
   commissions?: CommissionRaw[];
   realtimePollingForced?: boolean;
   onRealtimePollingForcedChange?: (forced: boolean) => void;
-  /** 자동매매 주문 실행(StockPage 가 createOrder 로 직결). */
-  onAutoExecute?: (side: 'BUY' | 'SELL', quantity: number, limitPrice?: number) => void;
+  /** 자동매매 주문 실행(StockPage 가 createOrder 로 직결). orderAmount=금액 시장가 소수점 매수. */
+  onAutoExecute?: (
+    side: 'BUY' | 'SELL',
+    quantity: number,
+    limitPrice?: number,
+    orderAmount?: number
+  ) => void;
   /** 자동매매 주문 제출 중 여부. */
   autoSubmitting?: boolean;
   /** 세미오토/오토 활성 여부 변경 알림 — 주문폼의 수동 주문 잠금에 사용. */
