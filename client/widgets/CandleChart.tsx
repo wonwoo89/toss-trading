@@ -238,8 +238,12 @@ function isNearRealtimeViewport(viewport: ChartViewport, chart: IChartApi, barSp
   const marginBars = getMarginBars(chart, barSpacing);
   if (marginBars <= 0) return true;
 
-  const rightOffset = viewport.rightOffset ?? marginBars;
-  return rightOffset <= marginBars * 1.5;
+  // 실제 보이는 범위 기준으로 판정 — 마지막 봉이 우측 경계 근처에 있을 때만 실시간 뷰.
+  // (기존의 options().rightOffset 은 스크롤해도 변하지 않는 정적 설정값이라, 과거 구간을
+  //  보는 중에도 '실시간 근처'로 오판해 새 캔들 도착 시 최신 봉으로 점프하던 버그의 원인)
+  if (viewport.lastBarIndex === undefined) return true; // 정보 부족 시 기존(보수적) 동작 유지
+  const liveRightOffset = viewport.logicalTo - viewport.lastBarIndex;
+  return liveRightOffset >= -2 && liveRightOffset <= marginBars * 1.5;
 }
 
 // 최고/최저 마커 라벨용 시각 표기 — KST 'MM.DD HH:mm'
