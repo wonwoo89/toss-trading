@@ -5017,3 +5017,11 @@ input[type='checkbox']:focus-visible {
   margin: 0;
   color: var(--text-secondary);
 }
+
+/* 페이퍼 상세 라인 — 종목 헤더 아래(터치 기기에서도 항상 보이게 인라인) */
+.server-ai-symbol__paper-detail {
+  margin: 0;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
