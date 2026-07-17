@@ -194,8 +194,9 @@ export function ServerAiPage() {
       </div>
 
       <Typography size={14} as="p" className="hint server-ai-intro">
-        브라우저를 꺼도 서버가 5분봉 마감마다 등록 종목을 AI로 판단합니다. 현재는{' '}
-        <strong>드라이런 단계</strong>로 판단·계획만 기록하고 실제 주문은 내지 않습니다.
+        브라우저를 꺼도 서버가 <strong>정규장 동안</strong> 5분봉 마감마다 등록 종목을 AI로
+        판단합니다. 현재는 <strong>드라이런 단계</strong>로 판단·계획만 기록하고 실제 주문은 내지
+        않습니다.
       </Typography>
 
       {loadError && <div className="banner error">{loadError}</div>}
@@ -365,7 +366,7 @@ export function ServerAiPage() {
         </div>
         {logs.length === 0 ? (
           <Typography size={14} as="p" className="hint">
-            아직 기록이 없습니다. 엔진이 켜져 있고 미국장이 열려 있으면 5분마다 판단이 쌓입니다.
+            아직 기록이 없습니다. 엔진이 켜져 있고 정규장이 열려 있으면 5분마다 판단이 쌓입니다.
           </Typography>
         ) : (
           <ul className="server-ai-logs">
