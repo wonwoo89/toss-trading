@@ -21,7 +21,8 @@ import {
   type AutoTradeMode,
 } from '../shared/lib/autoTradeSettings';
 import { api, type AiDecision } from '../shared/api/client';
-import type { ChartCandle, HoldingItem, Order } from '../shared/types';
+import type { ChartCandle, HoldingItem, Order, UsMarketCalendarRaw } from '../shared/types';
+import { resolveUsMarketSession } from '../shared/lib/usMarketCalendar';
 
 type AutoActionKind = 'BUY' | 'TP' | 'SL' | 'TS'; // 매수 / 익절 매도 / 손절 매도 / 트레일링 스탑 매도
 
@@ -60,6 +61,8 @@ interface AutoTradePanelProps {
   /** 이 종목의 미체결 주문 — AI 페이로드(중복 진입/청산 회피)에 사용. */
   openOrders?: Order[];
   currency?: string;
+  /** 미국장 캘린더 — 정규장(소수점 매도 가능) 판별에 사용. */
+  usMarketCalendar?: UsMarketCalendarRaw | null;
 }
 
 interface LogEntry {
@@ -138,6 +141,7 @@ export function AutoTradePanel({
   maxBuyQuantity,
   openOrders = [],
   currency = 'USD',
+  usMarketCalendar,
 }: AutoTradePanelProps) {
   // 설정은 localStorage 에서 복원(모바일 PWA 재시작 후에도 유지). 변경 시 즉시 저장.
   const [initialSettings] = useState(getAutoTradeSettings);
@@ -163,6 +167,14 @@ export function AutoTradePanel({
   // 매수는 항상 AI 판단으로만 이루어진다(오토=AI 매매 모드). 별도 토글 없음.
   const useAi = true;
   const [dailyRealizedUsd, setDailyRealizedUsd] = useState(getDailyRealizedUsd);
+
+  // 정규장 여부 — 정규장에서만 미국주식 소수점(전량) 매도가 가능하다. 30초 주기로 갱신.
+  const [sessionNow, setSessionNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setSessionNow(new Date()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  const isRegularSession = resolveUsMarketSession(usMarketCalendar, sessionNow).kind === 'regular';
 
   const [logs, setLogs] = useState<LogEntry[]>(loadAutoTradeLogs);
   const [pending, setPending] = useState<PendingAction | null>(null);
@@ -347,10 +359,15 @@ export function AutoTradePanel({
   }, []);
 
   // 파생 트리거 값 ──────────────────────────────────────────────
-  const sellQty =
-    sellableQuantity !== undefined && sellableQuantity > 0
-      ? Math.floor(sellableQuantity)
-      : undefined;
+  // 매도 수량 — 정규장은 소수점 전량(보유 잔량 그대로), 그 외 세션은 정수 주만(내림).
+  // 부동소수 오차로 잔량을 초과하지 않도록 정규장 수량은 소수 8자리로 내림.
+  const sellQty = (() => {
+    if (sellableQuantity === undefined || sellableQuantity <= 0) return undefined;
+    const q = isRegularSession
+      ? Math.floor(sellableQuantity * 1e8) / 1e8
+      : Math.floor(sellableQuantity);
+    return q > 0 ? q : undefined;
+  })();
   const hasPosition =
     holding !== undefined &&
     holding.quantity > 0 &&
@@ -457,9 +474,9 @@ export function AutoTradePanel({
   useEffect(() => {
     if (!active) return;
     if (tpReached && sellQty !== undefined && currentPrice !== undefined) {
-      // 오토 모드 가드: 실제 보유 수량이 1주 이하이면 익절 매도를 실행하지 않는다(손절과 동일).
-      // 생략 로그는 이 익절 에피소드당 1회만(도배 방지).
-      if (mode === 'auto' && (holding?.quantity ?? 0) <= 1) {
+      // 오토 모드 가드: 정규장 밖에서는 소수점 매도가 불가해 실제 보유 1주 이하면 익절을 생략.
+      // 정규장은 소수점 전량 매도가 가능하므로 생략하지 않는다.
+      if (mode === 'auto' && !isRegularSession && (holding?.quantity ?? 0) <= 1) {
         if (!tpSkipLoggedRef.current) {
           tpSkipLoggedRef.current = true;
           pushLog('block', 'SELL', `익절 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
@@ -486,9 +503,9 @@ export function AutoTradePanel({
   useEffect(() => {
     if (!active) return;
     if (slReached && sellQty !== undefined && currentPrice !== undefined) {
-      // 오토 모드 가드: 실제 보유 수량이 1주 이하이면 손절 매도를 실행하지 않는다
-      // (소액 잔여 포지션의 자동 손절은 무의미 — 드라이런/세미오토는 기록·수동 확인이라 유지).
-      if (mode === 'auto' && (holding?.quantity ?? 0) <= 1) {
+      // 오토 모드 가드: 정규장 밖에서는 소수점 매도가 불가해 실제 보유 1주 이하면 손절을 생략.
+      // 정규장은 소수점 전량 매도가 가능하므로 생략하지 않는다.
+      if (mode === 'auto' && !isRegularSession && (holding?.quantity ?? 0) <= 1) {
         // 생략 로그는 이 손절 에피소드당 1회만(조건이 계속 참이라 매 폴링마다 도배되는 것 방지).
         if (!slSkipLoggedRef.current) {
           slSkipLoggedRef.current = true;
