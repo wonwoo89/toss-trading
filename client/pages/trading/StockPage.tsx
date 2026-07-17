@@ -77,7 +77,11 @@ export function StockPage() {
       quantity,
       clientOrderId: crypto.randomUUID(),
     };
-    if (limitPrice !== undefined && Number.isFinite(limitPrice) && limitPrice > 0) {
+    // 토스 제약: 소수점 수량 주문은 미국 주식 '시장가 매도'에서만 허용된다.
+    // 정규장 소수점 전량 매도(손절/익절/트레일링/AI 매도)가 지정가로 나가면 거절되므로
+    // 소수점 매도는 시장가로 강제한다(트리거 시점 현재가 부근에서 즉시 체결).
+    const fractionalSell = side === 'SELL' && !Number.isInteger(quantity);
+    if (!fractionalSell && limitPrice !== undefined && Number.isFinite(limitPrice) && limitPrice > 0) {
       payload.price = floorToTick(limitPrice);
     } else {
       payload.orderType = 'MARKET';
