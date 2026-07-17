@@ -157,10 +157,14 @@ export function AutoTradePanel({
   const [mode, setMode] = useState<AutoTradeMode>(
     restoredModeBlockedBySymbolChange ? 'off' : initialSettings.mode
   );
+  // 목표는 자동매매 자체 설정(저장/기본값)을 우선 — 주문폼의 전역 목표수익률(3% 등)이
+  // AI 매매폼 기본값(1%)을 덮어쓰지 않게 한다. 자체 값이 없을 때만 전역값으로 폴백.
   const [targetPercent, setTargetPercent] = useState(() =>
-    takeProfitRatePercent && takeProfitRatePercent > 0
-      ? takeProfitRatePercent
-      : initialSettings.targetPercent
+    initialSettings.targetPercent > 0
+      ? initialSettings.targetPercent
+      : takeProfitRatePercent && takeProfitRatePercent > 0
+        ? takeProfitRatePercent
+        : 1
   );
   const [stopLossPercent, setStopLossPercent] = useState(initialSettings.stopLossPercent);
   const [trailingStopPercent, setTrailingStopPercent] = useState(

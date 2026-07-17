@@ -27,12 +27,19 @@ export interface AutoTradeSettings {
 export const AUTO_TRADE_DEFAULTS: AutoTradeSettings = {
   mode: 'off',
   useAi: true,
-  targetPercent: 3,
-  stopLossPercent: 2,
+  targetPercent: 1,
+  stopLossPercent: 3,
   trailingStopPercent: 0,
   buyMaxPercent: 5,
   dailyLossLimitUsd: 0,
 };
+
+/**
+ * 기본값 개정 버전. 저장본의 버전이 낮으면 목표/손절만 새 기본값으로 1회 덮어쓴다
+ * (사용자 요청으로 기본값을 바꿀 때 기기에 남은 옛 저장값이 이기지 않도록).
+ *  - v2: 목표 3→1%, 손절 2→3%
+ */
+const SETTINGS_DEFAULTS_VERSION = 2;
 
 const SETTINGS_KEY = 'toss-trading:auto-trade-settings';
 const LEDGER_KEY = 'toss-trading:auto-trade-daily-pnl';
@@ -51,13 +58,19 @@ export function getAutoTradeSettings(): AutoTradeSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return AUTO_TRADE_DEFAULTS;
-    const parsed = JSON.parse(raw) as Partial<AutoTradeSettings>;
+    const parsed = JSON.parse(raw) as Partial<AutoTradeSettings> & { defaultsVersion?: number };
+    // 구버전 저장본: 목표/손절만 새 기본값으로 1회 마이그레이션(나머지 설정은 유지).
+    const outdated = numberOr(parsed.defaultsVersion, 0) < SETTINGS_DEFAULTS_VERSION;
     return {
       mode: isMode(parsed.mode) ? parsed.mode : AUTO_TRADE_DEFAULTS.mode,
       activeSymbol: typeof parsed.activeSymbol === 'string' ? parsed.activeSymbol : undefined,
       useAi: typeof parsed.useAi === 'boolean' ? parsed.useAi : AUTO_TRADE_DEFAULTS.useAi,
-      targetPercent: numberOr(parsed.targetPercent, AUTO_TRADE_DEFAULTS.targetPercent),
-      stopLossPercent: numberOr(parsed.stopLossPercent, AUTO_TRADE_DEFAULTS.stopLossPercent),
+      targetPercent: outdated
+        ? AUTO_TRADE_DEFAULTS.targetPercent
+        : numberOr(parsed.targetPercent, AUTO_TRADE_DEFAULTS.targetPercent),
+      stopLossPercent: outdated
+        ? AUTO_TRADE_DEFAULTS.stopLossPercent
+        : numberOr(parsed.stopLossPercent, AUTO_TRADE_DEFAULTS.stopLossPercent),
       trailingStopPercent: numberOr(
         parsed.trailingStopPercent,
         AUTO_TRADE_DEFAULTS.trailingStopPercent
@@ -75,7 +88,10 @@ export function getAutoTradeSettings(): AutoTradeSettings {
 
 export function saveAutoTradeSettings(settings: AutoTradeSettings): void {
   try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({ ...settings, defaultsVersion: SETTINGS_DEFAULTS_VERSION })
+    );
   } catch {
     // 저장 실패는 무시(프라이빗 모드 등) — 세션 내 상태로만 동작
   }

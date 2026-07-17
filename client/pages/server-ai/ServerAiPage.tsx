@@ -170,8 +170,8 @@ export function ServerAiPage() {
         {
           symbol,
           active: true,
-          targetPercent: 3,
-          stopLossPercent: 2,
+          targetPercent: 1,
+          stopLossPercent: 3,
           trailingStopPercent: 0,
           buyMaxPercent: limits.maxBuyPercent,
         },

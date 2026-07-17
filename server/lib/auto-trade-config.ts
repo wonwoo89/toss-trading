@@ -66,8 +66,8 @@ function sanitizeSymbolConfig(raw: unknown): AutoSymbolConfig | null {
   return {
     symbol,
     active: r.active === true,
-    targetPercent: clampNumber(r.targetPercent, 0.1, 100, 3),
-    stopLossPercent: clampNumber(r.stopLossPercent, 0.1, 100, 2),
+    targetPercent: clampNumber(r.targetPercent, 0.1, 100, 1),
+    stopLossPercent: clampNumber(r.stopLossPercent, 0.1, 100, 3),
     trailingStopPercent: clampNumber(r.trailingStopPercent, 0, 100, 0),
     // 1회 매수는 서버 상한(5%)을 절대 넘길 수 없다.
     buyMaxPercent: clampNumber(r.buyMaxPercent, 0.1, MAX_BUY_PERCENT_CAP, MAX_BUY_PERCENT_CAP),

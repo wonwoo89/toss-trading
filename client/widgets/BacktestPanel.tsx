@@ -15,9 +15,9 @@ export function BacktestPanel({ initialSymbol = 'AAPL' }: { initialSymbol?: stri
   const [symbol, setSymbol] = useState(initialSymbol);
   const [interval, setInterval] = useState<CandleInterval>('5m');
   const [forwardBars, setForwardBars] = useState(15);
-  const [targetPct, setTargetPct] = useState(5);
-  const [stopPct, setStopPct] = useState(1);
-  const [costPct, setCostPct] = useState(0.05);
+  const [targetPct, setTargetPct] = useState(1);
+  const [stopPct, setStopPct] = useState(3);
+  const [costPct, setCostPct] = useState(0.2);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
