@@ -82,6 +82,58 @@ export interface AiDecision {
   fallback?: boolean;
 }
 
+/** 서버 자동매매 엔진 — 종목별 설정(서버 lib/auto-trade-config.ts 와 동일 구조). */
+export interface AutoSymbolConfig {
+  symbol: string;
+  active: boolean;
+  targetPercent: number;
+  stopLossPercent: number;
+  trailingStopPercent: number;
+  buyMaxPercent: number;
+}
+
+export interface AutoTradeConfig {
+  enabled: boolean;
+  dailyLossLimitUsd: number;
+  symbols: AutoSymbolConfig[];
+}
+
+export interface AutoTradeLimits {
+  maxSymbols: number;
+  maxBuyPercent: number;
+  candleInterval: string;
+}
+
+export interface AutoEngineStatus {
+  running: boolean;
+  mode: 'dry-run';
+  enabled: boolean;
+  aiConfigured: boolean;
+  ticking: boolean;
+  activeSymbols: string[];
+  lastTickAt: number | null;
+  lastTickSession: string | null;
+  nextTickAt: number | null;
+  lastError: string | null;
+  candleInterval: string;
+}
+
+export interface AutoLogEntry {
+  id: number;
+  t: number;
+  symbol: string;
+  session: string;
+  action: AiAction;
+  sizePct: number;
+  confidence: number;
+  reason: string;
+  fallback: boolean;
+  currentPrice: number;
+  position?: { quantity: number; averagePrice: number; profitLossPct?: number };
+  planned?: { side: 'BUY' | 'SELL'; quantity: number; note: string };
+  model: string;
+}
+
 export class ApiRequestError extends Error {
   status: number;
   code?: string;
@@ -242,4 +294,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  // 서버 백그라운드 자동매매 엔진(브라우저 없이 동작) — 설정·상태·판단 로그.
+  getAutoConfig: () =>
+    request<ApiEnvelope<{ config: AutoTradeConfig; limits: AutoTradeLimits }>>('/auto/config'),
+  saveAutoConfig: (config: AutoTradeConfig) =>
+    request<ApiEnvelope<{ config: AutoTradeConfig }>>('/auto/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    }),
+  getAutoStatus: () => request<ApiEnvelope<AutoEngineStatus>>('/auto/status'),
+  getAutoLogs: (limit = 100) => request<ApiEnvelope<AutoLogEntry[]>>(`/auto/logs?limit=${limit}`),
 };

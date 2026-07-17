@@ -21,6 +21,9 @@ export function Header() {
           <Link to="/backtest" className="header-backtest-link" title="신호 백테스트">
             백테스트
           </Link>
+          <Link to="/server-ai" className="header-backtest-link" title="서버 AI 매매 관리">
+            AI 매매
+          </Link>
           {/* 모바일 전용: 화면꺼짐 방지 버튼 옆 '내 계좌' 드롭다운 (데스크톱은 CSS 로 숨김) */}
           <HeaderAccountMenu />
           <KeyboardShortcutsHelp />
