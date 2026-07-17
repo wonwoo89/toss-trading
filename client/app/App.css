@@ -4771,3 +4771,221 @@ input[type='checkbox']:focus-visible {
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* ── 서버 AI 매매 페이지 ─────────────────────────────────────────────
+   백그라운드 엔진(드라이런) 관리·모니터링. 백테스트 페이지와 같은 좁은 단일 컬럼. */
+.server-ai-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0.5rem 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.server-ai-intro {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.server-ai-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.server-ai-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.server-ai-card__head h2 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.server-ai-kill {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.server-ai-kill__on {
+  color: var(--accent, #3182f6);
+  font-weight: 600;
+}
+
+/* 상태 항목 — 2열 그리드(모바일 1열) */
+.server-ai-status {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 1rem;
+}
+
+.server-ai-status > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-size: 0.82rem;
+}
+
+.server-ai-status dt {
+  color: var(--text-secondary);
+}
+
+.server-ai-status dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.server-ai-error {
+  margin: 0;
+  color: var(--color-up);
+}
+
+.server-ai-add {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.server-ai-add .ui-textfield {
+  flex: 0 1 220px;
+}
+
+.server-ai-symbols {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.server-ai-symbol {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.server-ai-symbol__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.server-ai-symbol__name {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.server-ai-symbol__controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* 종목별 수치 인풋 — 자동매매 폼과 동일하게 한 줄 흐름 + 자연 줄바꿈 */
+.server-ai-symbol__fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.6rem;
+}
+
+.server-ai-symbol__fields .ui-textfield {
+  width: 92px;
+}
+
+.server-ai-loss-limit .ui-textfield {
+  max-width: 260px;
+}
+
+/* 판단 로그 */
+.server-ai-logs {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-height: 60dvh;
+  overflow-y: auto;
+}
+
+.server-ai-log {
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.server-ai-log__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.server-ai-log__time {
+  color: var(--text-secondary);
+}
+
+.server-ai-log__symbol {
+  font-weight: 700;
+}
+
+.server-ai-log__action {
+  font-weight: 700;
+  padding: 0.05rem 0.4rem;
+  border-radius: 6px;
+}
+
+.server-ai-log__action.is-buy {
+  color: var(--color-up);
+  background: var(--color-up-bg);
+}
+
+.server-ai-log__action.is-sell {
+  color: var(--color-down);
+  background: var(--color-down-bg);
+}
+
+.server-ai-log__action.is-hold {
+  color: var(--text-secondary);
+  background: var(--bg-subtle, rgba(128, 128, 128, 0.12));
+}
+
+.server-ai-log__confidence,
+.server-ai-log__price {
+  color: var(--text-secondary);
+}
+
+.server-ai-log__reason {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.server-ai-log__planned {
+  margin: 0;
+  color: var(--accent, #3182f6);
+}
+
+@media (max-width: 640px) {
+  .server-ai-status {
+    grid-template-columns: 1fr;
+  }
+}
