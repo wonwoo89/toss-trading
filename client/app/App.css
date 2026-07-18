@@ -5057,3 +5057,16 @@ input[type='checkbox']:focus-visible {
   color: var(--text-secondary);
   white-space: nowrap;
 }
+
+/* 판단 로그 종목 필터 칩(데스크톱) */
+.server-ai-log-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* 종목별 로그 모달 — 모달 안에서는 로그 목록이 바디 스크롤을 그대로 사용 */
+.server-ai-log-modal__body .server-ai-logs {
+  max-height: none;
+  overflow-y: visible;
+}

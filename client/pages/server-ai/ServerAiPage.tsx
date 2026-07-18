@@ -10,6 +10,7 @@ import {
   type PaperSummary,
 } from '../../shared/api/client';
 import { Button } from '../../shared/ui/Button';
+import { Chip } from '../../shared/ui/Chip';
 import { Switch } from '../../shared/ui/Switch';
 import { TextField } from '../../shared/ui/TextField';
 import { Typography } from '../../shared/ui/Typography';
@@ -47,6 +48,52 @@ function unwrap<T>(res: { result: T }): T {
 
 const EMPTY_CONFIG: AutoTradeConfig = { enabled: false, dailyLossLimitUsd: 0, symbols: [] };
 
+/** 판단 로그 목록 — 로그 카드(전체/필터)와 종목별 모달이 공유하는 렌더러. */
+function LogList({ entries, emptyText }: { entries: AutoLogEntry[]; emptyText: string }) {
+  if (entries.length === 0) {
+    return (
+      <Typography size={14} as="p" className="hint">
+        {emptyText}
+      </Typography>
+    );
+  }
+  return (
+    <ul className="server-ai-logs">
+      {entries.map((log) => (
+        <li key={log.id} className={`server-ai-log server-ai-log--${log.action.toLowerCase()}`}>
+          <div className="server-ai-log__meta">
+            <span className="server-ai-log__time">{formatTime(log.t)}</span>
+            <span className="server-ai-log__symbol">{log.symbol}</span>
+            <span className={`server-ai-log__action is-${log.action.toLowerCase()}`}>
+              {ACTION_LABELS[log.action] ?? log.action}
+            </span>
+            {!log.fallback && (
+              <span className="server-ai-log__confidence">
+                {Math.round(log.confidence * 100)}%
+              </span>
+            )}
+            {log.currentPrice > 0 && (
+              <span className="server-ai-log__price">${log.currentPrice}</span>
+            )}
+            <span className="hint">{SESSION_LABELS[log.session] ?? log.session}</span>
+          </div>
+          <Typography size={14} as="p" className="server-ai-log__reason">
+            {log.reason}
+          </Typography>
+          {log.paper?.fill && (
+            <Typography size={12} as="p" className="server-ai-log__paper">
+              가상 체결: {log.paper.fill.side === 'BUY' ? '매수' : '매도'}{' '}
+              {log.paper.fill.quantity}주 @ ${log.paper.fill.price} — 가상 수익률{' '}
+              {log.paper.returnPct > 0 ? '+' : ''}
+              {log.paper.returnPct.toFixed(2)}%
+            </Typography>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /**
  * 백그라운드 AI 매매 페이지 — 서버 상주(브라우저 불필요) 자동매매 엔진의 관리·모니터링 화면.
  * 현재 엔진은 드라이런: 판단·계획만 기록하고 실주문은 내지 않는다.
@@ -67,6 +114,33 @@ export function ServerAiPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [newSymbol, setNewSymbol] = useState('');
+
+  // 판단 로그 종목 보기 — 데스크톱은 필터 칩, 모바일은 종목 카드의 '로그' 버튼 → 모달.
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth <= 640
+  );
+  useEffect(() => {
+    const update = () => setIsMobile(window.innerWidth <= 640);
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  const [logFilter, setLogFilter] = useState<string>('ALL');
+  const [logModalSymbol, setLogModalSymbol] = useState<string | null>(null);
+
+  // 모달 열림 중 Esc 닫기 + 배경 스크롤 잠금.
+  useEffect(() => {
+    if (!logModalSymbol) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setLogModalSymbol(null);
+    };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [logModalSymbol]);
 
   const dirty = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(savedConfig),
@@ -319,6 +393,11 @@ export function ServerAiPage() {
                     })()}
                   </div>
                   <div className="server-ai-symbol__controls">
+                    {isMobile && (
+                      <Button size="sm" variant="ghost" onClick={() => setLogModalSymbol(s.symbol)}>
+                        로그
+                      </Button>
+                    )}
                     <Switch
                       checked={s.active}
                       onChange={(checked) => updateSymbol(index, { active: checked })}
@@ -403,7 +482,7 @@ export function ServerAiPage() {
         </div>
       </section>
 
-      {/* 판단 로그 */}
+      {/* 판단 로그 — 데스크톱은 종목 필터 칩, 모바일은 전체 로그(종목별은 카드의 '로그' 모달) */}
       <section className="panel server-ai-card" aria-label="판단 로그">
         <div className="server-ai-card__head">
           <Typography size={16} as="h2">판단 로그</Typography>
@@ -411,46 +490,72 @@ export function ServerAiPage() {
             새로고침
           </Button>
         </div>
-        {logs.length === 0 ? (
-          <Typography size={14} as="p" className="hint">
-            아직 기록이 없습니다. 엔진이 켜져 있고 미국장이 열려 있으면 5분마다 판단이 쌓입니다.
-          </Typography>
-        ) : (
-          <ul className="server-ai-logs">
-            {logs.map((log) => (
-              <li key={log.id} className={`server-ai-log server-ai-log--${log.action.toLowerCase()}`}>
-                <div className="server-ai-log__meta">
-                  <span className="server-ai-log__time">{formatTime(log.t)}</span>
-                  <span className="server-ai-log__symbol">{log.symbol}</span>
-                  <span className={`server-ai-log__action is-${log.action.toLowerCase()}`}>
-                    {ACTION_LABELS[log.action] ?? log.action}
-                  </span>
-                  {!log.fallback && (
-                    <span className="server-ai-log__confidence">
-                      {Math.round(log.confidence * 100)}%
-                    </span>
-                  )}
-                  {log.currentPrice > 0 && (
-                    <span className="server-ai-log__price">${log.currentPrice}</span>
-                  )}
-                  <span className="hint">{SESSION_LABELS[log.session] ?? log.session}</span>
-                </div>
-                <Typography size={14} as="p" className="server-ai-log__reason">
-                  {log.reason}
-                </Typography>
-                {log.paper?.fill && (
-                  <Typography size={12} as="p" className="server-ai-log__paper">
-                    가상 체결: {log.paper.fill.side === 'BUY' ? '매수' : '매도'}{' '}
-                    {log.paper.fill.quantity}주 @ ${log.paper.fill.price} — 가상 수익률{' '}
-                    {log.paper.returnPct > 0 ? '+' : ''}
-                    {log.paper.returnPct.toFixed(2)}%
-                  </Typography>
-                )}
-              </li>
+        {!isMobile && draft.symbols.length > 0 && (
+          <div className="server-ai-log-filter" role="tablist" aria-label="판단 로그 종목 필터">
+            <Chip selected={logFilter === 'ALL'} onClick={() => setLogFilter('ALL')}>
+              전체
+            </Chip>
+            {draft.symbols.map((s) => (
+              <Chip
+                key={s.symbol}
+                selected={logFilter === s.symbol}
+                onClick={() => setLogFilter(s.symbol)}
+              >
+                {s.symbol}
+              </Chip>
             ))}
-          </ul>
+          </div>
         )}
+        <LogList
+          entries={
+            !isMobile && logFilter !== 'ALL'
+              ? logs.filter((l) => l.symbol === logFilter)
+              : logs
+          }
+          emptyText={
+            !isMobile && logFilter !== 'ALL'
+              ? `${logFilter} 판단 기록이 아직 없습니다.`
+              : '아직 기록이 없습니다. 엔진이 켜져 있고 미국장이 열려 있으면 5분마다 판단이 쌓입니다.'
+          }
+        />
       </section>
+
+      {/* 종목별 로그 모달(모바일) */}
+      {logModalSymbol && (
+        <div
+          className="backtest-modal__overlay"
+          onClick={() => setLogModalSymbol(null)}
+          role="presentation"
+        >
+          <div
+            className="backtest-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${logModalSymbol} 판단 로그`}
+          >
+            <div className="backtest-modal__head">
+              <Typography size={16} as="h2" className="backtest-modal__title">
+                판단 로그 · {logModalSymbol}
+              </Typography>
+              <button
+                type="button"
+                className="backtest-modal__close"
+                onClick={() => setLogModalSymbol(null)}
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="backtest-modal__body server-ai-log-modal__body">
+              <LogList
+                entries={logs.filter((l) => l.symbol === logModalSymbol)}
+                emptyText={`${logModalSymbol} 판단 기록이 아직 없습니다.`}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
