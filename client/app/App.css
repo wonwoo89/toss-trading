@@ -4906,6 +4906,24 @@ input[type='checkbox']:focus-visible {
   width: 92px;
 }
 
+/* 모바일: 4개 인풋(목표/손절/트레일링/1회 매수)을 4등분 그리드로 — 항상 한 줄 유지 */
+@media (max-width: 640px) {
+  .server-ai-symbol__fields {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+  .server-ai-symbol__fields .ui-textfield {
+    width: auto;
+    min-width: 0;
+  }
+  .server-ai-symbol__fields .ui-textfield__label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
 .server-ai-loss-limit .ui-textfield {
   max-width: 260px;
 }
