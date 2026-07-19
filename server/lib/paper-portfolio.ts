@@ -16,8 +16,8 @@ import { fileURLToPath } from 'node:url';
  */
 
 export const PAPER_INITIAL_CASH_USD = 1000;
-/** 편도 수수료율(0.1%) — 토스 미국주식 수수료 가정. */
-const PAPER_COMMISSION_RATE = 0.001;
+/** 편도 수수료율(0.1%) — 토스 미국주식 수수료 가정. 익절 목표가 계산에도 사용. */
+export const PAPER_COMMISSION_RATE = 0.001;
 /** 최소 매수 금액 — 이보다 작은 주문은 의미가 없어 생략. */
 const MIN_BUY_BUDGET_USD = 1;
 
@@ -31,6 +31,10 @@ export interface PaperPosition {
   /** 최근 평가 가격 — 미실현 손익/수익률 계산용. */
   lastPrice: number;
   updatedAt: number;
+  /** 추세 홀드 중 고점(목표 도달 후 매도 보류 상태). null=홀드 아님. */
+  tpHoldPeak?: number | null;
+  /** 포지션 관측 고점 — 트레일링 스탑 판정용. null=미관측. */
+  trailPeak?: number | null;
 }
 
 export interface PaperFill {
@@ -158,9 +162,24 @@ export function applyPaperDecision(
   if (pos.quantity <= 0) {
     pos.quantity = 0;
     pos.averagePrice = 0;
+    // 포지션 종료 → 홀드/트레일 추적 상태 해제(AI 매도·보호 매도 공통).
+    pos.tpHoldPeak = null;
+    pos.trailPeak = null;
   }
   save();
   return { side: 'SELL', quantity, price };
+}
+
+/** 보호 로직(추세 홀드·트레일링)의 추적 상태 갱신 — 장부 파일에 함께 영속된다. */
+export function updatePaperTracking(
+  symbol: string,
+  patch: { tpHoldPeak?: number | null; trailPeak?: number | null }
+): void {
+  const pos = ensure(symbol);
+  if ('tpHoldPeak' in patch) pos.tpHoldPeak = patch.tpHoldPeak ?? null;
+  if ('trailPeak' in patch) pos.trailPeak = patch.trailPeak ?? null;
+  pos.updatedAt = Date.now();
+  save();
 }
 
 function summarize(pos: PaperPosition): PaperSummary {

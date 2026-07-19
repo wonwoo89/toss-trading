@@ -19,6 +19,8 @@ import {
   getPaperSummaries,
   getPaperSummary,
   markPaperPrice,
+  updatePaperTracking,
+  PAPER_COMMISSION_RATE,
   type PaperFill,
   type PaperSummary,
 } from './paper-portfolio.js';
@@ -52,6 +54,8 @@ const TICK_INTERVAL_MS = 5 * 60 * 1000; // 5분봉 주기
 const TICK_OFFSET_MS = 20 * 1000; // 봉 마감 후 20초 뒤(데이터 반영 여유) 실행
 const CANDLE_TARGET = 60; // AI에 넘길 최근 5분봉 개수
 const MAX_LOGS = 300;
+/** 추세 홀드 중 고점 대비 허용 하락(%) — 종목 트레일링 설정이 0(끔)일 때의 기본값. */
+const TP_HOLD_TRAIL_PCT = 0.5;
 
 export interface AutoLogEntry {
   id: number;
@@ -131,6 +135,104 @@ function toAiCandle(c: AggregatedCandle): AiDecisionCandle {
   };
 }
 
+interface GuardExit {
+  fill: PaperFill | null;
+  reason: string;
+  /** true 면 이번 틱은 보호 로직이 처리했으므로 AI 호출을 생략한다. */
+  handled: boolean;
+}
+
+/**
+ * 기계적 보호 로직(클라이언트 AI 매매와 동일 규칙) — 매 틱 AI 판단에 앞서 검사한다.
+ *  1) 손절: 평단 대비 -손절률 도달 → 즉시 가상 전량 매도(AI 재량에 맡기지 않음).
+ *  2) 익절 + 추세 홀드: 수수료 반영 목표가 도달 시 상승 추세(연속 양봉 확정)면 매도를
+ *     보류하고 고점 추적. 보전선(목표가) 또는 고점 대비 트레일 % 이탈 시 전량 매도 —
+ *     최악의 경우에도 목표 수익은 확보된다.
+ *  3) 트레일링 스탑(설정 시): 관측 고점 대비 설정 % 하락 시 전량 매도.
+ * 추적 상태(홀드 고점·관측 고점)는 장부 파일에 영속돼 재시작 후에도 이어진다.
+ */
+function runPaperGuards(
+  symCfg: AutoSymbolConfig,
+  currentPrice: number,
+  candles: AiDecisionCandle[]
+): GuardExit | null {
+  const symbol = symCfg.symbol;
+  const pos = getPaperSummary(symbol);
+  if (!pos || pos.quantity <= 0 || pos.averagePrice <= 0) return null;
+
+  const avg = pos.averagePrice;
+  const plPct = ((currentPrice - avg) / avg) * 100;
+  const r = PAPER_COMMISSION_RATE;
+  // 수수료 반영 익절 목표가(왕복) — 센트 올림으로 목표 실수익 미달 방지(클라이언트와 동일 공식).
+  const tpPrice =
+    Math.ceil(((avg * (1 + symCfg.targetPercent / 100 + r)) / (1 - r)) * 100 - 1e-9) / 100;
+  const slPrice = avg * (1 - symCfg.stopLossPercent / 100);
+
+  // 관측 고점 갱신(트레일링용) — 초기값 max(평단, 현재가).
+  const trailPeak = Math.max(pos.trailPeak ?? Math.max(avg, currentPrice), currentPrice);
+  if (trailPeak !== pos.trailPeak) updatePaperTracking(symbol, { trailPeak });
+
+  // 1) 손절 — 최우선.
+  if (currentPrice <= slPrice) {
+    const fill = applyPaperDecision(symbol, 'SELL', 100, currentPrice);
+    return {
+      fill,
+      handled: true,
+      reason: `손절 매도(자동): 평단 $${avg.toFixed(2)} 대비 ${plPct.toFixed(2)}% ≤ -${symCfg.stopLossPercent}%`,
+    };
+  }
+
+  const holdTrailPct =
+    symCfg.trailingStopPercent > 0 ? symCfg.trailingStopPercent : TP_HOLD_TRAIL_PCT;
+
+  // 2-a) 추세 홀드 중: 고점 갱신 + 이탈 판정.
+  if (pos.tpHoldPeak !== null && pos.tpHoldPeak !== undefined) {
+    const peak = Math.max(pos.tpHoldPeak, currentPrice);
+    if (peak !== pos.tpHoldPeak) updatePaperTracking(symbol, { tpHoldPeak: peak });
+    const floorHit = currentPrice <= tpPrice;
+    const trailHit = currentPrice <= peak * (1 - holdTrailPct / 100);
+    if (floorHit || trailHit) {
+      const fill = applyPaperDecision(symbol, 'SELL', 100, currentPrice);
+      const why = floorHit
+        ? `보전선 $${tpPrice.toFixed(2)} 이탈`
+        : `고점 $${peak.toFixed(2)} 대비 -${holdTrailPct}%`;
+      return { fill, handled: true, reason: `익절 매도(추세홀드 종료): ${why}` };
+    }
+    return null; // 홀드 유지 — AI 판단은 계속 진행(BUY/SELL 재량 허용)
+  }
+
+  // 2-b) 목표 도달: 상승 추세면 홀드 시작, 아니면 즉시 익절.
+  if (currentPrice >= tpPrice) {
+    const trend = computeTrend(candles);
+    if (trend.state === 'up' && trend.confirmedBars >= 2) {
+      updatePaperTracking(symbol, { tpHoldPeak: currentPrice });
+      return {
+        fill: null,
+        handled: true,
+        reason: `익절 보류(상승 추세 ${trend.confirmedBars}봉) — 고점 추적 시작, 보전선 $${tpPrice.toFixed(2)}`,
+      };
+    }
+    const fill = applyPaperDecision(symbol, 'SELL', 100, currentPrice);
+    return {
+      fill,
+      handled: true,
+      reason: `익절 매도(자동): 목표 +${symCfg.targetPercent}% 도달(수수료 반영 $${tpPrice.toFixed(2)})`,
+    };
+  }
+
+  // 3) 트레일링 스탑(설정 시) — 익절/손절 범위 밖에서 고점 대비 하락.
+  if (symCfg.trailingStopPercent > 0 && currentPrice <= trailPeak * (1 - symCfg.trailingStopPercent / 100)) {
+    const fill = applyPaperDecision(symbol, 'SELL', 100, currentPrice);
+    return {
+      fill,
+      handled: true,
+      reason: `트레일링 매도(자동): 고점 $${trailPeak.toFixed(2)} 대비 -${symCfg.trailingStopPercent}%`,
+    };
+  }
+
+  return null;
+}
+
 async function evaluateSymbol(
   symCfg: AutoSymbolConfig,
   config: AutoTradeConfig,
@@ -187,6 +289,43 @@ async function evaluateSymbol(
   // 3) 판단 컨텍스트는 페이퍼 장부 기준 — 가상 $1,000 에서 0 부터 시작하는 실험.
   //    (markPaperPrice 가 장부 항목을 생성/평가가 갱신해 요약이 항상 존재하게 한다)
   markPaperPrice(symbol, currentPrice);
+
+  // 기계적 보호 로직(손절/익절+추세홀드/트레일링) — AI 판단에 앞서 코드가 강제한다.
+  const guardPos = getPaperSummary(symbol);
+  const guard = runPaperGuards(symCfg, currentPrice, candles);
+  if (guard?.handled) {
+    const after = getPaperSummary(symbol);
+    pushLog({
+      t: Date.now(),
+      symbol,
+      session,
+      action: guard.fill ? 'SELL' : 'HOLD',
+      sizePct: guard.fill ? 100 : 0,
+      confidence: 1,
+      reason: guard.reason,
+      fallback: false,
+      currentPrice,
+      position:
+        guardPos && guardPos.quantity > 0 && guardPos.averagePrice > 0
+          ? {
+              quantity: guardPos.quantity,
+              averagePrice: guardPos.averagePrice,
+              profitLossPct:
+                ((currentPrice - guardPos.averagePrice) / guardPos.averagePrice) * 100,
+            }
+          : undefined,
+      paper: after
+        ? {
+            fill: guard.fill ?? undefined,
+            returnPct: after.returnPct,
+            equityUsd: after.equityUsd,
+          }
+        : undefined,
+      model: 'guard',
+    });
+    return; // 이번 틱은 보호 로직이 처리 — AI 호출 생략(다음 틱부터 재개)
+  }
+
   const paperBefore = getPaperSummary(symbol);
   const paperCash = paperBefore?.cash ?? 0;
   const paperQty = paperBefore?.quantity ?? 0;
