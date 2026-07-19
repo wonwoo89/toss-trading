@@ -154,7 +154,10 @@ interface GuardExit {
 function runPaperGuards(
   symCfg: AutoSymbolConfig,
   currentPrice: number,
-  candles: AiDecisionCandle[]
+  candles: AiDecisionCandle[],
+  /** 'protect' = 1분 보호 틱 — 캔들(추세) 없이 하락 보호(손절/보전선/트레일)만 수행.
+   *  익절 진입 판정(추세 홀드 시작/즉시 익절)은 추세를 아는 5분 틱('full')에서만. */
+  mode: 'full' | 'protect' = 'full'
 ): GuardExit | null {
   const symbol = symCfg.symbol;
   const pos = getPaperSummary(symbol);
@@ -201,8 +204,8 @@ function runPaperGuards(
     return null; // 홀드 유지 — AI 판단은 계속 진행(BUY/SELL 재량 허용)
   }
 
-  // 2-b) 목표 도달: 상승 추세면 홀드 시작, 아니면 즉시 익절.
-  if (currentPrice >= tpPrice) {
+  // 2-b) 목표 도달: 상승 추세면 홀드 시작, 아니면 즉시 익절. (full 틱 전용 — 추세 판단 필요)
+  if (mode === 'full' && currentPrice >= tpPrice) {
     const trend = computeTrend(candles);
     if (trend.state === 'up' && trend.confirmedBars >= 2) {
       updatePaperTracking(symbol, { tpHoldPeak: currentPrice });
@@ -231,6 +234,45 @@ function runPaperGuards(
   }
 
   return null;
+}
+
+/** 보호 로직 발화 결과를 판단 로그에 기록 — 5분 틱과 1분 보호 틱이 공유. */
+function logGuardOutcome(
+  symbol: string,
+  session: UsMarketSessionKind,
+  currentPrice: number,
+  guardPos: PaperSummary | undefined,
+  guard: GuardExit
+): void {
+  const after = getPaperSummary(symbol);
+  pushLog({
+    t: Date.now(),
+    symbol,
+    session,
+    action: guard.fill ? 'SELL' : 'HOLD',
+    sizePct: guard.fill ? 100 : 0,
+    confidence: 1,
+    reason: guard.reason,
+    fallback: false,
+    currentPrice,
+    position:
+      guardPos && guardPos.quantity > 0 && guardPos.averagePrice > 0
+        ? {
+            quantity: guardPos.quantity,
+            averagePrice: guardPos.averagePrice,
+            profitLossPct:
+              ((currentPrice - guardPos.averagePrice) / guardPos.averagePrice) * 100,
+          }
+        : undefined,
+    paper: after
+      ? {
+          fill: guard.fill ?? undefined,
+          returnPct: after.returnPct,
+          equityUsd: after.equityUsd,
+        }
+      : undefined,
+    model: 'guard',
+  });
 }
 
 async function evaluateSymbol(
@@ -294,35 +336,7 @@ async function evaluateSymbol(
   const guardPos = getPaperSummary(symbol);
   const guard = runPaperGuards(symCfg, currentPrice, candles);
   if (guard?.handled) {
-    const after = getPaperSummary(symbol);
-    pushLog({
-      t: Date.now(),
-      symbol,
-      session,
-      action: guard.fill ? 'SELL' : 'HOLD',
-      sizePct: guard.fill ? 100 : 0,
-      confidence: 1,
-      reason: guard.reason,
-      fallback: false,
-      currentPrice,
-      position:
-        guardPos && guardPos.quantity > 0 && guardPos.averagePrice > 0
-          ? {
-              quantity: guardPos.quantity,
-              averagePrice: guardPos.averagePrice,
-              profitLossPct:
-                ((currentPrice - guardPos.averagePrice) / guardPos.averagePrice) * 100,
-            }
-          : undefined,
-      paper: after
-        ? {
-            fill: guard.fill ?? undefined,
-            returnPct: after.returnPct,
-            equityUsd: after.equityUsd,
-          }
-        : undefined,
-      model: 'guard',
-    });
+    logGuardOutcome(symbol, session, currentPrice, guardPos, guard);
     return; // 이번 틱은 보호 로직이 처리 — AI 호출 생략(다음 틱부터 재개)
   }
 
@@ -460,6 +474,58 @@ async function runTick(): Promise<void> {
   }
 }
 
+/**
+ * 1분 보호 틱 — AI 없이 현재가만 배치 조회해 하락 보호(손절/보전선/트레일)만 판정한다.
+ * 5분 판단 틱 사이의 급락에도 손절이 최대 1분 안에 걸리게 한다. 포지션이 있는 종목이
+ * 없으면 시세 호출도 생략하므로 부담이 거의 없다(분당 시세 API 최대 1회).
+ */
+const GUARD_TICK_INTERVAL_MS = 60 * 1000;
+let guardTimer: ReturnType<typeof setInterval> | null = null;
+let guardTicking = false;
+
+async function runGuardTick(): Promise<void> {
+  if (guardTicking) return;
+  const config = getAutoTradeConfig();
+  if (!config.enabled) return;
+  const withPosition = config.symbols.filter(
+    (s) => s.active && (getPaperSummary(s.symbol)?.quantity ?? 0) > 0
+  );
+  if (withPosition.length === 0) return;
+
+  const session = await getUsMarketSession();
+  if (!isTradeableSession(session)) return;
+
+  guardTicking = true;
+  try {
+    // 활성 보유 종목 현재가를 한 번에 조회(콤마 배치).
+    const res = await tossRequest<{ result: { symbol?: string; lastPrice?: string }[] }>({
+      path: '/api/v1/prices',
+      query: { symbols: withPosition.map((s) => s.symbol).join(',') },
+    });
+    const priceMap = new Map<string, number>();
+    for (const p of res.result ?? []) {
+      const v = Number(p.lastPrice);
+      if (p.symbol && Number.isFinite(v) && v > 0) priceMap.set(p.symbol.toUpperCase(), v);
+    }
+
+    for (const symCfg of withPosition) {
+      const price = priceMap.get(symCfg.symbol);
+      if (price === undefined) continue;
+      markPaperPrice(symCfg.symbol, price); // 수익률 표시도 1분 단위로 갱신
+      const guardPos = getPaperSummary(symCfg.symbol);
+      const guard = runPaperGuards(symCfg, price, [], 'protect');
+      if (guard?.handled) {
+        logGuardOutcome(symCfg.symbol, session, price, guardPos, guard);
+      }
+    }
+  } catch (err) {
+    // 보호 틱 실패는 다음 분에 자동 재시도 — 상태만 남긴다.
+    status.lastError = `보호 틱 실패: ${err instanceof Error ? err.message : '오류'}`;
+  } finally {
+    guardTicking = false;
+  }
+}
+
 /** 다음 5분봉 마감 + 오프셋 시각까지 남은 ms. 너무 임박하면 다음 주기로. */
 function nextTickDelay(now: number): number {
   const boundary = Math.ceil(now / TICK_INTERVAL_MS) * TICK_INTERVAL_MS;
@@ -482,7 +548,10 @@ export function startAutoTradeEngine(): void {
   if (status.running) return;
   status.running = true;
   scheduleNext();
-  console.log('[auto-trade] 백그라운드 엔진 시작(드라이런) — 열린 세션 동안 5분봉마다 페이퍼 장부로 판단');
+  guardTimer = setInterval(() => void runGuardTick(), GUARD_TICK_INTERVAL_MS);
+  console.log(
+    '[auto-trade] 백그라운드 엔진 시작(드라이런) — 5분봉 AI 판단 + 1분 보호 틱(손절/보전선/트레일)'
+  );
 }
 
 export function stopAutoTradeEngine(): void {
@@ -490,6 +559,10 @@ export function stopAutoTradeEngine(): void {
   if (timer) {
     clearTimeout(timer);
     timer = null;
+  }
+  if (guardTimer) {
+    clearInterval(guardTimer);
+    guardTimer = null;
   }
   status.nextTickAt = null;
 }
