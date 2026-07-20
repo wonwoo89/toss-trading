@@ -25,7 +25,9 @@ import {
  *
  * 백그라운드(페이퍼) 엔진과의 구분:
  *  - 이쪽은 "한 번에 한 종목" + "실주문". 페이퍼 엔진은 다종목 + 가상 체결로 병행 유지.
- *  - 판단 주기: 5분봉 마감(+오프셋) AI 판단 + 1분 보호 틱(손절/보전선/트레일링, AI 없음).
+ *  - 판단 주기: 5분봉 마감(+오프셋) AI 판단 + 1분 보호 틱(손절/보전선/트레일링, AI 없음)
+ *    + 20초 가격 펄스 — 마지막 AI 판단가 대비 ±0.3% 이상 변동 시 즉시 AI 판단(클라이언트
+ *    AI 매매의 AI_PRICE_MOVE_PCT/AI_MIN_INTERVAL_MS 트리거와 동일 규칙).
  *
  * 클라이언트 AI 매매와 동일한 규칙을 서버에서 강제한다:
  *  - 체결 우선 지정가(상대 호가 ±0.1%, 판단가 ±0.5% 캡), 미체결 자동 취소(90s+0.2%),
@@ -37,6 +39,10 @@ import {
 const TICK_INTERVAL_MS = 5 * 60 * 1000;
 const TICK_OFFSET_MS = 20 * 1000;
 const GUARD_TICK_INTERVAL_MS = 60 * 1000;
+// 클라이언트 AI 매매와 동일한 즉각 판단 트리거 — 봉 마감 외에 의미있는 가격 변동 시 추가 호출.
+const AI_MIN_INTERVAL_MS = 20_000;
+const AI_PRICE_MOVE_PCT = 0.3;
+const PULSE_INTERVAL_MS = 20_000;
 const CANDLE_TARGET = 60;
 const CANDLE_INTERVAL = '5m' as const;
 const MAX_LOGS = 80;
@@ -225,6 +231,9 @@ export function saveLiveConfig(raw: unknown): LiveTraderConfig {
 
   s.config = next;
   if (turnedOn || (symbolChanged && next.enabled)) {
+    // 즉각 판단 기준가 리셋 — 첫 판단(5분 틱)이 새 기준가를 세울 때까지 펄스 트리거는 쉼.
+    aiLastPrice = null;
+    aiLastCallAt = 0;
     s.enabledAt = Date.now();
     s.tpHoldPeak = null;
     s.trailPeak = null;
@@ -631,7 +640,23 @@ async function executeAiBuy(
   }
 }
 
+// 즉각 판단 트리거 상태(메모리) — 마지막 AI 호출 시각·기준가. 클라이언트의
+// aiLastCallRef/aiLastPriceRef 에 대응한다(재시작 시 리셋 = 다음 5분 틱이 기준가를 재설정).
+let aiLastCallAt = 0;
+let aiLastPrice: number | null = null;
+let deciding = false;
+
 async function decisionTick(): Promise<void> {
+  if (deciding) return; // 5분 스케줄 틱과 펄스 트리거 틱의 중복 실행 방지
+  deciding = true;
+  try {
+    await decisionTickInner();
+  } finally {
+    deciding = false;
+  }
+}
+
+async function decisionTickInner(): Promise<void> {
   const s = loadState();
   status.lastTickAt = Date.now();
   status.aiConfigured = isAiConfigured();
@@ -724,6 +749,10 @@ async function decisionTick(): Promise<void> {
       candles,
     };
 
+    // 클라이언트와 동일: 호출 직전에 기준(시각·가격)을 갱신해 펄스 트리거의 변동률 기준을 옮긴다.
+    aiLastCallAt = Date.now();
+    aiLastPrice = market.currentPrice;
+
     const decision = await getAiTradeDecision(request);
     if (!decision.fallback) {
       s.aiHistory.unshift({
@@ -783,6 +812,35 @@ async function guardTick(): Promise<void> {
   }
 }
 
+/** 20초 가격 펄스 — 마지막 AI 판단가 대비 ±0.3% 이상 변동 시 즉시 전체 판단 실행.
+ *  시세 1건만 조회하는 경량 틱. 기준가가 없으면(첫 판단 전) 쉬고, 최소 간격(20s)을 지킨다. */
+let pulsing = false;
+async function pulseTick(): Promise<void> {
+  if (pulsing || deciding || guardTicking) return;
+  const s = loadState();
+  if (!s.config.enabled || !s.config.symbol) return;
+  if (aiLastPrice === null || Date.now() - aiLastCallAt < AI_MIN_INTERVAL_MS) return;
+  pulsing = true;
+  try {
+    const session = await getUsMarketSession();
+    if (!isTradeableSession(session)) return;
+    const res = await tossRequest<{ result: { lastPrice?: string }[] }>({
+      path: '/api/v1/prices',
+      query: { symbols: s.config.symbol },
+    });
+    const price = Number(res.result?.[0]?.lastPrice);
+    if (!Number.isFinite(price) || price <= 0) return;
+    const movedPct = (Math.abs(price - aiLastPrice) / aiLastPrice) * 100;
+    if (movedPct < AI_PRICE_MOVE_PCT) return;
+    pushLog('trigger', `가격 급변 감지(${movedPct.toFixed(2)}% ≥ ${AI_PRICE_MOVE_PCT}%) — 즉시 AI 판단 실행`);
+    await decisionTick();
+  } catch {
+    // 시세 조회 실패는 조용히 넘기고 다음 펄스에서 재시도.
+  } finally {
+    pulsing = false;
+  }
+}
+
 // ── 상태/스케줄러 ────────────────────────────────────────────────
 
 const status: {
@@ -836,6 +894,7 @@ export function getLiveTraderStatus(): LiveTraderStatus {
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 let guardTimer: ReturnType<typeof setInterval> | null = null;
+let pulseTimer: ReturnType<typeof setInterval> | null = null;
 
 function nextTickDelay(now: number): number {
   const boundary = Math.ceil(now / TICK_INTERVAL_MS) * TICK_INTERVAL_MS;
@@ -858,7 +917,10 @@ export function startLiveTrader(): void {
   status.running = true;
   scheduleNext();
   guardTimer = setInterval(() => void guardTick(), GUARD_TICK_INTERVAL_MS);
-  console.log('[live] 서버 AI 매매(단일 종목·실주문) 시작 — 5분봉 판단 + 1분 보호 틱');
+  pulseTimer = setInterval(() => void pulseTick(), PULSE_INTERVAL_MS);
+  console.log(
+    '[live] 서버 AI 매매(단일 종목·실주문) 시작 — 5분봉 판단 + 1분 보호 틱 + 20초 변동 펄스(±0.3% 즉시 판단)'
+  );
 }
 
 export function stopLiveTrader(): void {
@@ -870,6 +932,10 @@ export function stopLiveTrader(): void {
   if (guardTimer) {
     clearInterval(guardTimer);
     guardTimer = null;
+  }
+  if (pulseTimer) {
+    clearInterval(pulseTimer);
+    pulseTimer = null;
   }
   status.nextTickAt = null;
 }

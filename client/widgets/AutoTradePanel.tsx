@@ -347,7 +347,7 @@ export function AutoTradePanel({
       const ok =
         typeof window !== 'undefined' &&
         window.confirm(
-          '서버 AI 매매를 켭니다.\n서버가 이 종목을 5분봉마다 판단해 확인 없이 실제 매수/매도 주문을 냅니다.\n브라우저/기기를 꺼도 계속 실행되며, 어느 기기에서든 같은 상태를 봅니다.\n끄려면 OFF 를 누르면 됩니다. 계속할까요?'
+          '서버 AI 매매를 켭니다.\n서버가 이 종목을 5분봉마다(±0.3% 급변 시 즉시) 판단해 확인 없이 실제 매수/매도 주문을 냅니다.\n브라우저/기기를 꺼도 계속 실행되며, 어느 기기에서든 같은 상태를 봅니다.\n끄려면 OFF 를 누르면 됩니다. 계속할까요?'
         );
       if (!ok) return;
       setServerBusySymbol(null);
