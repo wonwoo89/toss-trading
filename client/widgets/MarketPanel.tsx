@@ -286,9 +286,6 @@ export function MarketPanel({
             holding={holding}
             profitLossRate={holdingProfitLossRate}
             targetProfitRatePercent={targetProfitRatePercent}
-            openOrders={openOrders}
-            buyingPower={buyingPower}
-            sellableQuantity={sellableQuantity}
             commissions={commissions}
             warnings={warnings}
           />
