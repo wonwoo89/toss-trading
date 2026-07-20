@@ -1,6 +1,6 @@
 import { Typography } from '../shared/ui/Typography';
 
-export type MobileTab = 'chart' | 'order' | 'book' | 'assets' | 'settings';
+export type MobileTab = 'chart' | 'ai' | 'order' | 'book' | 'assets' | 'settings';
 
 interface MobileTabBarProps {
   active: MobileTab;
@@ -36,6 +36,16 @@ const TABS: { id: MobileTab; label: string; icon: React.ReactNode }[] = [
     icon: (
       <svg {...ICON_PROPS}>
         <path d="M7 4v3M7 15v3M7 7h2v8H5V7h2ZM17 6v3M17 17v3M17 9h2v8h-4V9h2Z" />
+      </svg>
+    ),
+  },
+  {
+    id: 'ai',
+    label: 'AI 봇',
+    icon: (
+      <svg {...ICON_PROPS}>
+        <rect x="5" y="8" width="14" height="10" rx="2.5" />
+        <path d="M12 8V5M12 5h.01M9 12.5h.01M15 12.5h.01M9.5 15.5h5" />
       </svg>
     ),
   },

@@ -12,6 +12,7 @@ import { PortfolioSidebar } from '../../widgets/PortfolioSidebar';
 import { HoldingsChipBar } from '../../widgets/HoldingsChipBar';
 import { AccountSummaryCard } from '../../widgets/AccountSummaryCard';
 import { MobileSettingsPanel } from '../../widgets/MobileSettingsPanel';
+import { ServerAiPage } from '../server-ai/ServerAiPage';
 import { MobileTabBar, type MobileTab } from '../../widgets/MobileTabBar';
 import { SymbolSearch } from '../../widgets/SymbolSearch';
 import { RecentSearchChips } from '../../widgets/RecentSearchChips';
@@ -241,6 +242,10 @@ export function StockPage() {
             <div className="mobile-assets-extras">
               <AccountSummaryCard />
             </div>
+            {/* AI 봇 탭: 백그라운드 AI 매매 관리(임베드) — 탭 활성 시에만 마운트해 폴링 절약 */}
+            <section className="mobile-serverai-panel" aria-label="백그라운드 AI 매매">
+              {mobileTab === 'ai' && <ServerAiPage embedded />}
+            </section>
             {/* 설정 탭: 테마·화면꺼짐방지·레이아웃 전환·백테스트 */}
             <MobileSettingsPanel />
           </>
