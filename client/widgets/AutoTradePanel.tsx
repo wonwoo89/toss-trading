@@ -785,13 +785,23 @@ export function AutoTradePanel({
             label: `AI 소수점 매수 ${symbol} $${budgetUsd}(비중 ${effectivePct}%) 시장가 — ${decision.reason}`,
             aiHistoryId: historyId,
           };
+        } else if (price <= buyingPower * (buyMaxPercent / 100)) {
+          // 정규장 외: 금액(소수점) 주문 불가 → 1주 정수 수량으로 올림해 매수.
+          // 단 1주 가격이 '1회 매수' 상한(주문가능 × buyMaxPercent%) 이내일 때만 — 상한은 지킨다.
+          action = {
+            id: crypto.randomUUID(),
+            kind: 'BUY',
+            side: 'BUY',
+            quantity: 1,
+            limitPrice: marketableBuyPrice(price),
+            label: `AI 매수 ${symbol} 1주(비중 ${effectivePct}%→최소 수량 조정) @ $${fmtPrice(marketableBuyPrice(price))} — ${decision.reason}`,
+            aiHistoryId: historyId,
+          };
         } else {
           pushLog(
             'block',
             'BUY',
-            `AI 매수 신호(비중 ${effectivePct}%) 보류 — 배정 $${budgetUsd}로 1주($${fmtPrice(price)}) 미만` +
-              (isRegularSession ? '' : ' (소수점 매수는 정규장만 가능)') +
-              `: ${decision.reason}`
+            `AI 매수 신호(비중 ${effectivePct}%) 보류 — 1주($${fmtPrice(price)})가 1회 매수 상한($${fmtPrice(buyingPower * (buyMaxPercent / 100))}) 초과: ${decision.reason}`
           );
           return;
         }
