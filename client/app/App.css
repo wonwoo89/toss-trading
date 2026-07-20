@@ -768,6 +768,7 @@ textarea {
    않아야 한다 — 레이아웃 고정 후 항상 마운트되므로 기본 숨김, 모바일 미디어에서 탭별 표시. */
 .mobile-assets-extras,
 .mobile-search-panel,
+.mobile-serverai-panel,
 .mobile-settings-panel {
   display: none;
 }
@@ -4568,6 +4569,10 @@ input[type='checkbox']:focus-visible {
     display: none;
     order: 8;
   }
+  .trading-layout.layout-v2 .mobile-serverai-panel {
+    display: none;
+    order: 8;
+  }
   .trading-layout.layout-v2 .mobile-settings-panel {
     display: none;
     order: 9;
@@ -4627,6 +4632,12 @@ input[type='checkbox']:focus-visible {
     text-overflow: ellipsis;
     display: inline-block;
     vertical-align: bottom;
+  }
+
+  /* AI 봇 탭: 백그라운드 AI 매매 임베드 */
+  .trading-layout.layout-v2--tab-ai .mobile-serverai-panel {
+    display: block;
+    padding-top: 0.25rem;
   }
 
   /* 설정 탭 */
@@ -5138,4 +5149,11 @@ input[type='checkbox']:focus-visible {
 /* 오버레이 안에서는 최근 검색이 항상 보이게(탭 스코프 미디어 규칙과 무관) */
 .mobile-search-overlay .recent-searches {
   margin-top: 0.75rem;
+}
+
+/* 하단 탭 임베드용 — 라우트 페이지 여백/최대폭 제약 해제 */
+.server-ai-page--embedded {
+  max-width: none;
+  padding-top: 0;
+  padding-bottom: 1rem;
 }

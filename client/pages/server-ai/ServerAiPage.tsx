@@ -97,8 +97,9 @@ function LogList({ entries, emptyText }: { entries: AutoLogEntry[]; emptyText: s
 /**
  * 백그라운드 AI 매매 페이지 — 서버 상주(브라우저 불필요) 자동매매 엔진의 관리·모니터링 화면.
  * 현재 엔진은 드라이런: 판단·계획만 기록하고 실주문은 내지 않는다.
+ * embedded=true 면 모바일 하단 탭('AI 봇') 안에 임베드 — 제목/뒤로가기 헤더를 생략한다.
  */
-export function ServerAiPage() {
+export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { showToast } = useToast();
 
   // 서버에 저장된 설정(=마지막 저장본)과 편집 중 초안을 분리 — 킬스위치는 저장본 기준 즉시 반영.
@@ -267,13 +268,15 @@ export function ServerAiPage() {
   }, [status]);
 
   return (
-    <main className="server-ai-page">
-      <div className="backtest-head">
-        <Typography size={18} as="h1">백그라운드 AI 매매</Typography>
-        <Link to="/" className="backtest-back">
-          ← 트레이딩으로
-        </Link>
-      </div>
+    <main className={`server-ai-page${embedded ? ' server-ai-page--embedded' : ''}`}>
+      {!embedded && (
+        <div className="backtest-head">
+          <Typography size={18} as="h1">백그라운드 AI 매매</Typography>
+          <Link to="/" className="backtest-back">
+            ← 트레이딩으로
+          </Link>
+        </div>
+      )}
 
       <Typography size={14} as="p" className="hint server-ai-intro">
         브라우저를 꺼도 서버가 <strong>미국장이 열려 있는 동안</strong>(데이·프리·정규·애프터)
