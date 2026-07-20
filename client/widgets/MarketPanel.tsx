@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 // lightweight-charts(차트 청크)를 지연 로드 → 주문폼/시세가 먼저 그려진다.
 const CandleChart = lazy(() =>
   import('./CandleChart').then((m) => ({ default: m.CandleChart }))
@@ -118,6 +119,7 @@ export function MarketPanel({
   autoSubmitting = false,
   onAutoExecModeChange,
 }: MarketPanelProps) {
+  const navigate = useNavigate();
   const [backtestOpen, setBacktestOpen] = useState(false);
   const [bollingerVisible, setBollingerVisible] = useState(getStoredBollingerVisible);
 
@@ -207,6 +209,15 @@ export function MarketPanel({
               title="이 종목 신호 백테스트"
             >
               백테스트
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="chart-backtest-btn"
+              onClick={() => navigate('/server-ai')}
+              title="백그라운드 AI 매매 관리"
+            >
+              AI 봇
             </Button>
           </div>
         </div>

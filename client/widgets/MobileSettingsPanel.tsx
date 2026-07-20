@@ -47,12 +47,6 @@ export function MobileSettingsPanel() {
           열기
         </Link>
       </div>
-      <div className="mobile-settings-row">
-        <Typography size={14} className="mobile-settings-row__label">백그라운드 AI 매매</Typography>
-        <Link className="mobile-settings-row__link" to="/server-ai">
-          열기
-        </Link>
-      </div>
     </section>
   );
 }

@@ -42,6 +42,10 @@ export function StockPage() {
 
   // 모바일 레이아웃은 하단 탭(구 v2)으로 고정 — 이전 레이아웃 제거.
   const [mobileTab, setMobileTab] = useState<MobileTab>('chart');
+  // 검색은 탭이 아니라 티커칩 바 좌측 돋보기 → 전체화면 오버레이.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchOpenRef = useRef(false);
+  searchOpenRef.current = searchOpen;
 
   const {
     visibleHoldings,
@@ -179,14 +183,27 @@ export function StockPage() {
     return () => document.body.classList.remove('mobile-v2-active');
   }, [v2Active]);
 
-  // 검색 탭에서 종목을 선택하면(라우트 변경) 주문 탭으로 자동 전환.
+  // 검색 오버레이에서 종목을 선택하면(라우트 변경) 오버레이를 닫고 주문 탭으로 전환.
   const prevSymbolRef = useRef(symbol);
   useEffect(() => {
     if (prevSymbolRef.current !== symbol) {
       prevSymbolRef.current = symbol;
-      setMobileTab((tab) => (tab === 'search' ? 'order' : tab));
+      if (searchOpenRef.current) {
+        setSearchOpen(false);
+        setMobileTab('order');
+      }
     }
   }, [symbol]);
+
+  // 검색 오버레이 열림 중 배경 스크롤 잠금.
+  useEffect(() => {
+    if (!searchOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [searchOpen]);
   const layoutClass = [
     'trading-layout',
     hasSymbol ? '' : 'trading-layout--portfolio-only',
@@ -201,7 +218,11 @@ export function StockPage() {
         <div className="trading-layout__main">
           {hasSymbol && symbol ? (
             <>
-              <HoldingsChipBar holdings={visibleHoldings} activeSymbol={symbol} />
+              <HoldingsChipBar
+                holdings={visibleHoldings}
+                activeSymbol={symbol}
+                onSearchClick={() => setSearchOpen(true)}
+              />
               <MarketPanel
                 key={symbol}
                 {...marketPanelProps}
@@ -220,17 +241,6 @@ export function StockPage() {
             <div className="mobile-assets-extras">
               <AccountSummaryCard />
             </div>
-            {/* 검색 탭: 헤더에서 이동한 종목 검색 + 최근 검색 칩(탭하면 주문 화면으로) */}
-            <section className="mobile-search-panel" aria-label="종목 검색">
-              <SymbolSearch />
-              <RecentSearchChips
-                onSelect={(sym) => {
-                  setMobileTab('order'); // 검색 탭 → 주문 탭 (symbol 변경 효과보다 먼저 확정)
-                  setLastSelectedSymbol(sym);
-                  navigate(`/stock/${sym}`);
-                }}
-              />
-            </section>
             {/* 설정 탭: 테마·화면꺼짐방지·레이아웃 전환·백테스트 */}
             <MobileSettingsPanel />
           </>
@@ -296,6 +306,33 @@ export function StockPage() {
         ) : null}
       </main>
       {v2Active && <MobileTabBar active={mobileTab} onChange={setMobileTab} />}
+
+      {/* 전체화면 종목 검색 오버레이(모바일) — 티커칩 바의 돋보기로 진입 */}
+      {searchOpen && (
+        <div className="mobile-search-overlay" role="dialog" aria-modal="true" aria-label="종목 검색">
+          <div className="mobile-search-overlay__head">
+            <div className="mobile-search-overlay__field">
+              <SymbolSearch />
+            </div>
+            <button
+              type="button"
+              className="mobile-search-overlay__close"
+              onClick={() => setSearchOpen(false)}
+              aria-label="닫기"
+            >
+              ✕
+            </button>
+          </div>
+          <RecentSearchChips
+            onSelect={(sym) => {
+              setSearchOpen(false);
+              setMobileTab('order');
+              setLastSelectedSymbol(sym);
+              navigate(`/stock/${sym}`);
+            }}
+          />
+        </div>
+      )}
     </>
   );
 }
