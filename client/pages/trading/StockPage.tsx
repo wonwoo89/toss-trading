@@ -122,8 +122,9 @@ export function StockPage() {
 
   const v2Active = hasSymbol;
 
-  // 데스크톱 주문 컬럼: 호가/주문폼 사이 드래그 핸들로 높이 비율 조절(localStorage 영속).
+  // 데스크톱 주문 컬럼: 주문폼(위)/호가(아래) 사이 드래그 핸들로 높이 비율 조절(localStorage 영속).
   // null = 조절한 적 없음 → 기본 레이아웃(주문폼 자연 높이, 호가가 나머지).
+  // 저장값은 '호가 비율'(핸들 아래쪽 영역) — 핸들을 내리면 호가가 줄고 주문폼이 늘어난다.
   const orderColumnRef = useRef<HTMLElement | null>(null);
   const [orderbookRatio, setOrderbookRatio] = useState<number | null>(getStoredOrderbookSplitRatio);
   const draggingRatioRef = useRef<number | null>(null);
@@ -136,7 +137,8 @@ export function StockPage() {
     if (rect.height <= 0) return;
     document.body.classList.add('is-row-resizing');
     const onMove = (ev: PointerEvent) => {
-      const ratio = clampOrderbookSplitRatio((ev.clientY - rect.top) / rect.height);
+      // 포인터 위치는 '핸들 위쪽(주문폼) 비율' — 저장값은 호가 비율이므로 반전.
+      const ratio = clampOrderbookSplitRatio(1 - (ev.clientY - rect.top) / rect.height);
       draggingRatioRef.current = ratio;
       setOrderbookRatio(ratio);
     };
@@ -163,7 +165,8 @@ export function StockPage() {
   const handleSplitKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
     event.preventDefault();
-    const delta = event.key === 'ArrowUp' ? -0.05 : 0.05;
+    // ↑ = 핸들을 위로(주문폼 축소 = 호가 확대), ↓ = 반대.
+    const delta = event.key === 'ArrowUp' ? 0.05 : -0.05;
     setOrderbookRatio((current) => {
       const next = clampOrderbookSplitRatio((current ?? 0.4) + delta);
       setStoredOrderbookSplitRatio(next);
@@ -275,7 +278,26 @@ export function StockPage() {
                 : undefined
             }
           >
-            {/* 호가 — 데스크톱은 주문폼 위 별도 섹션, 모바일은 호가 탭 전용.
+            <OrderForm
+              key={symbol}
+              {...orderFormProps}
+              symbol={symbol}
+              autoTradeActive={autoTradeActive}
+              onSubmit={createOrder}
+            />
+            {/* 데스크톱 전용 리사이즈 핸들 — 드래그로 주문폼/호가 비율 조절, 더블클릭 리셋 */}
+            <div
+              className="order-split-handle"
+              role="separator"
+              aria-orientation="horizontal"
+              aria-label="주문폼·호가 높이 조절 (드래그, ↑↓ 키, 더블클릭=초기화)"
+              tabIndex={0}
+              title="드래그해서 주문/호가 높이 조절 · 더블클릭하면 초기화"
+              onPointerDown={handleSplitPointerDown}
+              onDoubleClick={resetSplit}
+              onKeyDown={handleSplitKeyDown}
+            />
+            {/* 호가 — 데스크톱은 주문폼 아래 별도 섹션, 모바일은 호가 탭 전용.
                 (MarketPanel 좌측 하단에서 이동 — 호가 심도가 늘어도 차트 높이를 잠식하지 않게) */}
             <div className="orderbook-section">
               <OrderbookPanel
@@ -288,25 +310,6 @@ export function StockPage() {
                 candleInterval={marketPanelProps.candleInterval}
               />
             </div>
-            {/* 데스크톱 전용 리사이즈 핸들 — 드래그로 호가/주문폼 비율 조절, 더블클릭 리셋 */}
-            <div
-              className="order-split-handle"
-              role="separator"
-              aria-orientation="horizontal"
-              aria-label="호가·주문폼 높이 조절 (드래그, ↑↓ 키, 더블클릭=초기화)"
-              tabIndex={0}
-              title="드래그해서 호가/주문 높이 조절 · 더블클릭하면 초기화"
-              onPointerDown={handleSplitPointerDown}
-              onDoubleClick={resetSplit}
-              onKeyDown={handleSplitKeyDown}
-            />
-            <OrderForm
-              key={symbol}
-              {...orderFormProps}
-              symbol={symbol}
-              autoTradeActive={autoTradeActive}
-              onSubmit={createOrder}
-            />
           </section>
         ) : null}
       </main>

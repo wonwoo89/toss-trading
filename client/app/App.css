@@ -1744,7 +1744,7 @@ select:focus-visible {
 .market-panel__below-info {
   min-width: 0;
 }
-/* 호가 섹션 — 주문 컬럼(주문폼 위)에 위치. 모바일은 호가 탭 전용으로 표시 */
+/* 호가 섹션 — 주문 컬럼(주문폼 아래)에 위치. 모바일은 호가 탭 전용으로 표시 */
 .orderbook-section {
   min-width: 0;
 }
@@ -1765,9 +1765,9 @@ body.is-row-resizing {
     flex: 0 1 auto;
     overflow-y: auto;
   }
-  /* 주문 컬럼: [호가] 위 + [주문폼] 아래 스택.
+  /* 주문 컬럼: [주문폼] 위 + [호가] 아래 스택.
      기본: 주문폼은 자연 높이(짧은 화면에선 내부 스크롤로 축소), 호가가 남는 공간을 채우고 내부 스크롤.
-     사용자가 핸들을 드래그하면(.order-column--split) --orderbook-ratio 비율로 분할. */
+     사용자가 핸들을 드래그하면(.order-column--split) --orderbook-ratio(호가 비율)로 분할. */
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
     gap: 0.5rem;
   }
