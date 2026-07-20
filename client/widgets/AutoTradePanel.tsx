@@ -21,7 +21,7 @@ import {
   saveAutoTradeSettings,
   type AutoTradeMode,
 } from '../shared/lib/autoTradeSettings';
-import { api, type AiDecision } from '../shared/api/client';
+import { api, type AiDecision, type LiveTraderStatus } from '../shared/api/client';
 import type { ChartCandle, CommissionRaw, HoldingItem, Order, UsMarketCalendarRaw } from '../shared/types';
 import { resolveUsMarketSession } from '../shared/lib/usMarketCalendar';
 import { resolveUsCommissionRatePercent } from '../shared/lib/commissionBreakEven';
@@ -177,8 +177,9 @@ export function AutoTradePanel({
     (initialSettings.mode === 'auto' || initialSettings.mode === 'semi') &&
     initialSettings.activeSymbol !== undefined &&
     initialSettings.activeSymbol !== symbol;
+  // 'AI 매매'는 서버 실행으로 이관 — 로컬 저장 모드가 auto 여도 서버 상태 동기화(아래 effect)로만 복원.
   const [mode, setMode] = useState<AutoTradeMode>(
-    restoredModeBlockedBySymbolChange ? 'off' : initialSettings.mode
+    restoredModeBlockedBySymbolChange || initialSettings.mode === 'auto' ? 'off' : initialSettings.mode
   );
   // 목표는 자동매매 자체 설정(저장/기본값)을 우선 — 주문폼의 전역 목표수익률(3% 등)이
   // AI 매매폼 기본값(1%)을 덮어쓰지 않게 한다. 자체 값이 없을 때만 전역값으로 폴백.
@@ -346,9 +347,23 @@ export function AutoTradePanel({
       const ok =
         typeof window !== 'undefined' &&
         window.confirm(
-          'AI 매매 모드를 켭니다.\nAI 판단에 따라 확인 없이 자동으로 실제 매수/매도 주문이 나갑니다(취소 없음).\n탭을 가리면 일시정지되고, 끄려면 OFF 를 누르면 됩니다.\n계속할까요?'
+          '서버 AI 매매를 켭니다.\n서버가 이 종목을 5분봉마다 판단해 확인 없이 실제 매수/매도 주문을 냅니다.\n브라우저/기기를 꺼도 계속 실행되며, 어느 기기에서든 같은 상태를 봅니다.\n끄려면 OFF 를 누르면 됩니다. 계속할까요?'
         );
       if (!ok) return;
+      setServerBusySymbol(null);
+      void api
+        .saveLiveTraderConfig(buildLiveConfigRef.current(true))
+        .catch((e: unknown) =>
+          pushLog('block', 'BUY', `서버 AI 매매 시작 실패: ${e instanceof Error ? e.message : '오류'}`)
+        );
+    } else if (mode === 'auto') {
+      // AI 매매 → 다른 모드/OFF: 서버 트레이더 정지.
+      void api
+        .saveLiveTraderConfig(buildLiveConfigRef.current(false))
+        .catch((e: unknown) =>
+          pushLog('block', 'SELL', `서버 AI 매매 정지 실패: ${e instanceof Error ? e.message : '오류'}`)
+        );
+      setLiveStatus(null);
     }
     // OFF → 재시작: 이전 세션의 로그·신호 스냅샷·AI 판단 이력을 모두 비우고 새로 시작.
     if (mode === 'off' && next !== 'off') {
@@ -427,6 +442,78 @@ export function AutoTradePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 서버 AI 매매 동기화(마운트 1회): 서버가 이 종목으로 실행 중이면 이어보기(설정도 서버값으로),
+  // 다른 종목으로 실행 중이면 배너로 알린다.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const st = (await api.getLiveTraderStatus()).result;
+        if (cancelled || !st.config.enabled) return;
+        if (st.config.symbol === symbol.toUpperCase()) {
+          syncingFromServerRef.current = true;
+          setTargetPercent(st.config.targetPercent);
+          setStopLossPercent(st.config.stopLossPercent);
+          setTrailingStopPercent(st.config.trailingStopPercent);
+          setBuyMaxPercent(st.config.buyMaxPercent);
+          setDailyLossLimitUsd(st.config.dailyLossLimitUsd);
+          setHoldTpOnTrend(st.config.holdTpOnTrend);
+          setLiveStatus(st);
+          setMode('auto');
+          pushLog('trigger', 'BUY', '서버 AI 매매 실행 중 — 이 기기에서 이어봅니다');
+        } else {
+          setServerBusySymbol(st.config.symbol);
+        }
+      } catch {
+        // 서버 미접속 등 — 무시(로컬 모드로 동작)
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // AI 매매(서버) 상태 폴링 — 5초. 서버에서 강제 OFF(한도 등)되면 로컬 모드도 내린다.
+  useEffect(() => {
+    if (mode !== 'auto') return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const st = (await api.getLiveTraderStatus()).result;
+        if (cancelled) return;
+        setLiveStatus(st);
+        if (!st.config.enabled || st.config.symbol !== symbol.toUpperCase()) {
+          setMode('off');
+          pushLog('block', 'SELL', '서버 AI 매매가 정지되었습니다(한도 도달 또는 다른 기기에서 변경)');
+        }
+      } catch {
+        // 일시적 실패는 다음 폴링에서 회복
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, symbol]);
+
+  // AI 매매 중 설정 변경 → 서버로 디바운스 푸시(서버→로컬 동기화 직후 1회는 에코 방지).
+  useEffect(() => {
+    if (mode !== 'auto') return;
+    if (syncingFromServerRef.current) {
+      syncingFromServerRef.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      void api.saveLiveTraderConfig(buildLiveConfigRef.current(true)).catch(() => undefined);
+    }, 800);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, targetPercent, stopLossPercent, trailingStopPercent, buyMaxPercent, dailyLossLimitUsd, holdTpOnTrend]);
+
   // 파생 트리거 값 ──────────────────────────────────────────────
   /*
    * ── 소수점/수량 거래 기준(토스 제약 기반, 전 경로 공통) ──────────────
@@ -490,7 +577,39 @@ export function AutoTradePanel({
   const slReached = slPrice !== undefined && currentPrice !== undefined && currentPrice <= slPrice;
 
   const active = mode !== 'off';
+  // 로컬 트리거(익절/손절/트레일링/AI 호출)는 드라이런·세미오토에서만 돈다 — AI 매매는 서버 실행.
+  const localActive = mode === 'dryrun' || mode === 'semi';
   const dailyLossReached = dailyLossLimitUsd > 0 && dailyRealizedUsd <= -dailyLossLimitUsd;
+
+  // 서버(포어그라운드) AI 매매 상태 — 기기 간 공유. mode==='auto' 인 동안 5초 폴링.
+  const [liveStatus, setLiveStatus] = useState<LiveTraderStatus | null>(null);
+  const [serverBusySymbol, setServerBusySymbol] = useState<string | null>(null);
+  const syncingFromServerRef = useRef(false);
+  const buildLiveConfig = (enabled: boolean) => ({
+    enabled,
+    symbol,
+    targetPercent,
+    stopLossPercent,
+    trailingStopPercent,
+    buyMaxPercent,
+    dailyLossLimitUsd,
+    holdTpOnTrend,
+  });
+  const buildLiveConfigRef = useRef(buildLiveConfig);
+  buildLiveConfigRef.current = buildLiveConfig;
+
+  // AI 매매(서버) 동안 로그는 서버 로그를 표시(기기 간 동일) — 로컬 로그는 드라이런/세미오토용.
+  const displayLogs: LogEntry[] =
+    mode === 'auto' && liveStatus
+      ? liveStatus.logs.map((l) => ({
+          id: String(l.id),
+          time: new Date(l.t).toLocaleTimeString('ko-KR'),
+          level: (l.level === 'ai' ? 'trigger' : l.level === 'error' ? 'block' : l.level) as LogEntry['level'],
+          side: l.side ?? 'BUY',
+          symbol,
+          text: l.text,
+        }))
+      : logs;
 
   // 실제 주문 실행 + 공통 가드(제출 중·쿨다운·일일 손실 한도). 통과해 주문을 내면 true.
   const runExecute = (action: PendingAction): boolean => {
@@ -571,12 +690,11 @@ export function AutoTradePanel({
   // 고점을 추적한다. 이후 보전선(익절 목표가) 또는 고점 대비 트레일 % 이탈 시 전량 매도해,
   // 최악의 경우에도 목표 수익은 확보하면서 추세 연장 이익을 노린다.
   useEffect(() => {
-    if (!active) return;
+    if (!localActive) return;
     if (!hasPosition) tpHoldRef.current = null; // 포지션 종료 → 홀드 해제
 
-    // 오토 모드 가드: 정규장 밖에서는 소수점 매도가 불가해 실제 보유 1주 이하면 익절을 생략.
-    const blockedByFractional =
-      mode === 'auto' && !isRegularSession && (holding?.quantity ?? 0) <= 1;
+    // 정규장 밖에서는 소수점 매도가 불가해 실제 보유 1주 이하면 익절을 생략(전 로컬 모드 공통).
+    const blockedByFractional = !isRegularSession && (holding?.quantity ?? 0) <= 1;
 
     // 1) 홀드 중: 고점 갱신 + 이탈 판정. 보전선 아래로 내려오면 tpReached 가 false 여도 매도.
     const hold = tpHoldRef.current;
@@ -649,11 +767,11 @@ export function AutoTradePanel({
 
   // 손절 매도 트리거
   useEffect(() => {
-    if (!active) return;
+    if (!localActive) return;
     if (slReached && sellQty !== undefined && currentPrice !== undefined) {
-      // 오토 모드 가드: 정규장 밖에서는 소수점 매도가 불가해 실제 보유 1주 이하면 손절을 생략.
+      // 정규장 밖에서는 소수점 매도가 불가해 실제 보유 1주 이하면 손절을 생략.
       // 정규장은 소수점 전량 매도가 가능하므로 생략하지 않는다.
-      if (mode === 'auto' && !isRegularSession && (holding?.quantity ?? 0) <= 1) {
+      if (!isRegularSession && (holding?.quantity ?? 0) <= 1) {
         // 생략 로그는 이 손절 에피소드당 1회만(조건이 계속 참이라 매 폴링마다 도배되는 것 방지).
         if (!slSkipLoggedRef.current) {
           slSkipLoggedRef.current = true;
@@ -688,7 +806,7 @@ export function AutoTradePanel({
       trailPeakRef.current = null;
     }
 
-    if (!active) return;
+    if (!localActive) return;
     const trailPeak = trailPeakRef.current;
     const trailStopPrice =
       trailingStopPercent > 0 && trailPeak !== null
@@ -707,7 +825,7 @@ export function AutoTradePanel({
     if (tsReached && currentPrice !== undefined && trailPeak !== null) {
       // 비정규장 소수점 잔량(매도 불가) — 익절/손절과 동일하게 에피소드당 1회만 안내.
       if (sellQty === undefined) {
-        if (mode === 'auto' && !isRegularSession && (holding?.quantity ?? 0) <= 1 && !tsSkipLoggedRef.current) {
+        if (!isRegularSession && (holding?.quantity ?? 0) <= 1 && !tsSkipLoggedRef.current) {
           tsSkipLoggedRef.current = true;
           pushLog('block', 'SELL', `트레일링 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
         }
@@ -729,9 +847,10 @@ export function AutoTradePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mode, isTabVisible, hasPosition, tpReached, slReached, sellQty, currentPrice, symbol, trailingStopPercent]);
 
-  // AI 매매(오토) 활성 시각 기록 — 이후 접수된 주문만 미체결 자동 취소 대상.
+  // 세미오토 활성 시각 기록 — 이후 접수된 주문만 미체결 자동 취소 대상.
+  // (AI 매매의 미체결 취소는 서버 트레이더가 자체 수행)
   useEffect(() => {
-    if (mode === 'auto') {
+    if (mode === 'semi') {
       autoSinceRef.current ??= Date.now();
     } else {
       autoSinceRef.current = null;
@@ -743,7 +862,7 @@ export function AutoTradePanel({
   // 이탈(매수: 급등, 매도: 급락)했으면 취소한다. 미체결이 사라지면 다음 AI 트리거에서
   // "미체결 중복 진입 금지" 제약 없이 새로 판단한다.
   useEffect(() => {
-    if (mode !== 'auto' || !onCancelOrder) return;
+    if (mode !== 'semi' || !onCancelOrder) return;
     const since = autoSinceRef.current;
     if (since === null || currentPrice === undefined || currentPrice <= 0) return;
 
@@ -920,7 +1039,7 @@ export function AutoTradePanel({
 
   // AI 트리거: 봉 마감(완성봉 변경) 또는 의미있는 가격 변동 시(최소 간격 내 억제) 서버에 판단 요청.
   useEffect(() => {
-    if (!useAi || !active) return;
+    if (!useAi || !localActive) return;
     if (candles.length < 2 || currentPrice === undefined || currentPrice <= 0) return;
 
     const sorted = candles.slice().sort((a, b) => a.time - b.time);
@@ -1145,8 +1264,31 @@ export function AutoTradePanel({
 
       {dailyLossLimitUsd > 0 && (
         <Typography as="p" size={12} className={`auto-trade__daily-pnl ${dailyLossReached ? 'is-limit' : ''}`}>
-          오늘 자동매매 실현 손익 ${dailyRealizedUsd.toFixed(2)} / 한도 -${dailyLossLimitUsd}
+          오늘 자동매매 실현 손익 $
+          {(mode === 'auto' && liveStatus ? liveStatus.todayRealizedUsd : dailyRealizedUsd).toFixed(2)}
+          {' '}/ 한도 -${dailyLossLimitUsd}
           {dailyLossReached ? ' — 한도 도달(신규 매수 차단)' : ''}
+        </Typography>
+      )}
+
+      {serverBusySymbol && mode !== 'auto' && (
+        <Typography as="p" size={12} className="auto-trade__server-busy">
+          ⚠ 서버 AI 매매가 <strong>{serverBusySymbol}</strong> 에서 실행 중입니다. 이 종목에서 켜면
+          기존 실행은 정지됩니다.
+        </Typography>
+      )}
+
+      {mode === 'auto' && liveStatus && (
+        <Typography as="p" size={12} className="auto-trade__server-status">
+          🖥 서버 실행 중{liveStatus.session ? ` · 세션 ${liveStatus.session}` : ''} · 오늘 실현 $
+          {liveStatus.todayRealizedUsd.toFixed(2)}
+          {liveStatus.position
+            ? ` · 보유 ${liveStatus.position.quantity}주 @ $${liveStatus.position.averagePrice.toFixed(2)}` +
+              (liveStatus.position.profitLossPct !== undefined
+                ? ` (${liveStatus.position.profitLossPct >= 0 ? '+' : ''}${liveStatus.position.profitLossPct.toFixed(2)}%)`
+                : '')
+            : ' · 보유 없음'}
+          {liveStatus.lastError ? ` · 오류: ${liveStatus.lastError}` : ''}
         </Typography>
       )}
 
@@ -1225,10 +1367,10 @@ export function AutoTradePanel({
 
       {active && (
         <ul className="auto-trade__log">
-          {logs.length === 0 ? (
+          {displayLogs.length === 0 ? (
             <Typography as="li" size={12} className="auto-trade__empty">아직 감지된 신호 없음…</Typography>
           ) : (
-            logs.map((log) => (
+            displayLogs.map((log) => (
               <Typography as="li" size={12} key={log.id} className={`auto-trade__row level-${log.level}`}>
                 <Typography size={12} className="auto-trade__time">{log.time}</Typography>
                 <Typography size={12} className="auto-trade__text">
@@ -1252,7 +1394,7 @@ export function AutoTradePanel({
           <br />
           <Typography as="b" size={12}>세미오토</Typography> 트리거 시 “실행” 탭해야 실주문
           <br />
-          <Typography as="b" size={12}>AI 매매</Typography> AI 판단으로 확인 없이 자동 실주문
+          <Typography as="b" size={12}>AI 매매</Typography> 서버에서 실행 — 기기를 꺼도 지속, 모든 기기에서 상태 공유
           <br />
           매수는 AI 판단 전용. 익절=목표 도달, 손절=손절률 도달, 트레일링=고점 대비 하락 시 전량 매도.
           일일 손실 한도 도달 시 강제 OFF. 쿨다운(30s)·탭 숨김 일시정지로 보호. 현재 종목만.

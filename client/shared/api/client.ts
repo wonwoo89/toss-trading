@@ -110,6 +110,45 @@ export interface BacktestAnalysis {
   fallback?: boolean;
 }
 
+/** 서버(포어그라운드) AI 매매 — 단일 종목 실주문 트레이더(기기 간 상태 공유). */
+export interface LiveTraderConfig {
+  enabled: boolean;
+  symbol: string;
+  targetPercent: number;
+  stopLossPercent: number;
+  trailingStopPercent: number;
+  buyMaxPercent: number;
+  dailyLossLimitUsd: number;
+  holdTpOnTrend: boolean;
+}
+
+export interface LiveLogEntry {
+  id: number;
+  t: number;
+  level: 'trigger' | 'exec' | 'skip' | 'block' | 'error' | 'ai';
+  side?: 'BUY' | 'SELL';
+  text: string;
+}
+
+export interface LiveTraderStatus {
+  config: LiveTraderConfig;
+  running: boolean;
+  ticking: boolean;
+  session: string | null;
+  lastTickAt: number | null;
+  nextTickAt: number | null;
+  lastError: string | null;
+  todayRealizedUsd: number;
+  position: {
+    quantity: number;
+    averagePrice: number;
+    currentPrice?: number;
+    profitLossPct?: number;
+  } | null;
+  aiConfigured: boolean;
+  logs: LiveLogEntry[];
+}
+
 /** 서버 자동매매 엔진 — 종목별 설정(서버 lib/auto-trade-config.ts 와 동일 구조). */
 export interface AutoSymbolConfig {
   symbol: string;
@@ -355,5 +394,12 @@ export const api = {
       body: JSON.stringify(config),
     }),
   getAutoStatus: () => request<ApiEnvelope<AutoEngineStatus>>('/auto/status'),
+  // 서버(포어그라운드) AI 매매 — 단일 종목 실주문 트레이더.
+  getLiveTraderStatus: () => request<ApiEnvelope<LiveTraderStatus>>('/live/status'),
+  saveLiveTraderConfig: (config: LiveTraderConfig) =>
+    request<ApiEnvelope<{ config: LiveTraderConfig }>>('/live/config', {
+      method: 'PUT',
+      body: JSON.stringify(config),
+    }),
   getAutoLogs: (limit = 100) => request<ApiEnvelope<AutoLogEntry[]>>(`/auto/logs?limit=${limit}`),
 };

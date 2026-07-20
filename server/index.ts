@@ -5,11 +5,13 @@ import cors from 'cors';
 import express from 'express';
 import { getLastAuthError, getTokenCacheStatus, warmUpAuth } from './lib/auth.js';
 import { startAutoTradeEngine } from './lib/auto-trade-engine.js';
+import { startLiveTrader } from './lib/live-trader.js';
 import { warmUpStockSearchIndex } from './lib/stock-search.js';
 import { TossApiError } from './lib/toss-client.js';
 import { accountRouter } from './routes/account.js';
 import { aiRouter } from './routes/ai.js';
 import { autoRouter } from './routes/auto.js';
+import { liveRouter } from './routes/live.js';
 import { marketRouter } from './routes/market.js';
 import { ordersRouter } from './routes/orders.js';
 
@@ -64,6 +66,7 @@ app.use('/api/account', accountRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/ai', aiRouter);
 app.use('/api/auto', autoRouter);
+app.use('/api/live', liveRouter);
 
 // 운영 모드: 빌드된 프론트(dist)를 정적 서빙하고, /api 가 아닌 GET 은 SPA 진입점으로
 // 폴백한다(클라이언트 라우팅). 개발 모드(NODE_ENV !== production)에서는 Vite dev 서버가
@@ -124,6 +127,7 @@ app.listen(port, () => {
       console.log('Stock search index ready');
       // 인증 준비 후 백그라운드 자동매매 엔진 시작(드라이런). 브라우저 없이도 5분봉마다 판단.
       startAutoTradeEngine();
+      startLiveTrader();
     })
     .catch((error: unknown) => {
       const message = error instanceof Error ? error.message : 'Unknown auth error';
