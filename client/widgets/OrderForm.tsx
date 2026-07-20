@@ -321,6 +321,10 @@ export function OrderForm({
     return qty > 0 ? qty : undefined;
   }, [selectedQuantityPercent, effectiveSellableQuantity]);
 
+  // 예상 표시 수량 — % 선택값이 없으면 직접 입력 수량으로 폴백(예상 금액과 동일 기준).
+  const buyDisplayQuantity = buyQuantityForPercent ?? effectiveQuantity;
+  const sellDisplayQuantity = sellQuantityForPercent ?? effectiveQuantity;
+
   // 예상 금액(현재가 기준) = 예상 수량 × 현재가. (% 미선택 시 직접 입력 수량으로 폴백)
   const buyEstimatedAmount = useMemo(() => {
     if (useAmountOrder || currentPrice === undefined || currentPrice <= 0) return undefined;
@@ -868,16 +872,16 @@ export function OrderForm({
               <Typography as="p" size={14} className="order-estimated-amount">
                 예상 매수{' '}
                 <Typography as="strong" size={14}>
-                  {buyQuantityForPercent !== undefined
-                    ? `${formatOrderQuantity(buyQuantityForPercent)}주${buyEstimatedAmount !== undefined ? ` · ${formatUsd(buyEstimatedAmount)}` : ''}`
+                  {buyDisplayQuantity !== undefined
+                    ? `${formatOrderQuantity(buyDisplayQuantity)}주${buyEstimatedAmount !== undefined ? ` · ${formatUsd(buyEstimatedAmount)}` : ''}`
                     : '—'}
                 </Typography>
               </Typography>
               <Typography as="p" size={14} className="order-estimated-amount sell">
                 예상 매도{' '}
                 <Typography as="strong" size={14}>
-                  {sellQuantityForPercent !== undefined
-                    ? `${formatOrderQuantity(sellQuantityForPercent)}주${sellEstimatedAmount !== undefined ? ` · ${formatUsd(sellEstimatedAmount)}` : ''}`
+                  {sellDisplayQuantity !== undefined
+                    ? `${formatOrderQuantity(sellDisplayQuantity)}주${sellEstimatedAmount !== undefined ? ` · ${formatUsd(sellEstimatedAmount)}` : ''}`
                     : '—'}
                 </Typography>
                 {sellProfitEstimate && (
