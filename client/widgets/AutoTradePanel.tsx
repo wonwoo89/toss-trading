@@ -240,6 +240,9 @@ export function AutoTradePanel({
   // 손절 생략(보유 ≤1주) 로그를 에피소드당 1회로 제한하는 플래그.
   const slSkipLoggedRef = useRef(false);
   const tpSkipLoggedRef = useRef(false);
+  // AI 재량 매도(SELL 의견)가 매도 불가 상태에서 반복될 때 로그 도배 방지(에피소드당 1회).
+  const aiSellSkipLoggedRef = useRef(false);
+  const tsSkipLoggedRef = useRef(false);
   pendingRef.current = pending;
 
   // 설정 영속화 — 어떤 값이든 바뀌면 저장.
@@ -308,6 +311,18 @@ export function AutoTradePanel({
     setTipPos({ top: r.bottom + 6, left });
   };
   const closeTip = () => setTipPos(null);
+
+  // fixed 좌표라 스크롤하면 트리거와 분리된 채 화면에 남는다 — 스크롤/리사이즈 시 닫는다.
+  useEffect(() => {
+    if (!tipPos) return;
+    const close = () => setTipPos(null);
+    window.addEventListener('scroll', close, { capture: true, passive: true });
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
+  }, [tipPos]);
 
   // AI 매매 모드 켜기는 실수 방지를 위해 명시적 확인을 받는다.
   const selectMode = (next: AutoTradeMode) => {
@@ -398,6 +413,19 @@ export function AutoTradePanel({
   }, []);
 
   // 파생 트리거 값 ──────────────────────────────────────────────
+  /*
+   * ── 소수점/수량 거래 기준(토스 제약 기반, 전 경로 공통) ──────────────
+   * 매도:
+   *  - 정규장: 소수점 전량 매도 가능(소수 8자리 내림). 소수점 수량은 '시장가'로만
+   *    허용되므로 제출 시 시장가로 전환(StockPage.executeAutoOrder).
+   *  - 비정규장(데이/프리/애프터): 정수 주만(내림). 보유가 1주 이하면 매도 불가 →
+   *    익절/손절/트레일링/AI 매도 전부 생략(에피소드당 1회 로그), 정규장에서 처리.
+   *    보유가 1주 초과 소수점(예: 1.5주)이면 정수부만 매도(잔량은 정규장에서).
+   * 매수:
+   *  - 배정 예산 ≥ 1주: 정수 수량 지정가(체결 우선 가격) — 전 세션 공통.
+   *  - 배정 예산 < 1주: 정규장 = 금액(orderAmount) 시장가 소수점 매수 /
+   *    비정규장 = 1주로 올림(1회 매수 상한 이내일 때만, 초과 시 보류).
+   */
   // 매도 수량 — 정규장은 소수점 전량(보유 잔량 그대로), 그 외 세션은 정수 주만(내림).
   // 부동소수 오차로 잔량을 초과하지 않도록 정규장 수량은 소수 8자리로 내림.
   const sellQty = (() => {
@@ -661,7 +689,15 @@ export function AutoTradePanel({
       !slReached &&
       tpHoldRef.current === null;
 
-    if (tsReached && sellQty !== undefined && currentPrice !== undefined && trailPeak !== null) {
+    if (tsReached && currentPrice !== undefined && trailPeak !== null) {
+      // 비정규장 소수점 잔량(매도 불가) — 익절/손절과 동일하게 에피소드당 1회만 안내.
+      if (sellQty === undefined) {
+        if (mode === 'auto' && !isRegularSession && (holding?.quantity ?? 0) <= 1 && !tsSkipLoggedRef.current) {
+          tsSkipLoggedRef.current = true;
+          pushLog('block', 'SELL', `트레일링 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
+        }
+        return;
+      }
       if (shouldFire('TS', currentPrice, sellQty)) {
         const label = `트레일링 매도(전량) ${symbol} ${sellQty}주 @ $${fmtPrice(currentPrice)} (고점 $${fmtPrice(trailPeak)} 대비 -${trailingStopPercent}%)`;
         fireTrigger(
@@ -673,6 +709,7 @@ export function AutoTradePanel({
       }
     } else {
       lastSignalRef.current.TS = null;
+      tsSkipLoggedRef.current = false;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mode, isTabVisible, hasPosition, tpReached, slReached, sellQty, currentPrice, symbol, trailingStopPercent]);
@@ -819,9 +856,22 @@ export function AutoTradePanel({
     } else {
       // SELL: 보유분 전량 청산 제안. (TP/SL 보호와 별개의 재량 매도)
       if (sellQty === undefined || sellQty <= 0 || currentPrice === undefined) {
-        pushLog('block', 'SELL', `AI 매도 보류 — 보유 없음: ${decision.reason}`);
+        // 비정규장 소수점 잔량(매도 불가) 상태에서 AI 가 손절/매도 의견을 반복해도
+        // 생략 로그는 에피소드당 1회만 — 매도 가능해지면(정규장 진입 등) 플래그 리셋.
+        if (!aiSellSkipLoggedRef.current) {
+          aiSellSkipLoggedRef.current = true;
+          const dustQty = holding?.quantity ?? 0;
+          pushLog(
+            'block',
+            'SELL',
+            dustQty > 0
+              ? `AI 매도 생략(비정규장 소수점 잔량 ${dustQty}주 — 정규장에서 처리 가능): ${decision.reason}`
+              : `AI 매도 보류 — 보유 없음: ${decision.reason}`
+          );
+        }
         return;
       }
+      aiSellSkipLoggedRef.current = false;
       action = {
         id: crypto.randomUUID(),
         kind: 'TP',
@@ -928,7 +978,8 @@ export function AutoTradePanel({
             : undefined,
         buyingPower,
         maxBuyQuantity,
-        sellableQuantity: sellQty,
+        // 매도 불가 상태(비정규장 소수점 잔량)는 0 으로 명시 — AI 가 매도 불가를 알고 SELL 을 삼가게.
+        sellableQuantity: sellQty ?? ((holding?.quantity ?? 0) > 0 ? 0 : undefined),
         targetProfitPct: targetPercent,
         stopLossPct: stopLossPercent,
         signal: { level: signal.level, score: signal.score },

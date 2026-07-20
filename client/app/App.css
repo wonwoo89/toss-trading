@@ -4520,9 +4520,10 @@ input[type='checkbox']:focus-visible {
     display: block;
     padding: 0;
   }
-  /* 호가 탭은 호가만 보여주므로 카드 없이 페이지 전체 폭 사용(풀블리드) + 행 높이 확대 */
+  /* 호가 탭은 호가만 보여주므로 카드 없이 페이지 전체 폭 사용(풀블리드).
+     행 높이는 한 화면에 더 많은 호가가 보이도록 소폭 축소(50→42px). */
   .trading-layout.layout-v2--tab-book .orderbook {
-    --obl-row-h: 50px;
+    --obl-row-h: 42px;
   }
   /* 화면 가장자리에 닿는 정보·체결 영역만 최소 여백 확보 */
   .trading-layout.layout-v2--tab-book .obl__info {
