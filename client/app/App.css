@@ -4443,6 +4443,11 @@ input[type='checkbox']:focus-visible {
     height: 50dvh;
     min-height: 300px;
     max-height: none;
+    /* 차트↔자동매매 간격 축소: 레이아웃 flex gap(16px)을 음수 마진으로 상쇄(주문 탭과 동일 기법) */
+    margin-bottom: -10px;
+  }
+  .trading-layout.layout-v2--tab-chart .market-auto-trade {
+    margin-top: 0;
   }
   .trading-layout.layout-v2--tab-chart .market-panel__below-info {
     display: block;
