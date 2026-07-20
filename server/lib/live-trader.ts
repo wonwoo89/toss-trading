@@ -391,9 +391,10 @@ async function sellAll(
   const s = loadState();
   const { account, market, session } = ctx;
   const isRegular = session === 'regular';
-  // 비정규장 + 보유 1주 이하 — 소수점 매도가 불가해 생략(클라이언트 AI 매매와 동일 규칙).
-  if (!isRegular && account.holdingQty <= 1) {
-    pushLog('block', `${label} 생략(보유 ${account.holdingQty}주 ≤ 1주, 비정규장)`, 'SELL');
+  // 비정규장 + 보유 1주 미만(소수점 잔량) — 소수점 매도가 불가해 생략.
+  // 정수 1주 이상은 정수부 매도가 가능하므로 막지 않는다.
+  if (!isRegular && account.holdingQty < 1) {
+    pushLog('block', `${label} 생략(보유 ${account.holdingQty}주 < 1주 — 소수점 잔량, 비정규장)`, 'SELL');
     return false;
   }
   const base = account.sellableQty !== undefined && account.sellableQty > 0

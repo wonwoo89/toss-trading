@@ -520,9 +520,9 @@ export function AutoTradePanel({
    * 매도:
    *  - 정규장: 소수점 전량 매도 가능(소수 8자리 내림). 소수점 수량은 '시장가'로만
    *    허용되므로 제출 시 시장가로 전환(StockPage.executeAutoOrder).
-   *  - 비정규장(데이/프리/애프터): 정수 주만(내림). 보유가 1주 이하면 매도 불가 →
-   *    익절/손절/트레일링/AI 매도 전부 생략(에피소드당 1회 로그), 정규장에서 처리.
-   *    보유가 1주 초과 소수점(예: 1.5주)이면 정수부만 매도(잔량은 정규장에서).
+   *  - 비정규장(데이/프리/애프터): 정수 주만(내림). 보유가 1주 미만(소수점 잔량)이면
+   *    매도 불가 → 익절/손절/트레일링/AI 매도 전부 생략(에피소드당 1회 로그).
+   *    보유가 1주 이상이면 정수부만 매도(소수점 잔량은 정규장에서).
    * 매수:
    *  - 배정 예산 ≥ 1주: 정수 수량 지정가(체결 우선 가격) — 전 세션 공통.
    *  - 배정 예산 < 1주: 정규장 = 금액(orderAmount) 시장가 소수점 매수 /
@@ -693,8 +693,8 @@ export function AutoTradePanel({
     if (!localActive) return;
     if (!hasPosition) tpHoldRef.current = null; // 포지션 종료 → 홀드 해제
 
-    // 정규장 밖에서는 소수점 매도가 불가해 실제 보유 1주 이하면 익절을 생략(전 로컬 모드 공통).
-    const blockedByFractional = !isRegularSession && (holding?.quantity ?? 0) <= 1;
+    // 정규장 밖에서는 소수점 매도가 불가해 보유 1주 미만(소수점 잔량)이면 익절을 생략(전 로컬 모드 공통).
+    const blockedByFractional = !isRegularSession && (holding?.quantity ?? 0) < 1;
 
     // 1) 홀드 중: 고점 갱신 + 이탈 판정. 보전선 아래로 내려오면 tpReached 가 false 여도 매도.
     const hold = tpHoldRef.current;
@@ -707,7 +707,7 @@ export function AutoTradePanel({
         if (blockedByFractional) {
           if (!tpSkipLoggedRef.current) {
             tpSkipLoggedRef.current = true;
-            pushLog('block', 'SELL', `익절 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
+            pushLog('block', 'SELL', `익절 매도 생략(보유 ${holding?.quantity ?? 0}주 < 1주 — 소수점 잔량): ${symbol}`);
           }
           return;
         }
@@ -732,7 +732,7 @@ export function AutoTradePanel({
       if (blockedByFractional) {
         if (!tpSkipLoggedRef.current) {
           tpSkipLoggedRef.current = true;
-          pushLog('block', 'SELL', `익절 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
+          pushLog('block', 'SELL', `익절 매도 생략(보유 ${holding?.quantity ?? 0}주 < 1주 — 소수점 잔량): ${symbol}`);
         }
         return;
       }
@@ -769,13 +769,13 @@ export function AutoTradePanel({
   useEffect(() => {
     if (!localActive) return;
     if (slReached && sellQty !== undefined && currentPrice !== undefined) {
-      // 정규장 밖에서는 소수점 매도가 불가해 실제 보유 1주 이하면 손절을 생략.
+      // 정규장 밖에서는 소수점 매도가 불가해 보유 1주 미만(소수점 잔량)이면 손절을 생략.
       // 정규장은 소수점 전량 매도가 가능하므로 생략하지 않는다.
-      if (!isRegularSession && (holding?.quantity ?? 0) <= 1) {
+      if (!isRegularSession && (holding?.quantity ?? 0) < 1) {
         // 생략 로그는 이 손절 에피소드당 1회만(조건이 계속 참이라 매 폴링마다 도배되는 것 방지).
         if (!slSkipLoggedRef.current) {
           slSkipLoggedRef.current = true;
-          pushLog('block', 'SELL', `손절 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
+          pushLog('block', 'SELL', `손절 매도 생략(보유 ${holding?.quantity ?? 0}주 < 1주 — 소수점 잔량): ${symbol}`);
         }
         return;
       }
@@ -825,9 +825,9 @@ export function AutoTradePanel({
     if (tsReached && currentPrice !== undefined && trailPeak !== null) {
       // 비정규장 소수점 잔량(매도 불가) — 익절/손절과 동일하게 에피소드당 1회만 안내.
       if (sellQty === undefined) {
-        if (!isRegularSession && (holding?.quantity ?? 0) <= 1 && !tsSkipLoggedRef.current) {
+        if (!isRegularSession && (holding?.quantity ?? 0) < 1 && !tsSkipLoggedRef.current) {
           tsSkipLoggedRef.current = true;
-          pushLog('block', 'SELL', `트레일링 매도 생략(보유 ${holding?.quantity ?? 0}주 ≤ 1주): ${symbol}`);
+          pushLog('block', 'SELL', `트레일링 매도 생략(보유 ${holding?.quantity ?? 0}주 < 1주 — 소수점 잔량): ${symbol}`);
         }
         return;
       }
