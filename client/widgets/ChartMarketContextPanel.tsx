@@ -9,7 +9,6 @@ import {
 } from '../shared/lib/commissionBreakEven';
 import { buildHoldingPositionSnapshot } from '../shared/lib/holdingTarget';
 import { type MicrostructureBias } from '../shared/lib/marketMicrostructure';
-import { buildOrderExecutionMetrics } from '../shared/lib/orderExecutionContext';
 import { formatUsd } from '../shared/lib/formatHoldings';
 import { Typography } from '../shared/ui/Typography';
 import { formatWarningSummary } from '../shared/lib/warningLabels';
@@ -19,7 +18,6 @@ import type {
   ChartCandle,
   CommissionRaw,
   HoldingItem,
-  Order,
   UsMarketCalendarRaw,
 } from '../shared/types';
 
@@ -34,9 +32,6 @@ interface ChartMarketContextPanelProps {
   holding?: HoldingItem;
   profitLossRate?: number;
   targetProfitRatePercent: number;
-  openOrders?: Order[];
-  buyingPower?: number;
-  sellableQuantity?: number;
   commissions?: CommissionRaw[];
   warnings?: string[];
 }
@@ -112,9 +107,6 @@ export function ChartMarketContextPanel({
   holding,
   profitLossRate,
   targetProfitRatePercent,
-  openOrders = [],
-  buyingPower,
-  sellableQuantity,
   commissions = [],
   warnings = [],
 }: ChartMarketContextPanelProps) {
@@ -157,18 +149,6 @@ export function ChartMarketContextPanel({
     [previousClose, currentPrice]
   );
 
-  const orderExecutionMetrics = useMemo(
-    () =>
-      buildOrderExecutionMetrics({
-        openOrders,
-        buyingPower,
-        sellableQuantity,
-        holdingQuantity: holding?.quantity,
-        currentPrice,
-      }),
-    [buyingPower, currentPrice, holding?.quantity, openOrders, sellableQuantity]
-  );
-
   const breakEvenMetric = useMemo(
     () =>
       buildBreakEvenMetric({
@@ -201,8 +181,6 @@ export function ChartMarketContextPanel({
       </div>
 
       <MetricRow label="당일·변동" metrics={[dayChangeMetric, ...dayPriceMetrics]} />
-
-      <MetricRow label="주문 실행" metrics={orderExecutionMetrics} />
 
       {position.visible && (
         <div className="market-context__row">

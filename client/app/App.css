@@ -5256,3 +5256,27 @@ input[type='checkbox']:focus-visible {
 .backtest-optimize__note {
   margin: 0;
 }
+
+/* 모바일 백테스트 컨트롤 — 인풋 3개씩 두 줄 + 버튼 5:5 (6컬럼 그리드: 인풋 span2, 버튼 span3) */
+@media (max-width: 640px) {
+  .backtest-controls {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0.5rem;
+    align-items: end;
+  }
+  .backtest-controls > * {
+    grid-column: span 2;
+    min-width: 0;
+  }
+  .backtest-controls .ui-textfield {
+    width: auto;
+  }
+  .backtest-controls select {
+    width: 100%;
+  }
+  .backtest-controls .backtest-run {
+    grid-column: span 3;
+    width: 100%;
+  }
+}
