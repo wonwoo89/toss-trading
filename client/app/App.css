@@ -5280,3 +5280,16 @@ input[type='checkbox']:focus-visible {
     width: 100%;
   }
 }
+
+/* 서버 AI 매매 상태/충돌 안내 (자동매매 패널) */
+.auto-trade__server-status {
+  margin: 0.4rem 0 0;
+  color: var(--accent, #3182f6);
+  line-height: 1.4;
+}
+
+.auto-trade__server-busy {
+  margin: 0.4rem 0 0;
+  color: var(--color-up);
+  line-height: 1.4;
+}

@@ -28,3 +28,4 @@ public/_icon-source.svg
 *.sw?
 server/data/auto-trade-config.json
 server/data/paper-portfolio.json
+server/data/live-trader.json
