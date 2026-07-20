@@ -7,6 +7,8 @@ import type { HoldingItem } from '../shared/types';
 interface HoldingsChipBarProps {
   holdings: HoldingItem[];
   activeSymbol?: string;
+  /** 좌측 돋보기 버튼 탭 시 — 전체화면 검색 오버레이 열기(모바일). */
+  onSearchClick?: () => void;
 }
 
 /**
@@ -17,7 +19,7 @@ interface HoldingsChipBarProps {
  * 스크롤한다. 재배치로 활성 칩이 항상 index 0 이므로 스크롤은 left:0 으로 단순화해
  * (특정 칩 위치 계산 없이) 스크롤 이동과 충돌하지 않게 한다.
  */
-export function HoldingsChipBar({ holdings, activeSymbol }: HoldingsChipBarProps) {
+export function HoldingsChipBar({ holdings, activeSymbol, onSearchClick }: HoldingsChipBarProps) {
   const navigate = useNavigate();
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -37,7 +39,7 @@ export function HoldingsChipBar({ holdings, activeSymbol }: HoldingsChipBarProps
     containerRef.current?.scrollTo({ left: 0, behavior: 'smooth' });
   }, [activeSymbol]);
 
-  if (holdings.length === 0) return null;
+  if (holdings.length === 0 && !onSearchClick) return null;
 
   return (
     <div
@@ -46,6 +48,28 @@ export function HoldingsChipBar({ holdings, activeSymbol }: HoldingsChipBarProps
       role="tablist"
       aria-label="보유 종목 빠른 전환"
     >
+      {onSearchClick && (
+        <button
+          type="button"
+          className="holdings-chip holdings-chip--search"
+          aria-label="종목 검색"
+          onClick={onSearchClick}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="6" />
+            <path d="m20 20-4.2-4.2" />
+          </svg>
+        </button>
+      )}
       {orderedHoldings.map((item) => {
         const isActive = item.symbol.toUpperCase() === activeSymbol?.toUpperCase();
         const pct = formatSignedPercent(item.profitLossRate, item.profitLoss);

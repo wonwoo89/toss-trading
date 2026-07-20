@@ -1,6 +1,6 @@
 import { Typography } from '../shared/ui/Typography';
 
-export type MobileTab = 'chart' | 'order' | 'book' | 'assets' | 'search' | 'settings';
+export type MobileTab = 'chart' | 'order' | 'book' | 'assets' | 'settings';
 
 interface MobileTabBarProps {
   active: MobileTab;
@@ -40,15 +40,6 @@ const TABS: { id: MobileTab; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: 'book',
-    label: '호가',
-    icon: (
-      <svg {...ICON_PROPS}>
-        <path d="M4 6h10M4 10h7M4 14h10M4 18h7M18 8l3 3-3 3" />
-      </svg>
-    ),
-  },
-  {
     id: 'order',
     label: '주문',
     icon: (
@@ -58,12 +49,11 @@ const TABS: { id: MobileTab; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: 'search',
-    label: '검색',
+    id: 'book',
+    label: '호가',
     icon: (
       <svg {...ICON_PROPS}>
-        <circle cx="11" cy="11" r="6" />
-        <path d="m20 20-4.2-4.2" />
+        <path d="M4 6h10M4 10h7M4 14h10M4 18h7M18 8l3 3-3 3" />
       </svg>
     ),
   },
