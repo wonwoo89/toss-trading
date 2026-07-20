@@ -252,13 +252,9 @@ export function OrderForm({
     return buildBuyBreakEvenHint(effectiveBuyPrice, commissionRatePercent);
   }, [commissionRatePercent, effectiveBuyPrice]);
 
-  // 직접 입력값(수량·가격)으로 실행. 자동매매(세미오토/오토) 실행 중에는 수동 주문을 차단한다.
+  // 직접 입력값(수량·가격)으로 실행. 자동매매 실행 중에도 수동 주문은 허용된다(안내만).
   const executeManual = (intendedSide: 'BUY' | 'SELL') => {
     if (submitting) return;
-    if (autoTradeActive) {
-      showToast('자동매매 실행 중에는 수동 주문이 비활성화됩니다. 차트 탭에서 OFF 하세요.', 'error');
-      return;
-    }
     // 선택된 %를 실행하려는 사이드 기준으로 환산해 주문 수량 결정
     // (매수=주문가능 금액 기준, 매도=보유 수량 기준). 직접 입력 수량은 effectiveQuantity 로 폴백.
     pendingQuantityRef.current =
@@ -549,9 +545,6 @@ export function OrderForm({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    // 자동매매(세미오토/오토) 실행 중에는 수동 주문 차단(안전).
-    if (autoTradeActive) return;
-
     // 실행 버튼으로만 매수/매도 결정 (상단 탭 제거)
     const effectiveSide = pendingSideRef.current ?? side;
     pendingSideRef.current = null;
@@ -680,18 +673,15 @@ export function OrderForm({
           </Typography>
         )}
 
-        {/* 자동매매(차트 탭)가 세미오토/오토로 실행 중이면 수동 주문을 잠근다 */}
+        {/* 자동매매(세미오토/오토) 실행 중에도 수동 주문폼은 그대로 노출·사용 가능 — 참고 안내만 */}
         {isOrderable && autoTradeActive && (
           <Typography as="p" size={14} className="order-form__readonly-notice hint">
-            ⚡ 자동매매(세미오토/오토) 실행 중 — 수동 주문이 잠겨 있어요. 차트 탭의 자동매매
-            패널에서 OFF 하면 다시 주문할 수 있습니다.
+            ⚡ 자동매매 실행 중 — 수동 주문도 가능하지만 자동 주문과 겹칠 수 있어요.
           </Typography>
         )}
 
         {/* 매수/매도 구분은 상단 탭이 아닌 하단 실행 버튼으로만 결정 (UX 개선) */}
-        {/* 자동매매 실행 중에는 주문 입력(가격·수량·목표매도)을 숨긴다 */}
         {isOrderable &&
-          !autoTradeActive &&
           (useAmountOrder ? (
           <div className="order-form__section">
             <div className="order-form__field-header">
@@ -843,7 +833,7 @@ export function OrderForm({
           />
         </div>
 
-        {isOrderable && !autoTradeActive && (
+        {isOrderable && (
           <>
         {/* 매수 가능·손익분기·매도 가능·예상 금액은 side(매수/매도)와 무관하게 항상 노출 */}
         <div className="order-form__hints">
