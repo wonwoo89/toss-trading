@@ -5157,3 +5157,97 @@ input[type='checkbox']:focus-visible {
   padding-top: 0;
   padding-bottom: 1rem;
 }
+
+/* ── 백테스트 AI 최적화 결과 ── */
+.backtest-run--optimize {
+  background: var(--accent, #3182f6);
+  color: #fff;
+  border-color: transparent;
+}
+
+.backtest-optimize {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding: 0.9rem 1rem;
+}
+
+.backtest-optimize__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.backtest-optimize__head h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.backtest-optimize__pick {
+  border: 1px solid color-mix(in srgb, var(--accent, #3182f6) 40%, transparent);
+  background: color-mix(in srgb, var(--accent, #3182f6) 8%, transparent);
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  align-items: flex-start;
+}
+
+.backtest-optimize__pick-title {
+  margin: 0;
+}
+
+.backtest-optimize__reason {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.backtest-optimize__caution {
+  margin: 0;
+  color: var(--color-up);
+}
+
+.backtest-optimize__table-wrap {
+  overflow-x: auto;
+}
+
+.backtest-optimize__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.backtest-optimize__table th,
+.backtest-optimize__table td {
+  padding: 0.35rem 0.5rem;
+  text-align: right;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 60%, transparent);
+}
+
+.backtest-optimize__table th {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.backtest-optimize__table tr.is-best td {
+  background: color-mix(in srgb, var(--accent, #3182f6) 10%, transparent);
+  font-weight: 700;
+}
+
+.backtest-optimize__table td.up {
+  color: var(--color-up);
+}
+
+.backtest-optimize__table td.down {
+  color: var(--color-down);
+}
+
+.backtest-optimize__note {
+  margin: 0;
+}

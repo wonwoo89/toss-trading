@@ -358,18 +358,25 @@ function runWithHardTimeout(req: AiDecisionRequest): Promise<AiDecision> {
   });
 }
 
-function queueSubscriptionDecision(req: AiDecisionRequest): Promise<AiDecision> {
+/** 구독 대기열의 범용 등록 — 판단/분석 등 모든 구독 호출이 같은 직렬 체인·상한을 공유한다. */
+function queueSubscriptionTask<T>(run: () => Promise<T>, overflow: () => T): Promise<T> {
   if (pendingSubscriptionCalls >= MAX_PENDING_SUBSCRIPTION_CALLS) {
-    console.error(`[ai] 구독 대기열 초과(pending=${pendingSubscriptionCalls}) — 보류 폴백`);
-    return Promise.resolve(holdFallback('AI 판단 동시 요청 초과 — 보류'));
+    console.error(`[ai] 구독 대기열 초과(pending=${pendingSubscriptionCalls}) — 폴백`);
+    return Promise.resolve(overflow());
   }
   pendingSubscriptionCalls += 1;
-  const run = () => runWithHardTimeout(req);
   const result = subscriptionChain.then(run, run).finally(() => {
     pendingSubscriptionCalls -= 1;
   });
   subscriptionChain = result.catch(() => undefined);
   return result;
+}
+
+function queueSubscriptionDecision(req: AiDecisionRequest): Promise<AiDecision> {
+  return queueSubscriptionTask(
+    () => runWithHardTimeout(req),
+    () => holdFallback('AI 판단 동시 요청 초과 — 보류')
+  );
 }
 
 export async function getAiTradeDecision(req: AiDecisionRequest): Promise<AiDecision> {
@@ -422,5 +429,235 @@ export async function getAiTradeDecision(req: AiDecisionRequest): Promise<AiDeci
   } catch (error) {
     const message = error instanceof Error ? error.message : '알 수 없는 오류';
     return holdFallback(`AI 호출 실패: ${message} — 보류`);
+  }
+}
+
+// ── 백테스트 시나리오 분석(AI) ─────────────────────────────────────────
+// 여러 (익절, 손절) 시나리오의 백테스트 요약을 받아 "실전 신뢰도"가 가장 높은
+// 조합을 고른다. 판단 경로와 같은 모델·인증·구독 대기열을 공유한다.
+
+export interface BacktestScenarioInput {
+  targetPct: number;
+  stopPct: number;
+  trades: number;
+  winRatePct: number;
+  avgReturnPct: number;
+  totalReturnPct: number;
+  maxDrawdownPct: number;
+}
+
+export interface BacktestAnalysisRequest {
+  symbol: string;
+  interval: string;
+  forwardBars: number;
+  costPct: number;
+  usedCandles?: number;
+  /** 누적 수익률 내림차순 정렬 가정(index 0 = 누적 1위) — 폴백 시 0을 고른다. */
+  scenarios: BacktestScenarioInput[];
+}
+
+export interface BacktestAnalysis {
+  bestIndex: number;
+  reason: string;
+  caution?: string;
+  model: string;
+  fallback?: boolean;
+}
+
+const BACKTEST_ANALYSIS_SYSTEM = `당신은 트레이딩 전략 백테스트 분석가입니다.
+한 종목에 대해 여러 (익절%, 손절%) 시나리오의 백테스트 요약 통계를 받아,
+실전에서 가장 신뢰할 만한 최적 시나리오 "하나"를 고릅니다.
+
+원칙:
+- 단순 누적수익 1위가 아니라 표본 수(거래 횟수), 승률, 평균 수익(기대값), 최대 낙폭(MDD),
+  과최적화 위험(외딴 최고점보다 이웃 조합도 준수한 안정 구간 선호)을 종합해 판단합니다.
+- 거래 횟수가 너무 적은 시나리오(대략 5회 미만)는 통계적으로 신뢰하지 않습니다.
+- bestIndex 는 입력 배열의 0-기반 인덱스입니다.
+- reason 은 한국어 2~3문장으로 선택 근거를, caution 은 주의점을 1문장으로(선택) 적습니다.
+- 반드시 지정된 JSON 스키마로만 답합니다.`;
+
+const BACKTEST_ANALYSIS_SCHEMA = {
+  type: 'object',
+  properties: {
+    bestIndex: { type: 'number' },
+    reason: { type: 'string' },
+    caution: { type: 'string' },
+  },
+  required: ['bestIndex', 'reason'],
+  additionalProperties: false,
+} as const;
+
+function buildBacktestAnalysisPrompt(req: BacktestAnalysisRequest): string {
+  const lines = req.scenarios.map(
+    (s, i) =>
+      `#${i} 익절 +${s.targetPct}% / 손절 -${s.stopPct}% | 거래 ${s.trades}회 | 승률 ${s.winRatePct.toFixed(1)}% | ` +
+      `평균 ${s.avgReturnPct.toFixed(3)}% | 누적 ${s.totalReturnPct.toFixed(2)}% | MDD ${s.maxDrawdownPct.toFixed(2)}%p`
+  );
+  return [
+    `종목 ${req.symbol}, 캔들 ${req.interval}, 평가 봉수 K=${req.forwardBars}, 왕복 비용 ${req.costPct}%` +
+      (req.usedCandles ? `, 캔들 ${req.usedCandles}개` : ''),
+    '',
+    '시나리오(누적 수익 내림차순):',
+    ...lines,
+    '',
+    '최적 시나리오 하나를 스키마에 맞춰 고르세요.',
+  ].join('\n');
+}
+
+function analysisFallback(reason: string, model = 'fallback'): BacktestAnalysis {
+  // 폴백은 누적 수익 1위(index 0)를 고른다 — 입력이 내림차순 정렬돼 있기 때문.
+  return { bestIndex: 0, reason, model, fallback: true };
+}
+
+function normalizeAnalysis(
+  parsed: Record<string, unknown>,
+  scenarioCount: number,
+  model: string
+): BacktestAnalysis {
+  const idxRaw = typeof parsed.bestIndex === 'number' ? parsed.bestIndex : Number(parsed.bestIndex);
+  const bestIndex = Number.isFinite(idxRaw)
+    ? Math.min(scenarioCount - 1, Math.max(0, Math.round(idxRaw)))
+    : 0;
+  return {
+    bestIndex,
+    reason: typeof parsed.reason === 'string' ? parsed.reason.slice(0, 500) : '',
+    caution: typeof parsed.caution === 'string' ? parsed.caution.slice(0, 300) : undefined,
+    model,
+  };
+}
+
+/** 구독 경로 — 판단(decideViaSubscription)과 동일한 단발 JSON 호출 패턴. */
+async function analyzeViaSubscription(req: BacktestAnalysisRequest): Promise<BacktestAnalysis> {
+  const { query } = await loadAgentSdk();
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), AGENT_SDK_TIMEOUT_MS);
+  try {
+    const stream = query({
+      prompt: buildBacktestAnalysisPrompt(req),
+      options: {
+        model: MODEL,
+        systemPrompt: BACKTEST_ANALYSIS_SYSTEM,
+        maxTurns: 1,
+        tools: [],
+        permissionMode: 'dontAsk',
+        settingSources: [],
+        persistSession: false,
+        outputFormat: {
+          type: 'json_schema',
+          schema: BACKTEST_ANALYSIS_SCHEMA as unknown as Record<string, unknown>,
+        },
+        abortController: abort,
+      },
+    });
+
+    for await (const message of stream) {
+      if (message.type !== 'result') continue;
+      if (message.subtype !== 'success') {
+        const detail = message.errors?.length ? message.errors.join('; ') : message.subtype;
+        return analysisFallback(`AI 분석 실패(${detail}) — 누적 1위 기준`);
+      }
+      let raw: unknown = message.structured_output;
+      if (raw === undefined && typeof message.result === 'string') {
+        try {
+          raw = JSON.parse(message.result);
+        } catch {
+          return analysisFallback('AI 응답 파싱 실패 — 누적 1위 기준');
+        }
+      }
+      if (!raw || typeof raw !== 'object') {
+        return analysisFallback('AI 응답 없음 — 누적 1위 기준');
+      }
+      return normalizeAnalysis(raw as Record<string, unknown>, req.scenarios.length, MODEL);
+    }
+    return analysisFallback('AI 응답 없음 — 누적 1위 기준');
+  } catch (error) {
+    const message = abort.signal.aborted
+      ? `시간 초과(${AGENT_SDK_TIMEOUT_MS / 1000}s)`
+      : error instanceof Error
+        ? error.message
+        : '알 수 없는 오류';
+    return analysisFallback(`AI 분석 실패: ${message} — 누적 1위 기준`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 하드 타임아웃 — 판단 경로와 동일하게 슬롯 누수·좀비 런타임을 방지한다. */
+function analyzeWithHardTimeout(req: BacktestAnalysisRequest): Promise<BacktestAnalysis> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.error('[ai] 백테스트 분석 무응답 — 하드 타임아웃: 런타임 정리 후 슬롯 회수');
+      killStaleClaudeRuntimes(() =>
+        resolve(analysisFallback('AI 분석 무응답(하드 타임아웃) — 누적 1위 기준'))
+      );
+    }, SUBSCRIPTION_HARD_TIMEOUT_MS);
+    analyzeViaSubscription(req).then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        resolve(
+          analysisFallback(
+            `AI 분석 실패: ${error instanceof Error ? error.message : '오류'} — 누적 1위 기준`
+          )
+        );
+      }
+    );
+  });
+}
+
+export async function getAiBacktestAnalysis(
+  req: BacktestAnalysisRequest
+): Promise<BacktestAnalysis> {
+  if (!req.scenarios?.length) {
+    return analysisFallback('시나리오 없음', 'none');
+  }
+  const authMode = getAiAuthMode();
+  if (!authMode) {
+    return analysisFallback('AI 미설정 — 누적 1위 기준', 'unconfigured');
+  }
+
+  if (authMode === 'subscription') {
+    return queueSubscriptionTask(
+      () => analyzeWithHardTimeout(req),
+      () => analysisFallback('AI 동시 요청 초과 — 누적 1위 기준')
+    );
+  }
+
+  try {
+    const response = await getClient().messages.create({
+      model: MODEL,
+      max_tokens: 1024,
+      thinking: { type: 'adaptive' },
+      output_config: {
+        effort: 'medium',
+        format: { type: 'json_schema', schema: BACKTEST_ANALYSIS_SCHEMA },
+      },
+      system: [{ type: 'text', text: BACKTEST_ANALYSIS_SYSTEM }],
+      messages: [{ role: 'user', content: buildBacktestAnalysisPrompt(req) }],
+    } as Anthropic.MessageCreateParamsNonStreaming);
+
+    if (response.stop_reason === 'refusal') {
+      return analysisFallback('AI 분석 거부 — 누적 1위 기준');
+    }
+    const textBlock = response.content.find(
+      (b): b is Anthropic.TextBlock => b.type === 'text'
+    );
+    if (!textBlock?.text) return analysisFallback('AI 응답 없음 — 누적 1위 기준');
+    try {
+      return normalizeAnalysis(
+        JSON.parse(textBlock.text) as Record<string, unknown>,
+        req.scenarios.length,
+        response.model ?? MODEL
+      );
+    } catch {
+      return analysisFallback('AI 응답 파싱 실패 — 누적 1위 기준');
+    }
+  } catch (error) {
+    return analysisFallback(
+      `AI 분석 실패: ${error instanceof Error ? error.message : '오류'} — 누적 1위 기준`
+    );
   }
 }

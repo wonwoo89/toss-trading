@@ -82,6 +82,34 @@ export interface AiDecision {
   fallback?: boolean;
 }
 
+/** 백테스트 최적화 — AI 분석 요청/응답(서버 lib/ai-decision.ts 와 동일 구조). */
+export interface BacktestScenarioInput {
+  targetPct: number;
+  stopPct: number;
+  trades: number;
+  winRatePct: number;
+  avgReturnPct: number;
+  totalReturnPct: number;
+  maxDrawdownPct: number;
+}
+
+export interface BacktestAnalysisRequest {
+  symbol: string;
+  interval: string;
+  forwardBars: number;
+  costPct: number;
+  usedCandles?: number;
+  scenarios: BacktestScenarioInput[];
+}
+
+export interface BacktestAnalysis {
+  bestIndex: number;
+  reason: string;
+  caution?: string;
+  model: string;
+  fallback?: boolean;
+}
+
 /** 서버 자동매매 엔진 — 종목별 설정(서버 lib/auto-trade-config.ts 와 동일 구조). */
 export interface AutoSymbolConfig {
   symbol: string;
@@ -310,6 +338,11 @@ export const api = {
     ),
   getAiDecision: (payload: AiDecisionRequest) =>
     request<ApiEnvelope<AiDecision>>('/ai/decision', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  analyzeBacktestScenarios: (payload: BacktestAnalysisRequest) =>
+    request<ApiEnvelope<BacktestAnalysis>>('/ai/backtest-analysis', {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
