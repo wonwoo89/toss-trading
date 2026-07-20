@@ -176,6 +176,8 @@ export function OrderForm({
   const pendingSideRef = useRef<'BUY' | 'SELL' | null>(null);
   // 제출 직전 결정된 주문 수량(사이드별 %기준). 설정돼 있으면 handleSubmit 이 이 값을 우선 사용.
   const pendingQuantityRef = useRef<number | null>(null);
+  // 금액(시장가) 모드 '전액 매도' 플래그 — 설정되면 금액과 무관하게 보유 전량 시장가 매도.
+  const sellAllRef = useRef(false);
   const [priceMode, setPriceMode] = useState<PriceMode>(getStoredPriceMode);
   const [quantity, setQuantity] = useState('');
   // 마지막 선택한 수량 비율을 기억(영속) → 종목 전환·재접속 후에도 미리 선택돼 1탭 주문 가능.
@@ -261,6 +263,15 @@ export function OrderForm({
       intendedSide === 'BUY' ? (buyQuantityForPercent ?? null) : (sellQuantityForPercent ?? null);
     setSide(intendedSide);
     pendingSideRef.current = intendedSide;
+    formRef.current?.requestSubmit();
+  };
+
+  // 금액(시장가) 모드 전용 '전액 매도' — 입력 금액과 무관하게 보유 전량을 시장가로 매도.
+  const executeSellAll = () => {
+    if (submitting) return;
+    sellAllRef.current = true;
+    setSide('SELL');
+    pendingSideRef.current = 'SELL';
     formRef.current?.requestSubmit();
   };
 
@@ -551,6 +562,9 @@ export function OrderForm({
     // 사이드별 %기준 수량(있으면) 우선, 없으면 직접 입력한 effectiveQuantity 사용.
     const pendingQuantity = pendingQuantityRef.current;
     pendingQuantityRef.current = null;
+    // 금액 모드 '전액 매도' 여부(1회 소비).
+    const sellAll = sellAllRef.current;
+    sellAllRef.current = false;
 
     const payload: CreateOrderPayload = {
       symbol: symbol.toUpperCase(),
@@ -560,17 +574,17 @@ export function OrderForm({
     };
 
     if (useAmountOrder) {
-      // 금액(시장가) 주문:
-      //  - 매수: 입력한 달러 금액만큼 시장가 매수(소수점 매수 포함).
-      //  - 매도: '금액 매도'는 토스 미지원 → 보유 전량 시장가 매도(전액 매도)로 처리.
-      if (effectiveSide === 'SELL') {
+      // 금액(시장가) 주문. 모두 시장가로 체결.
+      //  - 전액 매도: 입력 금액과 무관하게 보유 전량 시장가 매도(소수점 잔량 포함).
+      //  - 금액 매수/매도: 입력한 달러 금액만큼 시장가(분할) 주문.
+      if (sellAll) {
         const sellQty = effectiveSellableQuantity;
         if (sellQty === undefined || sellQty <= 0) {
           showToast('매도할 보유 수량이 없습니다.', 'error');
           return;
         }
-        // 정규장 소수점 잔량 포함 전량. 시장가라 소수점 매도도 허용된다.
-        payload.quantity = sellQty;
+        payload.side = 'SELL';
+        payload.quantity = sellQty; // 시장가라 소수점 전량 매도도 허용
         payload.orderType = 'MARKET';
       } else {
         const amount = Number(orderAmount);
@@ -717,7 +731,8 @@ export function OrderForm({
               onChange={(e) => setOrderAmount(sanitizeDecimalInput(e.target.value))}
             />
             <Typography as="p" size={12} className="hint order-form__footer-hint">
-              금액 주문은 시장가로 체결됩니다. 매도 버튼은 <strong>보유 전량</strong>을 시장가로 매도합니다.
+              금액 주문은 시장가로 체결됩니다. <strong>금액 매도</strong>는 입력 금액만큼(분할),
+              <strong> 전액 매도</strong>는 보유 전량을 매도합니다.
             </Typography>
           </div>
         ) : (
@@ -932,18 +947,31 @@ export function OrderForm({
             variant="sell"
             className="order-manual-btn"
             onClick={() => executeManual('SELL')}
-            disabled={
-              submitting ||
-              (useAmountOrder &&
-                !(effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0))
-            }
+            disabled={submitting}
           >
-            {useAmountOrder ? '전액 매도' : '직접 매도'}
+            {useAmountOrder ? '금액 매도' : '직접 매도'}
             {!useAmountOrder && !quantity && selectedQuantityPercent !== undefined && (
               <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
             )}
           </Button>
         </div>
+
+        {/* 금액(시장가) 모드 전용 — 입력 금액과 무관하게 보유 전량을 시장가로 매도.
+            분할(금액) 매도는 위의 '금액 매도' 버튼으로 유지된다. */}
+        {useAmountOrder && (
+          <Button
+            variant="sell"
+            className="order-manual-btn order-manual-btn--full"
+            onClick={executeSellAll}
+            disabled={
+              submitting || !(effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0)
+            }
+          >
+            전액 매도{effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0
+              ? ` (${formatOrderQuantity(effectiveSellableQuantity)}주)`
+              : ''}
+          </Button>
+        )}
 
           </>
         )}

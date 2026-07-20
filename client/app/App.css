@@ -2924,6 +2924,12 @@ input[type='checkbox']:focus-visible {
   cursor: not-allowed;
 }
 
+/* 금액 모드 '전액 매도' — 매수/매도 그리드 아래 전체 폭 한 줄. submit-block gap 이 위 간격을 담당. */
+.order-manual-btn--full {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
 /* 키보드 단축키 안내: 데스크톱 헤더(테마 토글 옆)에 트리거 1개 + hover/focus 툴팁.
    모바일에서는 숨김(아래 @media max-width 참고). */
 .order-shortcuts {
