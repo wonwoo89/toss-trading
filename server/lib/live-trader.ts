@@ -599,8 +599,8 @@ async function executeAiBuy(
   const qty = Math.floor(budget / price);
   const isRegular = session === 'regular';
 
-  let body: Record<string, unknown> | null = null;
-  let label = '';
+  let body: Record<string, unknown>;
+  let label: string;
   if (qty >= 1) {
     const exec = floorTick(marketableBuyPrice(price, market.asks));
     body = { symbol: cfg.symbol, side: 'BUY', orderType: 'LIMIT', quantity: qty, price: exec, clientOrderId: `live-${Date.now()}` };
