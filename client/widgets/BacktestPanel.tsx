@@ -98,6 +98,7 @@ export function BacktestPanel({ initialSymbol = 'AAPL' }: { initialSymbol?: stri
     applyAutoTradeSettings({
       targetPercent: s.targetPct,
       stopLossPercent: s.stopPct,
+      symbol: symbol.trim().toUpperCase(),
       source: '백테스트 최적화',
     });
     showToast(`AI 자동매매에 적용: 목표 +${s.targetPct}% / 손절 -${s.stopPct}%`, 'success');
