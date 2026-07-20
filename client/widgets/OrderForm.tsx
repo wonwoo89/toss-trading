@@ -560,8 +560,27 @@ export function OrderForm({
     };
 
     if (useAmountOrder) {
-      payload.orderAmount = Number(orderAmount);
-      payload.orderType = 'MARKET';
+      // 금액(시장가) 주문:
+      //  - 매수: 입력한 달러 금액만큼 시장가 매수(소수점 매수 포함).
+      //  - 매도: '금액 매도'는 토스 미지원 → 보유 전량 시장가 매도(전액 매도)로 처리.
+      if (effectiveSide === 'SELL') {
+        const sellQty = effectiveSellableQuantity;
+        if (sellQty === undefined || sellQty <= 0) {
+          showToast('매도할 보유 수량이 없습니다.', 'error');
+          return;
+        }
+        // 정규장 소수점 잔량 포함 전량. 시장가라 소수점 매도도 허용된다.
+        payload.quantity = sellQty;
+        payload.orderType = 'MARKET';
+      } else {
+        const amount = Number(orderAmount);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          showToast('주문 금액을 입력해 주세요.', 'error');
+          return;
+        }
+        payload.orderAmount = amount;
+        payload.orderType = 'MARKET';
+      }
     } else {
       const submitQuantity = pendingQuantity ?? effectiveQuantity;
       if (submitQuantity === undefined || submitQuantity <= 0) {
@@ -688,13 +707,18 @@ export function OrderForm({
               <Typography size={14} className="order-form__field-label">주문 금액 (USD)</Typography>
               {amountOrderToggle}
             </div>
+            {/* required 미지정 — '전액 매도'는 금액 입력 없이도 실행되어야 하므로
+                네이티브 폼 검증(requestSubmit)이 빈 금액으로 막지 않게 한다. 매수 금액은
+                handleSubmit 에서 별도 검증. */}
             <TextField
               type="number"
               unit="$"
               value={orderAmount}
               onChange={(e) => setOrderAmount(sanitizeDecimalInput(e.target.value))}
-              required
             />
+            <Typography as="p" size={12} className="hint order-form__footer-hint">
+              금액 주문은 시장가로 체결됩니다. 매도 버튼은 <strong>보유 전량</strong>을 시장가로 매도합니다.
+            </Typography>
           </div>
         ) : (
           <>
@@ -899,8 +923,8 @@ export function OrderForm({
             onClick={() => executeManual('BUY')}
             disabled={submitting}
           >
-            직접 매수
-            {!quantity && selectedQuantityPercent !== undefined && (
+            {useAmountOrder ? '금액 매수' : '직접 매수'}
+            {!useAmountOrder && !quantity && selectedQuantityPercent !== undefined && (
               <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
             )}
           </Button>
@@ -908,10 +932,14 @@ export function OrderForm({
             variant="sell"
             className="order-manual-btn"
             onClick={() => executeManual('SELL')}
-            disabled={submitting}
+            disabled={
+              submitting ||
+              (useAmountOrder &&
+                !(effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0))
+            }
           >
-            직접 매도
-            {!quantity && selectedQuantityPercent !== undefined && (
+            {useAmountOrder ? '전액 매도' : '직접 매도'}
+            {!useAmountOrder && !quantity && selectedQuantityPercent !== undefined && (
               <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
             )}
           </Button>
