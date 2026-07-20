@@ -25,6 +25,7 @@ import { api, type AiDecision } from '../shared/api/client';
 import type { ChartCandle, CommissionRaw, HoldingItem, Order, UsMarketCalendarRaw } from '../shared/types';
 import { resolveUsMarketSession } from '../shared/lib/usMarketCalendar';
 import { resolveUsCommissionRatePercent } from '../shared/lib/commissionBreakEven';
+import { subscribeAutoTradeApply } from '../shared/lib/autoTradeApplyBus';
 
 type AutoActionKind = 'BUY' | 'TP' | 'SL' | 'TS'; // 매수 / 익절 매도 / 손절 매도 / 트레일링 스탑 매도
 
@@ -265,6 +266,20 @@ export function AutoTradePanel({
   useEffect(() => {
     saveAutoTradeLogs(logs);
   }, [logs]);
+
+  // 백테스트(최적화)에서 '적용'한 목표/손절을 즉시 반영 — 저장은 버스가 이미 처리.
+  useEffect(() => {
+    return subscribeAutoTradeApply((payload) => {
+      setTargetPercent(payload.targetPercent);
+      setStopLossPercent(payload.stopLossPercent);
+      pushLog(
+        'skip',
+        'BUY',
+        `${payload.source ?? '백테스트'} 설정 적용: 목표 +${payload.targetPercent}% / 손절 -${payload.stopLossPercent}%`
+      );
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 탭 가시성 — 오토는 탭이 보일 때만 자동 실행(직접 감시 전제). 가리면 일시정지.
   const [isTabVisible, setIsTabVisible] = useState(

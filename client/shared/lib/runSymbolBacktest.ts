@@ -2,6 +2,7 @@ import { api } from '../api/client';
 import { mapApiCandles } from './candles';
 import { unwrapResult } from './parse';
 import { runBacktest, type BacktestConfig, type BacktestResult } from './backtest';
+import { optimizeBacktestScenarios, type OptimizedScenario } from './backtestOptimize';
 import type { CandleInterval, ChartCandle } from '../types';
 
 export const BACKTEST_INTERVAL_OPTIONS: {
@@ -50,4 +51,18 @@ export async function runSymbolBacktest(
     throw new Error('캔들 데이터가 부족합니다(최소 ~80개 필요).');
   }
   return { result: runBacktest(candles, config), usedCandles: candles.length };
+}
+
+/** 익절×손절 그리드 전수 백테스트 — 캔들은 1회만 받아 전 시나리오에 재사용. */
+export async function optimizeSymbolBacktest(
+  symbol: string,
+  interval: CandleInterval,
+  base: { forwardBars: number; costPct: number }
+): Promise<{ scenarios: OptimizedScenario[]; usedCandles: number }> {
+  const target = BACKTEST_INTERVAL_OPTIONS.find((o) => o.value === interval)?.fetch ?? 1000;
+  const candles = await fetchHistory(symbol, interval, target);
+  if (candles.length < 80) {
+    throw new Error('캔들 데이터가 부족합니다(최소 ~80개 필요).');
+  }
+  return { scenarios: optimizeBacktestScenarios(candles, base), usedCandles: candles.length };
 }

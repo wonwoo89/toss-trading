@@ -91,7 +91,29 @@ function evaluateTrade(
   return directional - config.costPct;
 }
 
-export function runBacktest(candles: ChartCandle[], config: BacktestConfig): BacktestResult {
+/**
+ * 시점별 신호 레벨 사전 계산(정렬된 캔들 기준, null=데이터 부족).
+ * 신호는 목표/손절 설정과 무관하므로, 여러 시나리오를 돌리는 최적화에서는
+ * 이 결과를 runBacktest 에 재사용해 가장 비싼 신호 계산을 1회로 줄인다.
+ */
+export function computeBacktestSignals(candles: ChartCandle[]): (ChartSignalLevel | null)[] {
+  const sorted = [...candles].sort((a, b) => a.time - b.time);
+  const levels: (ChartSignalLevel | null)[] = new Array<ChartSignalLevel | null>(
+    sorted.length
+  ).fill(null);
+  for (let i = MIN_HISTORY; i < sorted.length; i += 1) {
+    const window = sorted.slice(Math.max(0, i - SIGNAL_LOOKBACK + 1), i + 1);
+    const snapshot = buildChartSignalSnapshot({ candles: window });
+    if (!snapshot.insufficientData) levels[i] = snapshot.level;
+  }
+  return levels;
+}
+
+export function runBacktest(
+  candles: ChartCandle[],
+  config: BacktestConfig,
+  precomputedLevels?: (ChartSignalLevel | null)[]
+): BacktestResult {
   const sorted = [...candles].sort((a, b) => a.time - b.time);
   const n = sorted.length;
 
@@ -115,11 +137,16 @@ export function runBacktest(candles: ChartCandle[], config: BacktestConfig): Bac
   let cumulative = 0;
 
   for (let i = MIN_HISTORY; i <= lastEvaluable; i += 1) {
-    const window = sorted.slice(Math.max(0, i - SIGNAL_LOOKBACK + 1), i + 1);
-    const snapshot = buildChartSignalSnapshot({ candles: window });
-    if (snapshot.insufficientData) continue;
+    let level: ChartSignalLevel | null;
+    if (precomputedLevels) {
+      level = precomputedLevels[i] ?? null;
+    } else {
+      const window = sorted.slice(Math.max(0, i - SIGNAL_LOOKBACK + 1), i + 1);
+      const snapshot = buildChartSignalSnapshot({ candles: window });
+      level = snapshot.insufficientData ? null : snapshot.level;
+    }
+    if (level === null) continue;
 
-    const level = snapshot.level;
     const dir = directionOf(level);
 
     // 평가 방향: 관망은 참고용으로 롱 기준 forward 수익률
