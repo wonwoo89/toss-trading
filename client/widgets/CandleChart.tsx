@@ -599,6 +599,9 @@ export function CandleChart({
   initializeViewportNowRef.current = initializeViewportNow;
 
   // 보이는 범위 파생 오버레이(최고/최저 마커 + 매물대) 갱신 — rAF 스로틀로 팬/줌 중 과도한 재계산 방지.
+  // 입력(보이는 범위·캔들·설정·테마)이 직전과 같으면 통째로 생략 — 폴링/재렌더마다 동일 값으로
+  // setMarkers/setProfile 을 다시 호출하면 불필요한 전체 재도장이 반복돼 차트가 떨려 보인다.
+  const overlaySignatureRef = useRef<string | null>(null);
   const scheduleHighLowMarkersUpdate = () => {
     if (markersUpdateScheduledRef.current) return;
     markersUpdateScheduledRef.current = true;
@@ -608,18 +611,37 @@ export function CandleChart({
       const markersApi = markersApiRef.current;
       if (!chart || !markersApi) return;
       const range = chart.timeScale().getVisibleLogicalRange();
-      markersApi.setMarkers(
-        buildHighLowMarkers(sortedCandlesRef.current, range, getChartThemeColors())
-      );
 
-      // 매물대 — 실제 렌더링 중인(보이는) 캔들만으로 계산해 팬/줌을 따라간다.
       const candlesAll = sortedCandlesRef.current;
       let visibleCandles = candlesAll;
+      let from = 0;
+      let to = candlesAll.length - 1;
       if (range) {
-        const from = Math.max(0, Math.ceil(range.from));
-        const to = Math.min(candlesAll.length - 1, Math.floor(range.to));
+        from = Math.max(0, Math.ceil(range.from));
+        to = Math.min(candlesAll.length - 1, Math.floor(range.to));
         visibleCandles = from <= to ? candlesAll.slice(from, to + 1) : [];
       }
+
+      // 데이터 스왑/전환 순간의 일시적 빈 범위 — 이전 오버레이를 유지(지웠다 다시 그리는 깜빡임 방지).
+      if (candlesAll.length > 0 && visibleCandles.length === 0) return;
+
+      const colors = getChartThemeColors();
+      const lastVis = visibleCandles[visibleCandles.length - 1];
+      const signature = [
+        from,
+        to,
+        candlesAll.length,
+        lastVis?.time ?? 0,
+        lastVis?.close ?? 0,
+        lastVis?.volume ?? 0,
+        volumeProfileBinsRef.current,
+        colors.candleUp,
+      ].join(':');
+      if (signature === overlaySignatureRef.current) return;
+      overlaySignatureRef.current = signature;
+
+      markersApi.setMarkers(buildHighLowMarkers(candlesAll, range, colors));
+      // 매물대 — 실제 렌더링 중인(보이는) 캔들만으로 계산해 팬/줌을 따라간다.
       volumeProfilePrimitiveRef.current?.setProfile(
         buildVolumeProfile(visibleCandles, volumeProfileBinsRef.current)
       );
