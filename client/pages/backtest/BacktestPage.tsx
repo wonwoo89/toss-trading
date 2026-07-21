@@ -1,4 +1,4 @@
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { MultiBacktestPanel } from '../../widgets/MultiBacktestPanel';
 import { Typography } from '../../shared/ui/Typography';
 
@@ -10,9 +10,7 @@ export function BacktestPage() {
     <main className="backtest-page">
       <div className="backtest-head">
         <Typography size={18} as="h1">신호 백테스트</Typography>
-        <Link to="/" className="backtest-back">
-          ← 트레이딩으로
-        </Link>
+        {/* 트레이딩 복귀는 하단 내비게이션('투자' 탭)으로 — 우상단 링크 제거 */}
       </div>
 
       <Typography size={14} as="p" className="hint backtest-intro">
