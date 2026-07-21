@@ -4981,9 +4981,39 @@ input[type='checkbox']:focus-visible {
   background: color-mix(in srgb, var(--color-down) 14%, transparent);
 }
 .server-ai-live-log__text {
+  flex: 1 1 auto;
   min-width: 0;
   color: var(--text-primary);
   line-height: 1.35;
+}
+/* 기본 축약(1줄 말줄임) — '상세' 토글로 해제 */
+.server-ai-live-log__text.is-clamped {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 로그별 '상세/접기' 토글 — 판단 로그·라이브 로그 공용 소형 버튼 */
+.server-ai-log__more {
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 0.1rem 0.45rem;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--accent, #3182f6);
+  background: color-mix(in srgb, var(--accent, #3182f6) 12%, transparent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+/* 판단 로그 사유 축약(1줄) — '상세' 토글로 해제 */
+.server-ai-log__reason.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .server-ai-add {
