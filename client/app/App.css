@@ -4924,6 +4924,13 @@ input[type='checkbox']:focus-visible {
 }
 
 /* ── 단일 종목 집중 AI 매매(라이브) 섹션 ── */
+/* 라이브 ↔ 백그라운드 영역 구분선 — 카드 배경 위에서도 또렷하게 */
+.server-ai-divider {
+  margin: 1.2rem 0;
+  border: none;
+  border-top: 2px solid color-mix(in srgb, var(--text-secondary) 26%, transparent);
+  border-radius: 2px;
+}
 .server-ai-live-config {
   margin: 0.35rem 0 0;
 }

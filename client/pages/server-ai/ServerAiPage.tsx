@@ -422,6 +422,9 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
       {/* 단일 종목 집중(서버 실주문) — 현재 실행 중인 종목의 진행 상황·결과 */}
       <LiveTraderSection />
 
+      {/* 단일 종목(라이브) ↔ 백그라운드(페이퍼) 영역 구분선 */}
+      <hr className="server-ai-divider" aria-hidden="true" />
+
       <Typography size={14} as="p" className="hint server-ai-intro">
         아래 <strong>백그라운드 AI 매매</strong>는 브라우저를 꺼도 서버가{' '}
         <strong>미국장이 열려 있는 동안</strong>(데이·프리·정규·애프터) 5분봉 마감마다 등록
