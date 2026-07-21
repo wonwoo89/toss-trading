@@ -49,8 +49,21 @@ function unwrap<T>(res: { result: T }): T {
 
 const EMPTY_CONFIG: AutoTradeConfig = { enabled: false, dailyLossLimitUsd: 0, symbols: [] };
 
-/** 판단 로그 목록 — 로그 카드(전체/필터)와 종목별 모달이 공유하는 렌더러. */
+/** 판단 사유가 이 길이를 넘으면 기본 축약(1줄) + '상세' 토글을 보여준다. */
+const REASON_CLAMP_LEN = 60;
+
+/** 판단 로그 목록 — 로그 카드(전체/필터)와 종목별 모달이 공유하는 렌더러.
+ *  긴 사유는 기본 1줄로 축약하고 로그별 '상세' 토글로 전체 내용을 펼쳐 본다. */
 function LogList({ entries, emptyText }: { entries: AutoLogEntry[]; emptyText: string }) {
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const toggle = (id: number) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
   if (entries.length === 0) {
     return (
       <Typography size={14} as="p" className="hint">
@@ -60,37 +73,55 @@ function LogList({ entries, emptyText }: { entries: AutoLogEntry[]; emptyText: s
   }
   return (
     <ul className="server-ai-logs">
-      {entries.map((log) => (
-        <li key={log.id} className={`server-ai-log server-ai-log--${log.action.toLowerCase()}`}>
-          <div className="server-ai-log__meta">
-            <span className="server-ai-log__time">{formatTime(log.t)}</span>
-            <span className="server-ai-log__symbol">{log.symbol}</span>
-            <span className={`server-ai-log__action is-${log.action.toLowerCase()}`}>
-              {ACTION_LABELS[log.action] ?? log.action}
-            </span>
-            {!log.fallback && (
-              <span className="server-ai-log__confidence">
-                {Math.round(log.confidence * 100)}%
+      {entries.map((log) => {
+        const isLong = log.reason.length > REASON_CLAMP_LEN;
+        const isOpen = expandedIds.has(log.id);
+        return (
+          <li key={log.id} className={`server-ai-log server-ai-log--${log.action.toLowerCase()}`}>
+            <div className="server-ai-log__meta">
+              <span className="server-ai-log__time">{formatTime(log.t)}</span>
+              <span className="server-ai-log__symbol">{log.symbol}</span>
+              <span className={`server-ai-log__action is-${log.action.toLowerCase()}`}>
+                {ACTION_LABELS[log.action] ?? log.action}
               </span>
-            )}
-            {log.currentPrice > 0 && (
-              <span className="server-ai-log__price">${log.currentPrice}</span>
-            )}
-            <span className="hint">{SESSION_LABELS[log.session] ?? log.session}</span>
-          </div>
-          <Typography size={14} as="p" className="server-ai-log__reason">
-            {log.reason}
-          </Typography>
-          {log.paper?.fill && (
-            <Typography size={12} as="p" className="server-ai-log__paper">
-              가상 체결: {log.paper.fill.side === 'BUY' ? '매수' : '매도'}{' '}
-              {log.paper.fill.quantity}주 @ ${log.paper.fill.price} — 가상 수익률{' '}
-              {log.paper.returnPct > 0 ? '+' : ''}
-              {log.paper.returnPct.toFixed(2)}%
+              {!log.fallback && (
+                <span className="server-ai-log__confidence">
+                  {Math.round(log.confidence * 100)}%
+                </span>
+              )}
+              {log.currentPrice > 0 && (
+                <span className="server-ai-log__price">${log.currentPrice}</span>
+              )}
+              <span className="hint">{SESSION_LABELS[log.session] ?? log.session}</span>
+              {isLong && (
+                <button
+                  type="button"
+                  className="server-ai-log__more"
+                  onClick={() => toggle(log.id)}
+                  aria-expanded={isOpen}
+                >
+                  {isOpen ? '접기' : '상세'}
+                </button>
+              )}
+            </div>
+            <Typography
+              size={14}
+              as="p"
+              className={`server-ai-log__reason${isLong && !isOpen ? ' is-clamped' : ''}`}
+            >
+              {log.reason}
             </Typography>
-          )}
-        </li>
-      ))}
+            {log.paper?.fill && (
+              <Typography size={12} as="p" className="server-ai-log__paper">
+                가상 체결: {log.paper.fill.side === 'BUY' ? '매수' : '매도'}{' '}
+                {log.paper.fill.quantity}주 @ ${log.paper.fill.price} — 가상 수익률{' '}
+                {log.paper.returnPct > 0 ? '+' : ''}
+                {log.paper.returnPct.toFixed(2)}%
+              </Typography>
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 }
@@ -106,9 +137,20 @@ const LIVE_LEVEL_LABELS: Record<LiveLogEntry['level'], string> = {
 };
 
 /** 단일 종목 집중 AI 매매(서버 실주문) 현황 — 5초 폴링으로 기기 간 동일 상태를 보여준다. */
+/** 라이브 로그 축약 기준 — 이 길이를 넘으면 1줄 말줄임 + '상세' 토글. */
+const LIVE_TEXT_CLAMP_LEN = 42;
+
 function LiveTraderSection() {
   const [live, setLive] = useState<LiveTraderStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const toggleLog = (id: number) =>
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   useEffect(() => {
     let cancelled = false;
@@ -217,20 +259,39 @@ function LiveTraderSection() {
         </>
       )}
 
-      {/* 로그는 꺼진 뒤에도 마지막 세션 기록을 볼 수 있게 항상 표시 */}
+      {/* 로그는 꺼진 뒤에도 마지막 세션 기록을 볼 수 있게 항상 표시.
+          긴 내용은 기본 1줄 말줄임 — 로그별 '상세' 토글로 전체 확인. */}
       {(live?.logs.length ?? 0) > 0 && (
         <ul className="server-ai-live-logs">
-          {live!.logs.slice(0, 30).map((log) => (
-            <li key={log.id} className={`server-ai-live-log is-${log.level}`}>
-              <span className="server-ai-log__time">{formatTime(log.t)}</span>
-              <span className={`server-ai-live-log__level is-${log.level}`}>
-                {LIVE_LEVEL_LABELS[log.level] ?? log.level}
-              </span>
-              <Typography size={12} as="span" className="server-ai-live-log__text">
-                {log.text}
-              </Typography>
-            </li>
-          ))}
+          {live!.logs.slice(0, 30).map((log) => {
+            const isLong = log.text.length > LIVE_TEXT_CLAMP_LEN;
+            const isOpen = expandedIds.has(log.id);
+            return (
+              <li key={log.id} className={`server-ai-live-log is-${log.level}`}>
+                <span className="server-ai-log__time">{formatTime(log.t)}</span>
+                <span className={`server-ai-live-log__level is-${log.level}`}>
+                  {LIVE_LEVEL_LABELS[log.level] ?? log.level}
+                </span>
+                <Typography
+                  size={12}
+                  as="span"
+                  className={`server-ai-live-log__text${isLong && !isOpen ? ' is-clamped' : ''}`}
+                >
+                  {log.text}
+                </Typography>
+                {isLong && (
+                  <button
+                    type="button"
+                    className="server-ai-log__more"
+                    onClick={() => toggleLog(log.id)}
+                    aria-expanded={isOpen}
+                  >
+                    {isOpen ? '접기' : '상세'}
+                  </button>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>
