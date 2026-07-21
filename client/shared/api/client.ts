@@ -153,10 +153,28 @@ export interface LiveTraderStatus {
 export interface AutoSymbolConfig {
   symbol: string;
   active: boolean;
+  /** 실거래 여부 — true 면 페이퍼 대신 배정 풀(poolUsd)로 실제 주문. */
+  live: boolean;
+  /** 실거래 배정 풀(USD). */
+  poolUsd: number;
   targetPercent: number;
   stopLossPercent: number;
   trailingStopPercent: number;
   buyMaxPercent: number;
+}
+
+/** 백그라운드 실거래 종목별 풀 장부 요약. */
+export interface BgLiveSummary {
+  symbol: string;
+  poolUsd: number;
+  cash: number;
+  quantity: number;
+  averagePrice: number;
+  realizedUsd: number;
+  lastPrice: number;
+  openOrderCount: number;
+  equityUsd: number;
+  returnPct: number;
 }
 
 export interface AutoTradeConfig {
@@ -197,6 +215,8 @@ export interface AutoEngineStatus {
   lastError: string | null;
   candleInterval: string;
   paper: PaperSummary[];
+  /** 실거래 종목별 배정 풀 장부 요약(3단계). */
+  livePools?: BgLiveSummary[];
 }
 
 export interface AutoLogEntry {

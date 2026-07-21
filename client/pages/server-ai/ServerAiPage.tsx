@@ -6,6 +6,7 @@ import {
   type AutoSymbolConfig,
   type AutoTradeConfig,
   type AutoTradeLimits,
+  type BgLiveSummary,
   type LiveLogEntry,
   type LiveTraderStatus,
   type PaperSummary,
@@ -451,6 +452,8 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
         {
           symbol,
           active: true,
+          live: false,
+          poolUsd: 1000,
           targetPercent: 1,
           stopLossPercent: 3,
           trailingStopPercent: 0,
@@ -471,6 +474,26 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
     for (const p of status?.paper ?? []) map.set(p.symbol, p);
     return map;
   }, [status]);
+
+  // 실거래 풀 장부 — 종목별 표시용 맵.
+  const liveBySymbol = useMemo(() => {
+    const map = new Map<string, BgLiveSummary>();
+    for (const p of status?.livePools ?? []) map.set(p.symbol, p);
+    return map;
+  }, [status]);
+
+  // 실거래 토글 — 켤 때 명시적 확인(실제 주문이 나간다).
+  const toggleLive = (index: number, next: boolean) => {
+    const sym = draft.symbols[index];
+    if (!sym) return;
+    if (next) {
+      const ok = window.confirm(
+        `${sym.symbol} 백그라운드 실거래를 켭니다.\n배정 풀 $${sym.poolUsd} 안에서 서버가 확인 없이 실제 매수/매도 주문을 냅니다.\n('저장'을 눌러야 서버에 반영됩니다) 계속할까요?`
+      );
+      if (!ok) return;
+    }
+    updateSymbol(index, { live: next });
+  };
 
   return (
     <main className={`server-ai-page${embedded ? ' server-ai-page--embedded' : ''}`}>
@@ -592,16 +615,17 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
                 <div className="server-ai-symbol__head">
                   <div className="server-ai-symbol__title">
                     <Typography size={14} className="server-ai-symbol__name">{s.symbol}</Typography>
+                    {s.live && <span className="server-ai-symbol__live-badge">실거래</span>}
                     {(() => {
-                      const paper = paperBySymbol.get(s.symbol);
-                      if (!paper) return null;
-                      const sign = paper.returnPct > 0 ? '+' : '';
+                      const summary = s.live ? liveBySymbol.get(s.symbol) : paperBySymbol.get(s.symbol);
+                      if (!summary) return null;
+                      const sign = summary.returnPct > 0 ? '+' : '';
                       const tone =
-                        paper.returnPct > 0 ? 'is-up' : paper.returnPct < 0 ? 'is-down' : '';
+                        summary.returnPct > 0 ? 'is-up' : summary.returnPct < 0 ? 'is-down' : '';
                       return (
                         <span className={`server-ai-symbol__paper ${tone}`}>
                           {sign}
-                          {paper.returnPct.toFixed(2)}%
+                          {summary.returnPct.toFixed(2)}%
                         </span>
                       );
                     })()}
@@ -623,6 +647,30 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
                   </div>
                 </div>
                 {(() => {
+                  if (s.live) {
+                    const pool = liveBySymbol.get(s.symbol);
+                    if (!pool) {
+                      return (
+                        <Typography size={12} as="p" className="server-ai-symbol__paper-detail hint">
+                          실거래 풀 ${s.poolUsd} 대기 — 저장 후 엔진의 첫 판단부터 실제 주문이 나갑니다.
+                        </Typography>
+                      );
+                    }
+                    const parts = [
+                      `실거래 평가 $${pool.equityUsd.toFixed(2)} / 풀 $${pool.poolUsd}`,
+                      `현금 $${pool.cash.toFixed(2)}`,
+                      pool.quantity > 0
+                        ? `보유 ${pool.quantity}주 @ $${pool.averagePrice.toFixed(2)}`
+                        : '보유 없음',
+                      `실현 ${pool.realizedUsd >= 0 ? '+' : ''}$${pool.realizedUsd.toFixed(2)}`,
+                      ...(pool.openOrderCount > 0 ? [`미체결 ${pool.openOrderCount}건`] : []),
+                    ];
+                    return (
+                      <Typography size={12} as="p" className="server-ai-symbol__paper-detail">
+                        {parts.join(' · ')}
+                      </Typography>
+                    );
+                  }
                   const paper = paperBySymbol.get(s.symbol);
                   if (!paper) {
                     return (
@@ -678,6 +726,22 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
                     max={limits.maxBuyPercent}
                     onChange={(v) => updateSymbol(index, { buyMaxPercent: v })}
                   />
+                  <NumberField
+                    label="실거래 풀"
+                    unit="$"
+                    value={s.poolUsd}
+                    min={50}
+                    max={100000}
+                    onChange={(v) => updateSymbol(index, { poolUsd: v })}
+                  />
+                  <label className="server-ai-symbol__live-toggle">
+                    <Typography size={10} className="ui-textfield__label">실거래</Typography>
+                    <Switch
+                      checked={s.live}
+                      onChange={(checked) => toggleLive(index, checked)}
+                      aria-label={`${s.symbol} 실거래(배정 풀 실제 주문)`}
+                    />
+                  </label>
                 </div>
               </li>
             ))}
