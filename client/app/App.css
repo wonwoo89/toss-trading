@@ -4952,6 +4952,12 @@ input[type='checkbox']:focus-visible {
   border-radius: 8px;
   background: var(--bg-subtle);
 }
+/* 시간 폰트 — 판단 로그(__meta 0.78rem)와 달리 래퍼가 없어 명시 지정(기본 16px 상속 방지) */
+.server-ai-live-log .server-ai-log__time {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
 .server-ai-live-log__level {
   flex: 0 0 auto;
   padding: 0.05rem 0.4rem;
