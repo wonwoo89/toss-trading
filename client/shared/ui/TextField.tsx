@@ -31,7 +31,7 @@ export function TextField({
   return (
     <div className={['ui-textfield', className ?? ''].filter(Boolean).join(' ')}>
       {label !== undefined && label !== null && (
-        <Typography as="label" size={12} className="ui-textfield__label" htmlFor={inputId}>
+        <Typography as="label" size={10} className="ui-textfield__label" htmlFor={inputId}>
           {label}
         </Typography>
       )}
