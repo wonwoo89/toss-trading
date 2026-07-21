@@ -81,6 +81,38 @@ function parseMinuteIntervalSec(interval?: string): number | null {
   const sec = Number(m[1]) * 60;
   return sec > 0 ? sec : null;
 }
+
+/** 공백 채움 상한(인터벌 배수) — 이보다 긴 공백(세션 경계·휴장)은 채우지 않고 그대로 둔다. */
+const GAP_FILL_MAX_INTERVALS = 24;
+
+/**
+ * 거래가 없어 비는 분봉 구간을 직전 종가의 플랫 캔들(거래량 0)로 채운다 — 표시 전용.
+ * lightweight-charts 는 데이터에 없는 시각을 축에서 생략해, 한산한 시간대(프리/애프터 등)가
+ * 압축돼 보이는 문제를 막는다. 일봉 이상(분봉 아님)이나 큰 공백(밤사이/휴장)은 건드리지 않는다.
+ */
+function fillCandleGaps(candles: ChartCandle[], intervalSec: number | null): ChartCandle[] {
+  if (!intervalSec || candles.length < 2) return candles;
+  const out: ChartCandle[] = [candles[0]];
+  for (let i = 1; i < candles.length; i += 1) {
+    const prev = out[out.length - 1];
+    const cur = candles[i];
+    const missing = Math.round((cur.time - prev.time) / intervalSec) - 1;
+    if (missing > 0 && missing <= GAP_FILL_MAX_INTERVALS) {
+      for (let k = 1; k <= missing; k += 1) {
+        out.push({
+          time: prev.time + k * intervalSec,
+          open: prev.close,
+          high: prev.close,
+          low: prev.close,
+          close: prev.close,
+          volume: 0,
+        });
+      }
+    }
+    out.push(cur);
+  }
+  return out;
+}
 const CHART_MIN_HEIGHT = 200;
 
 function getChartHeight(container: HTMLDivElement) {
@@ -1098,7 +1130,11 @@ export function CandleChart({
     if (!seriesRef.current || !volumeSeriesRef.current) return;
 
     const colors = getChartThemeColors();
-    const sortedCandles = candles.slice().sort((a, b) => a.time - b.time);
+    // 정렬 후 공백 분봉 채움 — 거래 없는 시간대도 시간축에 연속으로 렌더링되게(표시 전용).
+    const sortedCandles = fillCandleGaps(
+      candles.slice().sort((a, b) => a.time - b.time),
+      parseMinuteIntervalSec(candleInterval)
+    );
 
     const data = sortedCandles.map((candle) => ({
       time: toChartTime(candle.time),
@@ -1258,7 +1294,7 @@ export function CandleChart({
     sortedCandlesRef.current = sortedCandles;
     scheduleHighLowMarkersUpdateRef.current(); // 마커 + 매물대(보이는 구간) 갱신
     updateBarCountdownRef.current(); // 현재가 라벨 이동을 즉시 추적
-  }, [candles, fitKey]);
+  }, [candles, fitKey, candleInterval]);
 
   const chartStatus = loading
     ? '캔들 불러오는 중…'
