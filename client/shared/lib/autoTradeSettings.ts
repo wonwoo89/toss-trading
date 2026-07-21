@@ -7,11 +7,11 @@
  *  - 판단/실행 로그: 최근 항목을 영속해 새로고침 후에도 감사 기록이 남는다.
  */
 
-export type AutoTradeMode = 'off' | 'dryrun' | 'semi' | 'auto';
+export type AutoTradeMode = 'off' | 'dryrun' | 'auto';
 
 export interface AutoTradeSettings {
   mode: AutoTradeMode;
-  /** 세미/오토 모드가 켜져 있던 종목 — 다른 종목으로 이동 시 자동 OFF 판정에 사용. */
+  /** AI 매매 모드가 켜져 있던 종목 — 다른 종목으로 이동 시 자동 OFF 판정에 사용. */
   activeSymbol?: string;
   useAi: boolean;
   targetPercent: number;
@@ -50,7 +50,8 @@ const LOG_KEY = 'toss-trading:auto-trade-log';
 const MAX_PERSISTED_LOG = 40;
 
 function isMode(value: unknown): value is AutoTradeMode {
-  return value === 'off' || value === 'dryrun' || value === 'semi' || value === 'auto';
+  // 구버전 저장값 'semi'(세미오토, 제거됨)는 무효 처리 → 기본값 off 로 복원된다.
+  return value === 'off' || value === 'dryrun' || value === 'auto';
 }
 
 function numberOr(value: unknown, fallback: number): number {
