@@ -631,43 +631,42 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
         </div>
       </section>
 
-      {/* 판단 로그 — 데스크톱은 종목 필터 칩, 모바일은 전체 로그(종목별은 카드의 '로그' 모달) */}
-      <section className="panel server-ai-card" aria-label="판단 로그">
-        <div className="server-ai-card__head">
-          <Typography size={16} as="h2">판단 로그</Typography>
-          <Button size="sm" variant="ghost" onClick={() => void refresh()}>
-            새로고침
-          </Button>
-        </div>
-        {!isMobile && draft.symbols.length > 0 && (
-          <div className="server-ai-log-filter" role="tablist" aria-label="판단 로그 종목 필터">
-            <Chip selected={logFilter === 'ALL'} onClick={() => setLogFilter('ALL')}>
-              전체
-            </Chip>
-            {draft.symbols.map((s) => (
-              <Chip
-                key={s.symbol}
-                selected={logFilter === s.symbol}
-                onClick={() => setLogFilter(s.symbol)}
-              >
-                {s.symbol}
-              </Chip>
-            ))}
+      {/* 판단 로그(종합) — 데스크톱 전용(종목 필터 칩).
+          모바일은 화면 절약을 위해 숨기고, 종목 카드의 '로그' 버튼 → 모달로 종목별만 본다. */}
+      {!isMobile && (
+        <section className="panel server-ai-card" aria-label="판단 로그">
+          <div className="server-ai-card__head">
+            <Typography size={16} as="h2">판단 로그</Typography>
+            <Button size="sm" variant="ghost" onClick={() => void refresh()}>
+              새로고침
+            </Button>
           </div>
-        )}
-        <LogList
-          entries={
-            !isMobile && logFilter !== 'ALL'
-              ? logs.filter((l) => l.symbol === logFilter)
-              : logs
-          }
-          emptyText={
-            !isMobile && logFilter !== 'ALL'
-              ? `${logFilter} 판단 기록이 아직 없습니다.`
-              : '아직 기록이 없습니다. 엔진이 켜져 있고 미국장이 열려 있으면 5분마다 판단이 쌓입니다.'
-          }
-        />
-      </section>
+          {draft.symbols.length > 0 && (
+            <div className="server-ai-log-filter" role="tablist" aria-label="판단 로그 종목 필터">
+              <Chip selected={logFilter === 'ALL'} onClick={() => setLogFilter('ALL')}>
+                전체
+              </Chip>
+              {draft.symbols.map((s) => (
+                <Chip
+                  key={s.symbol}
+                  selected={logFilter === s.symbol}
+                  onClick={() => setLogFilter(s.symbol)}
+                >
+                  {s.symbol}
+                </Chip>
+              ))}
+            </div>
+          )}
+          <LogList
+            entries={logFilter !== 'ALL' ? logs.filter((l) => l.symbol === logFilter) : logs}
+            emptyText={
+              logFilter !== 'ALL'
+                ? `${logFilter} 판단 기록이 아직 없습니다.`
+                : '아직 기록이 없습니다. 엔진이 켜져 있고 미국장이 열려 있으면 5분마다 판단이 쌓입니다.'
+            }
+          />
+        </section>
+      )}
 
       {/* 종목별 로그 모달(모바일) */}
       {logModalSymbol && (
