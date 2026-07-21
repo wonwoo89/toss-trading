@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import {
   api,
   type AutoEngineStatus,
@@ -272,9 +271,7 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
       {!embedded && (
         <div className="backtest-head">
           <Typography size={18} as="h1">백그라운드 AI 매매</Typography>
-          <Link to="/" className="backtest-back">
-            ← 트레이딩으로
-          </Link>
+          {/* 트레이딩 복귀는 하단 내비게이션('투자' 탭)으로 — 우상단 링크 제거 */}
         </div>
       )}
 
