@@ -307,8 +307,19 @@ interface AccountCtx {
   buyingPower?: number;
   holdingQty: number;
   averagePrice: number;
+  /** 토스 보유 API 의 비용(수수료·세금) 반영 수익률(%) — 보유 종목 표시와 동일 기준. */
+  profitLossPctAfterCost?: number;
   sellableQty?: number;
   openOrders: { orderId: string; side: 'BUY' | 'SELL'; orderType?: string; price?: number; quantity?: number; orderedAt?: string }[];
+}
+
+/** 포지션 수익률(%) — 비용 반영값(토스 제공)이 있으면 그것을, 없으면 총수익률 근사. */
+function positionProfitLossPct(account: AccountCtx, currentPrice: number): number | undefined {
+  if (account.profitLossPctAfterCost !== undefined) return account.profitLossPctAfterCost;
+  if (account.averagePrice > 0 && currentPrice > 0) {
+    return ((currentPrice - account.averagePrice) / account.averagePrice) * 100;
+  }
+  return undefined;
 }
 
 async function fetchAccountCtx(symbol: string): Promise<AccountCtx> {
@@ -319,7 +330,16 @@ async function fetchAccountCtx(symbol: string): Promise<AccountCtx> {
       accountSeq,
       query: { currency: 'USD' },
     }),
-    tossRequest<{ result: { items?: { symbol: string; quantity: string; averagePurchasePrice: string }[] } }>({
+    tossRequest<{
+      result: {
+        items?: {
+          symbol: string;
+          quantity: string;
+          averagePurchasePrice: string;
+          profitLoss?: { rate?: string; rateAfterCost?: string };
+        }[];
+      };
+    }>({
       path: '/api/v1/holdings',
       accountSeq,
     }),
@@ -337,11 +357,14 @@ async function fetchAccountCtx(symbol: string): Promise<AccountCtx> {
   const bp = Number(bpRes.result?.cashBuyingPower);
   const item = holdingsRes.result?.items?.find((h) => h.symbol.toUpperCase() === symbol);
   const sellable = Number(sellableRes.result?.sellableQuantity);
+  // 비용(수수료·세금) 반영 수익률 — 보유 종목 카드와 동일하게 rateAfterCost 우선.
+  const afterCost = Number(item?.profitLoss?.rateAfterCost ?? item?.profitLoss?.rate);
   return {
     accountSeq,
     buyingPower: Number.isFinite(bp) ? bp : undefined,
     holdingQty: item ? Number(item.quantity) : 0,
     averagePrice: item ? Number(item.averagePurchasePrice) : 0,
+    profitLossPctAfterCost: Number.isFinite(afterCost) ? afterCost : undefined,
     sellableQty: Number.isFinite(sellable) ? sellable : undefined,
     openOrders: (ordersRes.result?.orders ?? []).map((o) => ({
       orderId: o.orderId,
@@ -712,7 +735,7 @@ async function decisionTickInner(): Promise<void> {
           ? {
               quantity: account.holdingQty,
               averagePrice: account.averagePrice,
-              profitLossPct: ((market.currentPrice - account.averagePrice) / account.averagePrice) * 100,
+              profitLossPct: positionProfitLossPct(account, market.currentPrice),
             }
           : undefined,
       buyingPower: account.buyingPower,
@@ -870,7 +893,7 @@ function updatePositionCache(account: AccountCtx, market: MarketCtx): void {
           quantity: account.holdingQty,
           averagePrice: account.averagePrice,
           currentPrice: market.currentPrice,
-          profitLossPct: ((market.currentPrice - account.averagePrice) / account.averagePrice) * 100,
+          profitLossPct: positionProfitLossPct(account, market.currentPrice),
         }
       : null;
 }
