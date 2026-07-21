@@ -17,6 +17,7 @@ import { Switch } from '../../shared/ui/Switch';
 import { TextField } from '../../shared/ui/TextField';
 import { Typography } from '../../shared/ui/Typography';
 import { NumberField } from '../../widgets/NumberField';
+import { ServerAiSidebar } from '../../widgets/ServerAiSidebar';
 import { useToast } from '../../app/providers/ToastContext';
 
 /** 상태·로그 폴링 주기 — 엔진 틱이 5분 간격이라 촘촘할 필요 없다. */
@@ -495,7 +496,7 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
     updateSymbol(index, { live: next });
   };
 
-  return (
+  const content = (
     <main className={`server-ai-page${embedded ? ' server-ai-page--embedded' : ''}`}>
       {!embedded && (
         <div className="backtest-head">
@@ -834,5 +835,16 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
         </div>
       )}
     </main>
+  );
+
+  // 임베드(모바일 AI 탭)는 StockPage 레이아웃이 이미 사이드바를 제공 → 본문만.
+  if (embedded) return content;
+
+  // 데스크톱 독립 페이지: 트레이딩 화면과 동일한 우측 포트폴리오 사이드바를 함께 렌더.
+  return (
+    <div className="server-ai-layout">
+      {content}
+      <ServerAiSidebar />
+    </div>
   );
 }
