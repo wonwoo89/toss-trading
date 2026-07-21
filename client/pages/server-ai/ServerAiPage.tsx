@@ -230,7 +230,8 @@ function LiveTraderSection() {
               </dd>
             </div>
             <div>
-              <dt>평가</dt>
+              {/* 수익률은 토스 보유 API 의 비용(수수료·세금) 반영값(rateAfterCost) — 보유 종목 카드와 동일 기준 */}
+              <dt>평가(실수익)</dt>
               <dd className={pos?.profitLossPct !== undefined ? (pos.profitLossPct >= 0 ? 'up' : 'down') : undefined}>
                 {pos?.currentPrice !== undefined
                   ? `$${pos.currentPrice.toFixed(2)}${
