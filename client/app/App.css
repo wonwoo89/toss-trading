@@ -2728,9 +2728,9 @@ body.is-row-resizing {
 }
 .ui-switch__track {
   position: relative;
-  width: 46px;
-  height: 26px;
-  border-radius: 13px;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
   /* 보더 없는 iOS 풍 — 꺼짐은 회색 필, 켜짐은 세그먼티드 활성색과 동일한 accent 필 */
   background: color-mix(in srgb, var(--text-secondary) 28%, transparent);
   border: none;
@@ -2738,11 +2738,11 @@ body.is-row-resizing {
 }
 .ui-switch__thumb {
   position: absolute;
-  /* 트랙 26px − 썸 20px = 여백 6px → 상하좌우 3px 균등(켜짐 시 우측도 3px). */
+  /* 트랙 22px − 썸 16px = 여백 6px → 상하좌우 3px 균등(켜짐 시 우측도 3px). */
   top: 3px;
   left: 3px;
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
@@ -2753,7 +2753,8 @@ body.is-row-resizing {
   background: var(--accent, #3182f6);
 }
 .ui-switch.is-on .ui-switch__thumb {
-  transform: translateX(20px);
+  /* 이동 거리 = 트랙 40 − 썸 16 − 좌우 여백 6 = 18px */
+  transform: translateX(18px);
 }
 .ui-switch input[type='checkbox']:focus-visible + .ui-switch__track {
   outline: 2px solid color-mix(in srgb, var(--accent, #3182f6) 60%, transparent);
@@ -4384,37 +4385,46 @@ input[type='checkbox']:focus-visible {
 
 /* ═══════════ 모바일 신규 레이아웃 v2 (하단 탭) + 탭바 ═══════════ */
 
-/* 하단 고정 탭바 — PWA 홈 인디케이터 안전영역 포함 */
+/* 하단 탭바 — 데스크톱(DesktopNav)과 동일한 플로팅 필(pill) 디자인.
+   화면 하단 중앙에 떠 있고, PWA 홈 인디케이터 위(safe-area-inset-bottom)로 띄운다. */
 .mobile-tab-bar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 310;
   display: flex;
-  /* --bg-panel(다크)은 반투명이라 뒤 콘텐츠가 비침 → 불투명 베이스 사용 */
-  background: var(--bg-base);
-  border-top: 1px solid var(--border-subtle);
-  padding-bottom: env(safe-area-inset-bottom);
+  gap: 2px;
+  padding: 5px;
+  max-width: calc(100vw - 12px);
+  border-radius: 999px;
+  border: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--bg-base) 78%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 
 .mobile-tab-bar__tab {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 8px 0 6px;
+  padding: 6px 9px;
   border: none;
+  border-radius: 999px;
   background: none;
   font-size: 0.68rem;
   font-weight: 600;
   color: var(--text-secondary);
   cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .mobile-tab-bar__tab.is-active {
-  color: var(--accent, #3182f6);
+  color: #fff;
+  background: var(--accent, #3182f6);
 }
 
 /* 데스크톱: 탭바·레이아웃 토글 숨김 (모바일 전용 기능) */
@@ -4434,9 +4444,9 @@ input[type='checkbox']:focus-visible {
   /* ── v2: 하단 탭 구조 ──
      탭별로 영역을 표시/숨김만 한다(컴포넌트는 유지 → 폴링·자동매매·차트 상태 보존). */
 
-  /* 고정 탭바(약 52px + 안전영역)에 콘텐츠가 가리지 않게 하단 여백 확보 */
+  /* 플로팅 탭바(약 61px + 하단 10px 띄움 + 안전영역)에 콘텐츠가 가리지 않게 하단 여백 확보 */
   .trading-layout.layout-v2 {
-    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
   }
 
   /* below 래퍼 해체 → 지표(info)를 독립 영역으로 탭에 배정.
@@ -4515,19 +4525,19 @@ input[type='checkbox']:focus-visible {
   .trading-layout.layout-v2--tab-order .order-column .order-form {
     overflow: visible;
   }
-  /* 직접 매수/매도 버튼: 하단 탭바(53px + inset) 바로 위에 항상 고정 — 스크롤 위치와 무관하게
+  /* 직접 매수/매도 버튼: 플로팅 탭바 바로 위에 항상 고정 — 스크롤 위치와 무관하게
      즉시 주문 가능. 불투명 배경 + 좌우 블리드로 뒤 콘텐츠가 버튼 사이로 비치지 않게. */
   .trading-layout.layout-v2--tab-order .order-form .order-manual-actions {
     position: sticky;
-    bottom: calc(53px + env(safe-area-inset-bottom)); /* = 탭바 높이(52+1px 보더)+inset — 유격 0 */
+    bottom: calc(72px + env(safe-area-inset-bottom)); /* = 플로팅 탭바(61px)+하단 띄움(10px)+inset */
     z-index: 5;
     background: var(--bg-base);
     margin: 0 -16px;
     padding: 0.5rem 16px;
   }
-  /* 주문 탭은 하단 여백을 탭바 높이에 정확히 맞춰, 스크롤 최하단에서도 버튼이 탭바에 밀착 */
+  /* 주문 탭은 하단 여백을 탭바 점유 높이에 정확히 맞춰, 스크롤 최하단에서도 버튼이 탭바 위에 밀착 */
   .trading-layout.layout-v2--tab-order.layout-v2 {
-    padding-bottom: calc(53px + env(safe-area-inset-bottom));
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
 
   /* 호가 탭: 티커칩 노출 + 영역별 카드 구분 + 가독성(폰트 확대) */
@@ -4544,9 +4554,9 @@ input[type='checkbox']:focus-visible {
     flex-direction: column;
     padding: 0;
   }
-  /* 탭바 여백도 주문 탭과 동일하게(64px 기본 → 53px) 축소해 푸터가 탭바에 붙게 */
+  /* 탭바 여백도 주문 탭과 동일하게(84px 기본 → 72px) 축소해 푸터가 탭바 위에 붙게 */
   .trading-layout.layout-v2--tab-book.layout-v2 {
-    padding-bottom: calc(53px + env(safe-area-inset-bottom));
+    padding-bottom: calc(72px + env(safe-area-inset-bottom));
   }
   .trading-layout.layout-v2--tab-book .order-column .order-form {
     display: none;
@@ -4700,10 +4710,10 @@ input[type='checkbox']:focus-visible {
     text-decoration: none;
   }
 
-  /* 탭이 6개가 되어 라벨·패딩 소폭 축소 */
+  /* 탭이 6개가 되어 라벨·패딩 소폭 축소(플로팅 필 — 좌우 패딩은 유지해야 필이 안 짜부라진다) */
   .mobile-tab-bar__tab {
     font-size: 0.63rem;
-    padding: 7px 0 5px;
+    padding: 6px 7px;
   }
 }
 

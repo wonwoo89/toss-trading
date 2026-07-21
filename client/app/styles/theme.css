@@ -17,8 +17,9 @@
   --holding-item-active-border: rgba(255, 255, 255, 0.12);
   --btn-selected-shadow: 0 0 0 1px rgba(255, 255, 255, 0.22), 0 2px 10px rgba(0, 0, 0, 0.38);
   --portfolio-sidebar-width: 320px;
-  /* 폼 컨트롤(인풋·버튼) 공통 높이 — 인풋과 ui-btn(md)이 같은 줄에서 어긋나지 않게 */
-  --control-height: 40px;
+  /* 폼 컨트롤(인풋·버튼·세그먼티드) 공통 높이 — 같은 줄에서 어긋나지 않게 단일 토큰.
+     16px 인풋 폰트(iOS 자동 줌 방지) + 상하 여백 최소로 딱 맞는 컴팩트 높이. */
+  --control-height: 36px;
   --color-up-bg-selected: rgba(231, 76, 94, 0.34);
   --color-down-bg-selected: rgba(74, 143, 231, 0.34);
 
