@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAppContext } from '../app/providers/AppContext';
-import { api } from '../shared/api/client';
+import { useToast } from '../app/providers/ToastContext';
+import { api, type BacktestAnalysis } from '../shared/api/client';
 import { unwrapResult } from '../shared/lib/parse';
 import { mapHoldings } from '../entities/position';
 import { getCachedHoldings } from '../features/trade/useSymbolTrading';
 import { BacktestResultView } from './BacktestResultView';
 import { NumberField } from './NumberField';
+import { Button } from '../shared/ui/Button';
 import { TextField } from '../shared/ui/TextField';
 import { Typography } from '../shared/ui/Typography';
 import { backtestBiasClass, fmtBacktestPct } from '../shared/lib/backtestFormat';
+import { applyAutoTradeSettings } from '../shared/lib/autoTradeApplyBus';
 import {
   BACKTEST_INTERVAL_OPTIONS,
-  runSymbolBacktest,
+  runSymbolBacktestFull,
   type SymbolBacktestOutcome,
 } from '../shared/lib/runSymbolBacktest';
 import type { BacktestConfig } from '../shared/lib/backtest';
+import type { OptimizedScenario } from '../shared/lib/backtestOptimize';
 import type { CandleInterval } from '../shared/types';
 
 type RowStatus = 'idle' | 'loading' | 'done' | 'error';
@@ -25,6 +29,8 @@ interface BacktestRow {
   name?: string;
   status: RowStatus;
   outcome?: SymbolBacktestOutcome;
+  /** AI 종합 추천(최적 시나리오 인덱스·사유) — 실패 시 undefined(누적 1위 폴백). */
+  analysis?: BacktestAnalysis;
   error?: string;
 }
 
@@ -45,8 +51,17 @@ function holdingsToRows(
   return rows;
 }
 
+/** 행의 AI 추천 시나리오 — AI bestIndex(없으면 누적 1위 = 0). */
+function bestScenarioOf(row: BacktestRow): OptimizedScenario | undefined {
+  const scenarios = row.outcome?.scenarios;
+  if (!scenarios?.length) return undefined;
+  const idx = row.analysis ? Math.min(row.analysis.bestIndex, scenarios.length - 1) : 0;
+  return scenarios[idx];
+}
+
 export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?: string }) {
   const { selectedAccountSeq } = useAppContext();
+  const { showToast } = useToast();
 
   const [interval, setIntervalValue] = useState<CandleInterval>('5m');
   const [forwardBars, setForwardBars] = useState(15);
@@ -106,10 +121,35 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
 
   const runRow = useCallback(
     async (id: string, symbol: string, intv: CandleInterval, cfg: BacktestConfig) => {
-      patchRow(id, { status: 'loading', error: undefined });
+      patchRow(id, { status: 'loading', error: undefined, analysis: undefined });
       try {
-        const outcome = await runSymbolBacktest(symbol, intv, cfg);
+        // 캔들 1회 조회로 설정 백테스트 + AI 최적화 그리드를 함께 계산.
+        const outcome = await runSymbolBacktestFull(symbol, intv, cfg);
         patchRow(id, { status: 'done', outcome });
+        // AI 종합 추천 — 실패해도 그리드 결과(누적 1위 폴백)는 그대로 보여준다.
+        if (outcome.scenarios?.length) {
+          try {
+            const res = await api.analyzeBacktestScenarios({
+              symbol,
+              interval: intv,
+              forwardBars: cfg.forwardBars,
+              costPct: cfg.costPct,
+              usedCandles: outcome.usedCandles,
+              scenarios: outcome.scenarios.map((s) => ({
+                targetPct: s.targetPct,
+                stopPct: s.stopPct,
+                trades: s.trades,
+                winRatePct: s.winRatePct,
+                avgReturnPct: s.avgReturnPct,
+                totalReturnPct: s.totalReturnPct,
+                maxDrawdownPct: s.maxDrawdownPct,
+              })),
+            });
+            patchRow(id, { analysis: res.result });
+          } catch {
+            // AI 추천 실패 — 폴백(누적 1위)으로 표시
+          }
+        }
       } catch (e) {
         patchRow(id, {
           status: 'error',
@@ -154,6 +194,19 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
   }, []);
 
   const detailRow = rows.find((r) => r.id === detailId && r.outcome);
+
+  // 추천 시나리오를 이 패널 설정 + AI 자동매매(목표/손절)에 적용.
+  const applyScenario = (symbol: string, s: OptimizedScenario) => {
+    setTargetPct(s.targetPct);
+    setStopPct(s.stopPct);
+    applyAutoTradeSettings({
+      targetPercent: s.targetPct,
+      stopLossPercent: s.stopPct,
+      symbol,
+      source: '백테스트 최적화',
+    });
+    showToast(`AI 자동매매에 적용: 목표 +${s.targetPct}% / 손절 -${s.stopPct}%`, 'success');
+  };
 
   return (
     <div className="backtest-panel multi-backtest">
@@ -309,6 +362,27 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
                   </Typography>
                 </div>
               )}
+
+              {/* AI 최적화 추천 — 그리드 24조합 중 AI(bestIndex) 또는 누적 1위 폴백 */}
+              {row.status === 'done' && (() => {
+                const best = bestScenarioOf(row);
+                if (!best) return null;
+                return (
+                  <div className="backtest-row__optimize">
+                    <Typography size={12} as="p" className="backtest-row__optimize-pick">
+                      🤖 {row.analysis ? 'AI 추천' : '누적 1위'}: 익절 +{best.targetPct}% / 손절 -
+                      {best.stopPct}%{' '}
+                      <Typography size={12} className={backtestBiasClass(best.totalReturnPct)}>
+                        (누적 {best.totalReturnPct >= 0 ? '+' : ''}
+                        {best.totalReturnPct.toFixed(2)}% · 승률 {best.winRatePct.toFixed(1)}%)
+                      </Typography>
+                    </Typography>
+                    <Button size="sm" variant="ghost" onClick={() => applyScenario(row.symbol, best)}>
+                      적용
+                    </Button>
+                  </div>
+                );
+              })()}
             </li>
           ))}
         </ul>
@@ -354,6 +428,69 @@ export function MultiBacktestPanel({ initialExtraSymbol }: { initialExtraSymbol?
               </button>
             </div>
             <div className="backtest-modal__body">
+              {/* AI 최적화 상위 5 시나리오 — 행별 적용 가능 */}
+              {detailRow.outcome.scenarios && detailRow.outcome.scenarios.length > 0 && (() => {
+                const best = bestScenarioOf(detailRow);
+                const top = detailRow.outcome!.scenarios!.slice(0, 5);
+                const showBestSeparately = best !== undefined && !top.includes(best);
+                return (
+                  <section className="backtest-optimize backtest-optimize--in-modal">
+                    <Typography size={14} as="h3">AI 최적화 (상위 5)</Typography>
+                    {detailRow.analysis?.reason && (
+                      <Typography size={12} as="p" className="backtest-optimize__reason">
+                        {detailRow.analysis.reason}
+                      </Typography>
+                    )}
+                    {detailRow.analysis?.caution && (
+                      <Typography size={12} as="p" className="backtest-optimize__caution">
+                        ⚠ {detailRow.analysis.caution}
+                      </Typography>
+                    )}
+                    <div className="backtest-optimize__table-wrap">
+                      <table className="backtest-optimize__table">
+                        <thead>
+                          <tr>
+                            <th>익절</th>
+                            <th>손절</th>
+                            <th>거래</th>
+                            <th>승률</th>
+                            <th>누적</th>
+                            <th>MDD</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(showBestSeparately && best ? [best, ...top] : top).map((s) => (
+                            <tr
+                              key={`${s.targetPct}-${s.stopPct}`}
+                              className={s === best ? 'is-best' : ''}
+                            >
+                              <td>+{s.targetPct}%</td>
+                              <td>-{s.stopPct}%</td>
+                              <td>{s.trades}</td>
+                              <td>{s.winRatePct.toFixed(1)}%</td>
+                              <td className={s.totalReturnPct >= 0 ? 'up' : 'down'}>
+                                {s.totalReturnPct >= 0 ? '+' : ''}
+                                {s.totalReturnPct.toFixed(2)}%
+                              </td>
+                              <td>{s.maxDrawdownPct.toFixed(2)}%p</td>
+                              <td>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => applyScenario(detailRow.symbol, s)}
+                                >
+                                  적용
+                                </Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+                );
+              })()}
               <BacktestResultView
                 result={detailRow.outcome.result}
                 usedCandles={detailRow.outcome.usedCandles}

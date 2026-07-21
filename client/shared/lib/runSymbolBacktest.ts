@@ -37,6 +37,8 @@ async function fetchHistory(
 export interface SymbolBacktestOutcome {
   result: BacktestResult;
   usedCandles: number;
+  /** AI 최적화 그리드(누적 내림차순) — 통합 러너(runSymbolBacktestFull)에서만 채워진다. */
+  scenarios?: OptimizedScenario[];
 }
 
 /** 한 종목의 과거 캔들을 받아 백테스트를 실행한다. 데이터 부족 시 throw. */
@@ -51,6 +53,27 @@ export async function runSymbolBacktest(
     throw new Error('캔들 데이터가 부족합니다(최소 ~80개 필요).');
   }
   return { result: runBacktest(candles, config), usedCandles: candles.length };
+}
+
+/** 백테스트 + AI 최적화 그리드 통합 러너 — 캔들을 1회만 받아 둘 다 계산한다(API 부담 동일). */
+export async function runSymbolBacktestFull(
+  symbol: string,
+  interval: CandleInterval,
+  config: BacktestConfig
+): Promise<SymbolBacktestOutcome> {
+  const target = BACKTEST_INTERVAL_OPTIONS.find((o) => o.value === interval)?.fetch ?? 1000;
+  const candles = await fetchHistory(symbol, interval, target);
+  if (candles.length < 80) {
+    throw new Error('캔들 데이터가 부족합니다(최소 ~80개 필요).');
+  }
+  return {
+    result: runBacktest(candles, config),
+    usedCandles: candles.length,
+    scenarios: optimizeBacktestScenarios(candles, {
+      forwardBars: config.forwardBars,
+      costPct: config.costPct,
+    }),
+  };
 }
 
 /** 익절×손절 그리드 전수 백테스트 — 캔들은 1회만 받아 전 시나리오에 재사용. */
