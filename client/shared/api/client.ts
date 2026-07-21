@@ -422,4 +422,9 @@ export const api = {
       body: JSON.stringify(config),
     }),
   getAutoLogs: (limit = 100) => request<ApiEnvelope<AutoLogEntry[]>>(`/auto/logs?limit=${limit}`),
+  /** 백그라운드 엔진 초기화 — 로그 비우기 + 페이퍼 리셋 + 실거래 풀 실계좌 재동기화. */
+  resetAutoEngine: () =>
+    request<ApiEnvelope<{ paper: number; live: number; liveFailed: string[] }>>('/auto/reset', {
+      method: 'POST',
+    }),
 };

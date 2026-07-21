@@ -5051,6 +5051,15 @@ input[type='checkbox']:focus-visible {
   overflow: hidden;
 }
 
+/* 엔진 초기화 행 — 버튼 + 설명 */
+.server-ai-reset {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.2rem;
+}
+
 .server-ai-add {
   display: flex;
   align-items: center;
