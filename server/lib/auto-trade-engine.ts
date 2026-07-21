@@ -57,6 +57,26 @@ const MAX_LOGS = 300;
 /** 추세 홀드 중 고점 대비 허용 하락(%) — 종목 트레일링 설정이 0(끔)일 때의 기본값. */
 const TP_HOLD_TRAIL_PCT = 0.5;
 
+// ── 드라이런(페이퍼) 공격성 파라미터 — 가상 $1,000 샌드박스 전용 ─────────────
+// 실계좌(live-trader)의 1회 매수 상한(5%)은 절대 건드리지 않는다. 여기 값은 오직
+// 가상 장부 시뮬레이션에만 적용돼, $1,000 을 실제로 굴려 다양한 시나리오를 테스트한다.
+/** 종목 설정 buyMaxPercent 에 곱하는 페이퍼 공격성 배수(실계좌 대비 몇 배로 담을지). */
+const PAPER_AGGRESSION_MULT = 5;
+/** 페이퍼 1회 매수 비중 상한(%) — 배수 적용 후에도 이 값을 넘지 않는다. */
+const PAPER_BUY_MAX_PERCENT_CAP = 30;
+// 즉시 재판단 펄스 — 5분봉 사이에도 의미있는 변동 시 다시 판단해 테스트 표본을 늘린다.
+const PULSE_INTERVAL_MS = 20 * 1000; // 20초마다 활성 종목 시세 배치 점검
+const PULSE_MIN_INTERVAL_MS = 60 * 1000; // 종목당 최소 재판단 간격(과호출 방지)
+const PULSE_PRICE_MOVE_PCT = 0.3; // 마지막 판단가 대비 이 이상 변동 시 즉시 재판단
+
+/** 페이퍼 1회 매수 비중 상한(%) — 종목 설정 × 공격성 배수, 캡 적용. */
+function paperBuyCapPercent(symCfg: AutoSymbolConfig): number {
+  return Math.min(symCfg.buyMaxPercent * PAPER_AGGRESSION_MULT, PAPER_BUY_MAX_PERCENT_CAP);
+}
+
+/** 종목별 마지막 AI 판단 시점의 가격·시각 — 펄스 트리거의 변동 기준. */
+const lastAiJudgment = new Map<string, { price: number; t: number }>();
+
 export interface AutoLogEntry {
   id: number;
   t: number; // epoch ms
@@ -379,11 +399,15 @@ async function evaluateSymbol(
     openOrders: [],
     guards: {
       trailingStopPct: symCfg.trailingStopPercent > 0 ? symCfg.trailingStopPercent : undefined,
-      buyMaxPercent: symCfg.buyMaxPercent,
+      // 페이퍼 샌드박스는 공격성 배수 적용 상한을 알려, AI 가 더 큰 비중을 제안할 수 있게 한다.
+      buyMaxPercent: paperBuyCapPercent(symCfg),
       dailyLossLimitUsd: config.dailyLossLimitUsd > 0 ? config.dailyLossLimitUsd : undefined,
     },
     candles,
   };
+
+  // 펄스 트리거 기준 갱신 — AI 판단이 실제로 나가는 이 시점의 가격·시각을 기록.
+  lastAiJudgment.set(symbol, { price: currentPrice, t: Date.now() });
 
   const decision = await getAiTradeDecision(request);
 
@@ -392,7 +416,9 @@ async function evaluateSymbol(
   let paperFill: PaperFill | null = null;
   if (!decision.fallback && decision.action !== 'HOLD') {
     const paperPct =
-      decision.action === 'BUY' ? Math.min(decision.sizePct, symCfg.buyMaxPercent) : decision.sizePct;
+      decision.action === 'BUY'
+        ? Math.min(decision.sizePct, paperBuyCapPercent(symCfg))
+        : decision.sizePct;
     paperFill = applyPaperDecision(symbol, decision.action, paperPct, currentPrice);
   }
   const paperSummary = getPaperSummary(symbol);
@@ -526,6 +552,60 @@ async function runGuardTick(): Promise<void> {
   }
 }
 
+/**
+ * 즉시 재판단 펄스(드라이런 전용) — 20초마다 활성 종목 현재가를 배치 조회해, 마지막 AI
+ * 판단가 대비 ±0.3% 이상 움직였고 종목당 최소 간격(60초)이 지난 종목만 즉시 재판단한다.
+ * 5분봉 마감만 기다리지 않고 급변 구간을 잡아 표본을 늘려, $1,000 샌드박스가 다양한
+ * 시나리오를 테스트하게 한다. AI 호출은 기존 구독 직렬 대기열 + 하드 타임아웃 안전장치를 탄다.
+ */
+let pulseTimer: ReturnType<typeof setInterval> | null = null;
+let pulseTicking = false;
+
+async function runPulseTick(): Promise<void> {
+  if (pulseTicking || ticking) return; // 5분 틱과 겹치지 않게
+  const config = getAutoTradeConfig();
+  if (!config.enabled || !isAiConfigured()) return;
+  const activeSymbols = config.symbols.filter((s) => s.active);
+  if (activeSymbols.length === 0) return;
+
+  const session = await getUsMarketSession();
+  if (!isTradeableSession(session)) return;
+
+  pulseTicking = true;
+  try {
+    const res = await tossRequest<{ result: { symbol?: string; lastPrice?: string }[] }>({
+      path: '/api/v1/prices',
+      query: { symbols: activeSymbols.map((s) => s.symbol).join(',') },
+    });
+    const priceMap = new Map<string, number>();
+    for (const p of res.result ?? []) {
+      const v = Number(p.lastPrice);
+      if (p.symbol && Number.isFinite(v) && v > 0) priceMap.set(p.symbol.toUpperCase(), v);
+    }
+
+    const now = Date.now();
+    for (const symCfg of activeSymbols) {
+      const price = priceMap.get(symCfg.symbol);
+      if (price === undefined) continue;
+      const last = lastAiJudgment.get(symCfg.symbol);
+      // 첫 판단 전(5분 틱이 기준가를 세우기 전)이면 펄스는 쉰다.
+      if (!last) continue;
+      if (now - last.t < PULSE_MIN_INTERVAL_MS) continue;
+      const movedPct = last.price > 0 ? (Math.abs(price - last.price) / last.price) * 100 : 0;
+      if (movedPct < PULSE_PRICE_MOVE_PCT) continue;
+      try {
+        await evaluateSymbol(symCfg, config, session);
+      } catch (err) {
+        status.lastError = `${symCfg.symbol}(펄스): ${err instanceof Error ? err.message : '오류'}`;
+      }
+    }
+  } catch (err) {
+    status.lastError = `펄스 틱 실패: ${err instanceof Error ? err.message : '오류'}`;
+  } finally {
+    pulseTicking = false;
+  }
+}
+
 /** 다음 5분봉 마감 + 오프셋 시각까지 남은 ms. 너무 임박하면 다음 주기로. */
 function nextTickDelay(now: number): number {
   const boundary = Math.ceil(now / TICK_INTERVAL_MS) * TICK_INTERVAL_MS;
@@ -549,8 +629,10 @@ export function startAutoTradeEngine(): void {
   status.running = true;
   scheduleNext();
   guardTimer = setInterval(() => void runGuardTick(), GUARD_TICK_INTERVAL_MS);
+  pulseTimer = setInterval(() => void runPulseTick(), PULSE_INTERVAL_MS);
   console.log(
-    '[auto-trade] 백그라운드 엔진 시작(드라이런) — 5분봉 AI 판단 + 1분 보호 틱(손절/보전선/트레일)'
+    '[auto-trade] 백그라운드 엔진 시작(드라이런) — 5분봉 AI 판단 + 1분 보호 틱 + 20초 변동 펄스(±0.3% 즉시 재판단, 공격 배수 ' +
+      `${PAPER_AGGRESSION_MULT}×)`
   );
 }
 
@@ -563,6 +645,10 @@ export function stopAutoTradeEngine(): void {
   if (guardTimer) {
     clearInterval(guardTimer);
     guardTimer = null;
+  }
+  if (pulseTimer) {
+    clearInterval(pulseTimer);
+    pulseTimer = null;
   }
   status.nextTickAt = null;
 }
