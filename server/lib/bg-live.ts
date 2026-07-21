@@ -47,6 +47,8 @@ export interface BgLiveOrder {
   quantity: number;
   price: number;
   placedAt: number;
+  /** 매도 주문 접수 시점의 평단 — 부분 체결 롤백 시 실현손익·평단 복원에 사용. */
+  avgAtOrder?: number;
 }
 
 interface BgLivePosition {
@@ -258,6 +260,72 @@ async function resolveAccountSeq(): Promise<string> {
   return cachedAccountSeq;
 }
 
+/** 실계좌 보유 조회 — 종목 실제 수량·평단(비용 반영 수익률 포함). 실패 시 null. */
+async function fetchActualHolding(
+  symbol: string
+): Promise<{ quantity: number; averagePrice: number } | null> {
+  try {
+    const accountSeq = await resolveAccountSeq();
+    const res = await tossRequest<{
+      result: { items?: { symbol: string; quantity: string; averagePurchasePrice: string }[] };
+    }>({ path: '/api/v1/holdings', accountSeq });
+    const item = res.result?.items?.find((h) => h.symbol.toUpperCase() === symbol.toUpperCase());
+    if (!item) return { quantity: 0, averagePrice: 0 };
+    return { quantity: Number(item.quantity) || 0, averagePrice: Number(item.averagePurchasePrice) || 0 };
+  } catch {
+    return null;
+  }
+}
+
+/** 실계좌 매도가능 수량 — 과매도 방지용. 실패 시 null. */
+async function fetchSellableQty(symbol: string): Promise<number | null> {
+  try {
+    const accountSeq = await resolveAccountSeq();
+    const res = await tossRequest<{ result: { sellableQuantity?: string } }>({
+      path: '/api/v1/sellable-quantity',
+      accountSeq,
+      query: { symbol },
+    });
+    const q = Number(res.result?.sellableQuantity);
+    return Number.isFinite(q) ? q : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 장부 수량을 실계좌 보유와 대조(안전망) — 부분 체결·외부 매도·수동 매매로 장부가 실제보다
+ * 많아진 경우 실제값으로 낮춰 과매도를 막는다. 실제가 더 많은 경우(수동/타 경로 보유)는
+ * 장부를 올리지 않는다(그 초과분은 이 풀 몫이 아니므로). 풀이 계좌 전체 보유와 일치하면
+ * 평단도 실제값으로 맞춰 손절/익절 판단이 실거래와 어긋나지 않게 한다.
+ */
+export async function reconcileLedgerWithAccount(symbol: string): Promise<string | null> {
+  const pos = getBgLive(symbol);
+  if (!pos) return null;
+  const actual = await fetchActualHolding(symbol);
+  if (!actual) return null;
+
+  let note: string | null = null;
+  if (pos.quantity > actual.quantity + 1e-6) {
+    const before = pos.quantity;
+    pos.quantity = floorQty(actual.quantity);
+    if (pos.quantity <= 0) {
+      pos.quantity = 0;
+      pos.averagePrice = 0;
+      pos.tpHoldPeak = null;
+      pos.trailPeak = null;
+    }
+    note = `장부 정합: 보유 ${before}주 → 실계좌 ${actual.quantity}주로 보정(과매도 방지)`;
+  }
+  // 풀이 계좌 전체 보유와 (거의) 일치하면 실제 평단을 채택 — 손절/익절 판단 정확도.
+  if (pos.quantity > 0 && actual.averagePrice > 0 && Math.abs(pos.quantity - actual.quantity) < 1e-6) {
+    pos.averagePrice = actual.averagePrice;
+  }
+  pos.updatedAt = Date.now();
+  save();
+  return note;
+}
+
 function marketableBuyPrice(price: number, bestAsk?: number): number {
   const base = bestAsk !== undefined && bestAsk > 0 ? Math.max(bestAsk, price) : price;
   return Math.min(base * (1 + CROSS_BUFFER_PCT / 100), price * (1 + MAX_CHASE_PCT / 100));
@@ -300,23 +368,28 @@ function noteExec(symbol: string): void {
 
 /**
  * 엔진이 낸 미체결 주문을 실계좌와 대조한다.
- *  - 계좌 열린 주문에 없으면 → 체결로 간주, 기록만 제거(장부는 접수 시 이미 반영됨).
- *  - 90초 경과 + 가격 0.2% 이상 불리하게 이탈 → 취소 요청 후 장부 예약 롤백.
+ *  - 계좌 열린 주문에 없으면 → 전량 체결(또는 외부 취소)로 간주, 기록 제거(장부는 접수 시 반영됨).
+ *  - 90초 경과 + 가격 0.2% 이상 불리하게 이탈 → 취소 요청 후 '미체결 잔량만' 롤백(체결분 유지).
+ *    부분 체결분(execution.filledQuantity)은 실제 보유이므로 장부에 남긴다.
  * 반환: 로그로 남길 문구 목록.
  */
 export async function reconcileBgOrders(symbol: string, currentPrice: number): Promise<string[]> {
   const pos = getBgLive(symbol);
   if (!pos || pos.openOrders.length === 0) return [];
   const notes: string[] = [];
-  let accountOpenIds: Set<string>;
+  const accountOpen = new Map<string, { filled: number }>();
   try {
     const accountSeq = await resolveAccountSeq();
-    const res = await tossRequest<{ result: { orders?: { orderId: string }[] } }>({
+    const res = await tossRequest<{
+      result: { orders?: { orderId: string; execution?: { filledQuantity?: string } }[] };
+    }>({
       path: '/api/v1/orders',
       accountSeq,
       query: { status: 'OPEN', symbol },
     });
-    accountOpenIds = new Set((res.result?.orders ?? []).map((o) => o.orderId));
+    for (const o of res.result?.orders ?? []) {
+      accountOpen.set(o.orderId, { filled: Number(o.execution?.filledQuantity ?? 0) || 0 });
+    }
   } catch {
     return []; // 조회 실패 — 다음 틱에서 재시도
   }
@@ -324,8 +397,8 @@ export async function reconcileBgOrders(symbol: string, currentPrice: number): P
   const now = Date.now();
   const remaining: BgLiveOrder[] = [];
   for (const order of pos.openOrders) {
-    if (!accountOpenIds.has(order.orderId)) {
-      // 체결(또는 외부 취소)로 간주 — 접수 시 반영한 장부를 확정.
+    if (!accountOpen.has(order.orderId)) {
+      // 계좌 열린 주문에 없음 → 전량 체결(또는 외부 취소)로 간주. 접수 시 반영한 장부를 확정.
       notes.push(`체결 확인: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price}`);
       continue;
     }
@@ -348,28 +421,34 @@ export async function reconcileBgOrders(symbol: string, currentPrice: number): P
         body: {},
         retryOnRateLimit: false,
       });
-      // 예약 롤백 — 매수: 현금 복원+수량 회수, 매도: 수량 복원+대금 회수(실현도 되돌림).
-      if (order.side === 'BUY') {
-        pos.cash += order.quantity * order.price;
-        const nextQty = floorQty(pos.quantity - order.quantity);
-        pos.quantity = Math.max(0, nextQty);
-        if (pos.quantity <= 0) {
-          pos.quantity = 0;
-          pos.averagePrice = 0;
+      // 미체결 잔량만 롤백 — 부분 체결분(filled)은 실제 보유이므로 장부에 남긴다.
+      const filled = Math.min(order.quantity, Math.max(0, accountOpen.get(order.orderId)?.filled ?? 0));
+      const unfilled = floorQty(order.quantity - filled);
+      if (unfilled > 0) {
+        if (order.side === 'BUY') {
+          // 접수 시 order.quantity 전량을 order.price 로 평단에 반영·현금 차감했으므로, 미체결분만 제거.
+          pos.cash += unfilled * order.price;
+          const nextQty = floorQty(pos.quantity - unfilled);
+          const remAvgTotal = pos.averagePrice * pos.quantity - order.price * unfilled;
+          pos.quantity = Math.max(0, nextQty);
+          pos.averagePrice = pos.quantity > 0 ? Math.max(0, remAvgTotal / pos.quantity) : 0;
+          if (pos.quantity <= 0) pos.averagePrice = 0;
+        } else {
+          // 접수 시 매도 전량 반영(수량 차감·대금 가산·실현 계상)했으므로 미체결분 되돌림.
+          const avgAtSell = order.avgAtOrder ?? pos.averagePrice ?? order.price;
+          const proceeds = unfilled * order.price;
+          pos.cash = Math.max(0, pos.cash - proceeds);
+          const prevQty = pos.quantity;
+          pos.quantity = floorQty(pos.quantity + unfilled);
+          if (prevQty <= 0 && pos.averagePrice <= 0) pos.averagePrice = avgAtSell;
+          const realizedDelta = proceeds - avgAtSell * unfilled;
+          pos.realizedUsd -= realizedDelta;
+          addRealized(-realizedDelta);
         }
-      } else {
-        const proceeds = order.quantity * order.price;
-        pos.cash = Math.max(0, pos.cash - proceeds);
-        const prevQty = pos.quantity;
-        pos.quantity = floorQty(pos.quantity + order.quantity);
-        // 평단 복원: 매도 시 평단은 유지되므로 avg 그대로. 실현 롤백.
-        const realizedDelta = proceeds - pos.averagePrice * order.quantity;
-        pos.realizedUsd -= realizedDelta;
-        addRealized(-realizedDelta);
-        if (prevQty <= 0 && pos.averagePrice <= 0) pos.averagePrice = order.price;
       }
+      const filledNote = filled > 0 ? ` (부분 체결 ${filled}주 유지)` : '';
       notes.push(
-        `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price} — 가격 이탈(현재 $${currentPrice.toFixed(2)}), 예약 롤백`
+        `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} 잔량 ${unfilled}주 @ $${order.price} — 가격 이탈(현재 $${currentPrice.toFixed(2)}), 예약 롤백${filledNote}`
       );
     } catch {
       remaining.push(order); // 취소 실패(이미 체결됐을 수 있음) — 다음 틱 재대조
@@ -406,10 +485,30 @@ export async function sellAllBgLive(
   }
   if (inCooldown(symbol)) return { ok: false, text: `차단(쿨다운): ${label}` };
 
-  const qty = isRegular ? floorQty(pos.quantity) : Math.floor(pos.quantity);
+  // 과매도 방지 — 실계좌 매도가능 수량으로 상한(장부가 실제보다 많을 때 초과 주문 차단).
+  let capQty = pos.quantity;
+  let cappedNote = '';
+  const sellable = await fetchSellableQty(symbol);
+  if (sellable !== null && sellable < pos.quantity - 1e-6) {
+    capQty = sellable;
+    cappedNote = ` (장부 ${pos.quantity}주 > 실계좌 매도가능 ${sellable}주 — 실제 수량으로 제한)`;
+    if (capQty <= 0) {
+      // 실제 보유가 없으면 장부를 0으로 정합하고 매도 생략.
+      pos.quantity = 0;
+      pos.averagePrice = 0;
+      pos.tpHoldPeak = null;
+      pos.trailPeak = null;
+      pos.updatedAt = Date.now();
+      save();
+      return { ok: false, text: `${label} 생략 — 실계좌 매도가능 0주, 장부 정합${cappedNote}` };
+    }
+  }
+
+  const qty = isRegular ? floorQty(capQty) : Math.floor(capQty);
   if (qty <= 0) return { ok: false, text: `${label} 생략(매도 수량 없음)` };
   const fractional = !Number.isInteger(qty);
   const execPrice = fractional ? market.price : floorTick(marketableSellPrice(market.price, market.bestBid));
+  const avgAtSell = pos.averagePrice;
   const body: Record<string, unknown> = {
     symbol,
     side: 'SELL',
@@ -425,7 +524,7 @@ export async function sellAllBgLive(
 
   // 접수 시 장부 반영(체결 가정) — 미체결 취소 시 롤백된다.
   const proceeds = qty * execPrice;
-  const realizedDelta = proceeds - pos.averagePrice * qty;
+  const realizedDelta = proceeds - avgAtSell * qty;
   pos.realizedUsd += realizedDelta;
   pos.cash += proceeds;
   pos.quantity = floorQty(pos.quantity - qty);
@@ -436,7 +535,7 @@ export async function sellAllBgLive(
     pos.trailPeak = null;
   }
   if (result.orderId && !fractional) {
-    pos.openOrders.push({ orderId: result.orderId, side: 'SELL', quantity: qty, price: execPrice, placedAt: Date.now() });
+    pos.openOrders.push({ orderId: result.orderId, side: 'SELL', quantity: qty, price: execPrice, placedAt: Date.now(), avgAtOrder: avgAtSell });
   }
   pos.lastPrice = market.price;
   pos.updatedAt = Date.now();
@@ -444,7 +543,7 @@ export async function sellAllBgLive(
   const { forcedOff } = addRealized(realizedDelta);
   return {
     ok: true,
-    text: `${label}: ${qty}주 @ ${fractional ? '시장가' : `$${execPrice}`} (실현 ${realizedDelta >= 0 ? '+' : ''}$${realizedDelta.toFixed(2)})`,
+    text: `${label}: ${qty}주 @ ${fractional ? '시장가' : `$${execPrice}`} (실현 ${realizedDelta >= 0 ? '+' : ''}$${realizedDelta.toFixed(2)})${cappedNote}`,
     forcedOff,
   };
 }
