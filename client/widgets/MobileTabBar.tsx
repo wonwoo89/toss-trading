@@ -41,7 +41,7 @@ const TABS: { id: MobileTab; label: string; icon: React.ReactNode }[] = [
   },
   {
     id: 'ai',
-    label: 'AI 봇',
+    label: 'AI 매매',
     icon: (
       <svg {...ICON_PROPS}>
         <rect x="5" y="8" width="14" height="10" rx="2.5" />

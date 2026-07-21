@@ -6,6 +6,8 @@ import {
   type AutoSymbolConfig,
   type AutoTradeConfig,
   type AutoTradeLimits,
+  type LiveLogEntry,
+  type LiveTraderStatus,
   type PaperSummary,
 } from '../../shared/api/client';
 import { Button } from '../../shared/ui/Button';
@@ -93,10 +95,152 @@ function LogList({ entries, emptyText }: { entries: AutoLogEntry[]; emptyText: s
   );
 }
 
+/** 라이브 트레이더 로그 레벨 라벨 — 서버 LiveLogEntry.level 대응. */
+const LIVE_LEVEL_LABELS: Record<LiveLogEntry['level'], string> = {
+  trigger: '트리거',
+  exec: '체결',
+  skip: '보류',
+  block: '차단',
+  error: '오류',
+  ai: 'AI',
+};
+
+/** 단일 종목 집중 AI 매매(서버 실주문) 현황 — 5초 폴링으로 기기 간 동일 상태를 보여준다. */
+function LiveTraderSection() {
+  const [live, setLive] = useState<LiveTraderStatus | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const st = unwrap(await api.getLiveTraderStatus());
+        if (!cancelled) {
+          setLive(st);
+          setError(null);
+        }
+      } catch (e) {
+        if (!cancelled) setError(e instanceof Error ? e.message : '상태 조회 실패');
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), 5_000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  const cfg = live?.config;
+  const enabled = cfg?.enabled === true && Boolean(cfg?.symbol);
+  const pos = live?.position ?? null;
+
+  return (
+    <section className="panel server-ai-card" aria-label="단일 종목 AI 매매">
+      <div className="server-ai-card__head">
+        <Typography size={16} as="h2">
+          단일 종목 집중 AI 매매 <span className="hint">(실주문)</span>
+        </Typography>
+        <Typography size={14} className={enabled ? 'server-ai-kill__on' : 'hint'}>
+          {enabled ? `실행 중 · ${cfg?.symbol}` : '꺼짐'}
+        </Typography>
+      </div>
+
+      {error && (
+        <Typography size={12} as="p" className="server-ai-error">
+          {error}
+        </Typography>
+      )}
+
+      {!enabled ? (
+        <Typography size={14} as="p" className="hint">
+          실행 중인 단일 종목 AI 매매가 없습니다. 투자 화면의 자동매매 패널에서{' '}
+          <strong>AI 매매</strong> 모드를 켜면 서버가 그 종목을 집중 감시하며 실제 주문을 냅니다.
+        </Typography>
+      ) : (
+        <>
+          <dl className="server-ai-status">
+            <div>
+              <dt>종목</dt>
+              <dd>{cfg?.symbol}</dd>
+            </div>
+            <div>
+              <dt>미국장 세션</dt>
+              <dd>{live?.session ? (SESSION_LABELS[live.session] ?? live.session) : '—'}</dd>
+            </div>
+            <div>
+              <dt>다음 판단</dt>
+              <dd>
+                {formatTime(live?.nextTickAt ?? null)}
+                {live?.ticking ? ' · 판단 중…' : ''}
+              </dd>
+            </div>
+            <div>
+              <dt>오늘 실현손익</dt>
+              <dd className={live && live.todayRealizedUsd !== 0 ? (live.todayRealizedUsd > 0 ? 'up' : 'down') : undefined}>
+                {live ? `${live.todayRealizedUsd >= 0 ? '+' : '−'}$${Math.abs(live.todayRealizedUsd).toFixed(2)}` : '—'}
+              </dd>
+            </div>
+            <div>
+              <dt>보유</dt>
+              <dd>
+                {pos ? `${pos.quantity}주 @ $${pos.averagePrice.toFixed(2)}` : '없음'}
+              </dd>
+            </div>
+            <div>
+              <dt>평가</dt>
+              <dd className={pos?.profitLossPct !== undefined ? (pos.profitLossPct >= 0 ? 'up' : 'down') : undefined}>
+                {pos?.currentPrice !== undefined
+                  ? `$${pos.currentPrice.toFixed(2)}${
+                      pos.profitLossPct !== undefined
+                        ? ` (${pos.profitLossPct >= 0 ? '+' : ''}${pos.profitLossPct.toFixed(2)}%)`
+                        : ''
+                    }`
+                  : '—'}
+              </dd>
+            </div>
+          </dl>
+
+          <Typography size={12} as="p" className="hint server-ai-live-config">
+            목표 +{cfg?.targetPercent}% · 손절 -{cfg?.stopLossPercent}%
+            {cfg && cfg.trailingStopPercent > 0 ? ` · 트레일링 ${cfg.trailingStopPercent}%` : ''}
+            {' · '}1회 매수 {cfg?.buyMaxPercent}%
+            {cfg && cfg.dailyLossLimitUsd > 0 ? ` · 일손실 한도 $${cfg.dailyLossLimitUsd}` : ''}
+            {cfg?.holdTpOnTrend ? ' · 추세 홀드 ON' : ''}
+          </Typography>
+
+          {live?.lastError && (
+            <Typography size={12} as="p" className="server-ai-error">
+              최근 오류: {live.lastError}
+            </Typography>
+          )}
+        </>
+      )}
+
+      {/* 로그는 꺼진 뒤에도 마지막 세션 기록을 볼 수 있게 항상 표시 */}
+      {(live?.logs.length ?? 0) > 0 && (
+        <ul className="server-ai-live-logs">
+          {live!.logs.slice(0, 30).map((log) => (
+            <li key={log.id} className={`server-ai-live-log is-${log.level}`}>
+              <span className="server-ai-log__time">{formatTime(log.t)}</span>
+              <span className={`server-ai-live-log__level is-${log.level}`}>
+                {LIVE_LEVEL_LABELS[log.level] ?? log.level}
+              </span>
+              <Typography size={12} as="span" className="server-ai-live-log__text">
+                {log.text}
+              </Typography>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /**
- * 백그라운드 AI 매매 페이지 — 서버 상주(브라우저 불필요) 자동매매 엔진의 관리·모니터링 화면.
- * 현재 엔진은 드라이런: 판단·계획만 기록하고 실주문은 내지 않는다.
- * embedded=true 면 모바일 하단 탭('AI 봇') 안에 임베드 — 제목/뒤로가기 헤더를 생략한다.
+ * AI 매매 페이지 — 단일 종목 집중(서버 실주문) 현황 + 백그라운드(다종목 페이퍼) 엔진의
+ * 관리·모니터링을 한 화면에서 보여준다.
+ * embedded=true 면 모바일 하단 탭('AI 매매') 안에 임베드 — 제목/뒤로가기 헤더를 생략한다.
  */
 export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { showToast } = useToast();
@@ -270,24 +414,29 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
     <main className={`server-ai-page${embedded ? ' server-ai-page--embedded' : ''}`}>
       {!embedded && (
         <div className="backtest-head">
-          <Typography size={18} as="h1">백그라운드 AI 매매</Typography>
+          <Typography size={18} as="h1">AI 매매</Typography>
           {/* 트레이딩 복귀는 하단 내비게이션('투자' 탭)으로 — 우상단 링크 제거 */}
         </div>
       )}
 
+      {/* 단일 종목 집중(서버 실주문) — 현재 실행 중인 종목의 진행 상황·결과 */}
+      <LiveTraderSection />
+
       <Typography size={14} as="p" className="hint server-ai-intro">
-        브라우저를 꺼도 서버가 <strong>미국장이 열려 있는 동안</strong>(데이·프리·정규·애프터)
-        5분봉 마감마다 등록 종목을 AI로 판단합니다. 현재는 <strong>드라이런 단계</strong>로 실제
-        주문 없이, 종목마다 <strong>가상 $1,000</strong> 로 모의 매매(수수료 반영)해 수익률을
-        추적합니다.
+        아래 <strong>백그라운드 AI 매매</strong>는 브라우저를 꺼도 서버가{' '}
+        <strong>미국장이 열려 있는 동안</strong>(데이·프리·정규·애프터) 5분봉 마감마다 등록
+        종목을 AI로 판단합니다. 현재는 <strong>드라이런 단계</strong>로 실제 주문 없이, 종목마다{' '}
+        <strong>가상 $1,000</strong> 로 모의 매매(수수료 반영)해 수익률을 추적합니다.
       </Typography>
 
       {loadError && <div className="banner error">{loadError}</div>}
 
-      {/* 엔진 상태 + 킬스위치 */}
-      <section className="panel server-ai-card" aria-label="엔진 상태">
+      {/* 백그라운드 엔진 상태 + 킬스위치 */}
+      <section className="panel server-ai-card" aria-label="백그라운드 엔진 상태">
         <div className="server-ai-card__head">
-          <Typography size={16} as="h2">엔진 상태</Typography>
+          <Typography size={16} as="h2">
+            백그라운드 AI 매매 <span className="hint">(다종목 페이퍼)</span>
+          </Typography>
           <div className="server-ai-kill">
             <Typography size={14} className={savedConfig.enabled ? 'server-ai-kill__on' : 'hint'}>
               {savedConfig.enabled ? '실행 중' : '정지됨'}
