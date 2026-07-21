@@ -366,6 +366,29 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
     }
   }, []);
 
+  const [resetting, setResetting] = useState(false);
+  const resetEngine = useCallback(async () => {
+    if (
+      typeof window !== 'undefined' &&
+      !window.confirm(
+        '엔진을 초기화합니다.\n판단 로그를 비우고, 페이퍼는 $1,000 로 리셋합니다.\n실거래 풀은 실계좌 보유로 재동기화됩니다(실제 보유는 그대로 관리, 손익 기록은 새로 시작).\n계속할까요?'
+      )
+    ) {
+      return;
+    }
+    setResetting(true);
+    try {
+      const r = unwrap(await api.resetAutoEngine());
+      await refresh();
+      const failNote = r.liveFailed.length ? ` · 실거래 조회 실패: ${r.liveFailed.join(', ')}` : '';
+      showToast(`초기화 완료 — 페이퍼 ${r.paper}종목 · 실거래 ${r.live}종목 재동기화${failNote}`, 'success');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : '초기화 실패', 'error');
+    } finally {
+      setResetting(false);
+    }
+  }, [refresh, showToast]);
+
   // 최초 로드: 설정 + 상태 + 로그.
   useEffect(() => {
     let cancelled = false;
@@ -569,6 +592,15 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
             최근 오류: {status.lastError}
           </Typography>
         )}
+        <div className="server-ai-reset">
+          <Button size="sm" variant="ghost" disabled={resetting} onClick={resetEngine}>
+            {resetting ? '초기화 중…' : '엔진 초기화'}
+          </Button>
+          <Typography size={12} className="hint">
+            판단 로그를 비우고, 페이퍼는 $1,000 로·실거래 풀은 실계좌 보유로 재동기화해 새로
+            시작합니다.
+          </Typography>
+        </div>
       </section>
 
       {/* 종목·한도 설정 */}

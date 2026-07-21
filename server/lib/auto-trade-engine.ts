@@ -19,6 +19,7 @@ import {
   markBgLivePrice,
   reconcileBgOrders,
   reconcileLedgerWithAccount,
+  resyncBgLiveToAccount,
   runBgLiveGuards,
   sellAllBgLive,
   type BgLiveSummary,
@@ -31,6 +32,7 @@ import {
   getPaperSummaries,
   getPaperSummary,
   markPaperPrice,
+  resetPaperPortfolio,
   updatePaperTracking,
   PAPER_COMMISSION_RATE,
   type PaperFill,
@@ -157,6 +159,47 @@ export function getAutoEngineStatus(): AutoEngineStatus {
 
 export function getAutoEngineLogs(limit = 100): AutoLogEntry[] {
   return logs.slice(-limit).reverse(); // 최근 → 과거
+}
+
+/**
+ * 엔진 초기화 — 판단 로그를 비우고, 종목별 장부를 새로 시작한다.
+ *  - 페이퍼: 가상 $1,000 로 리셋.
+ *  - 실거래: 실계좌 보유로 재동기화(실제 평단 물려받아 관리 지속, 실현·미체결 기록 비움).
+ * 재시작마다 자동이 아니라 사용자가 명시적으로 호출(POST /api/auto/reset)한다.
+ */
+export async function resetAutoEngine(): Promise<{ paper: number; live: number; liveFailed: string[] }> {
+  logs.length = 0;
+  logSeq = 0;
+  lastAiJudgment.clear();
+
+  const config = getAutoTradeConfig();
+  const liveSymbols = config.symbols.filter((s) => s.live);
+  const paperSymbols = config.symbols.filter((s) => !s.live).map((s) => s.symbol);
+
+  // 페이퍼: 등록 종목 장부 삭제 → 다음 틱에 $1,000 로 재생성.
+  resetPaperPortfolio(paperSymbols);
+
+  // 실거래: 각 풀을 실계좌 보유로 재동기화(계좌 조회 실패 종목은 건드리지 않음).
+  const liveFailed: string[] = [];
+  for (const s of liveSymbols) {
+    const ok = await resyncBgLiveToAccount(s.symbol, s.poolUsd);
+    if (!ok) liveFailed.push(s.symbol);
+  }
+
+  pushLog({
+    t: Date.now(),
+    symbol: '-',
+    session: 'unknown',
+    action: 'HOLD',
+    sizePct: 0,
+    confidence: 0,
+    reason: `엔진 초기화 — 페이퍼 ${paperSymbols.length}종목 리셋, 실거래 ${liveSymbols.length - liveFailed.length}종목 실계좌 재동기화${liveFailed.length ? ` (조회 실패 ${liveFailed.join(',')})` : ''}`,
+    fallback: false,
+    currentPrice: 0,
+    model: 'reset',
+  });
+
+  return { paper: paperSymbols.length, live: liveSymbols.length - liveFailed.length, liveFailed };
 }
 
 function toAiCandle(c: AggregatedCandle): AiDecisionCandle {

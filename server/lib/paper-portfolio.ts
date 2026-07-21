@@ -202,6 +202,25 @@ export function getPaperSummaries(): PaperSummary[] {
   return Object.values(load()).map(summarize);
 }
 
+/** 지정 종목(없으면 전체)의 페이퍼 장부를 삭제 — 다음 평가 시 $1,000 로 재시작한다(초기화용). */
+export function resetPaperPortfolio(symbols?: string[]): void {
+  const store = load();
+  if (!symbols) {
+    for (const key of Object.keys(store)) delete store[key];
+    save();
+    return;
+  }
+  let changed = false;
+  for (const s of symbols) {
+    const key = s.toUpperCase();
+    if (store[key]) {
+      delete store[key];
+      changed = true;
+    }
+  }
+  if (changed) save();
+}
+
 /** 설정에서 제거된 종목의 장부를 정리 — 다시 추가하면 새 $1,000 로 시작한다. */
 export function prunePaperPortfolio(keepSymbols: string[]): void {
   const store = load();

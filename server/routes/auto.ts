@@ -6,7 +6,7 @@ import {
   getAutoTradeConfig,
   saveAutoTradeConfig,
 } from '../lib/auto-trade-config.js';
-import { getAutoEngineLogs, getAutoEngineStatus } from '../lib/auto-trade-engine.js';
+import { getAutoEngineLogs, getAutoEngineStatus, resetAutoEngine } from '../lib/auto-trade-engine.js';
 import { pruneBgLive } from '../lib/bg-live.js';
 import { prunePaperPortfolio } from '../lib/paper-portfolio.js';
 
@@ -45,4 +45,14 @@ autoRouter.get('/status', (_req, res) => {
 autoRouter.get('/logs', (req, res) => {
   const limit = req.query.limit ? Math.min(Number(req.query.limit), 300) : 100;
   res.json({ result: getAutoEngineLogs(Number.isFinite(limit) ? limit : 100) });
+});
+
+/** 엔진 초기화 — 로그 비우기 + 페이퍼 $1,000 리셋 + 실거래 풀 실계좌 재동기화. */
+autoRouter.post('/reset', async (_req, res, next) => {
+  try {
+    const result = await resetAutoEngine();
+    res.json({ result });
+  } catch (error) {
+    next(error);
+  }
 });

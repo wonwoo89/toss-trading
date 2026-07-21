@@ -215,6 +215,36 @@ export function markBgLivePrice(symbol: string, price: number): void {
   save();
 }
 
+/**
+ * 실거래 풀 장부를 실계좌 보유로 재동기화(초기화) — 잘못 어긋난 장부를 실제와 맞춰 새로 시작.
+ * 실계좌 보유를 그대로 물려받아(실제 평단) 손절/익절 관리를 이어가고, 실현손익·미체결 기록은
+ * 비운다. 현금은 풀 예산에서 보유 원가를 차감(보유 없으면 풀 전액) — 손익률이 실제와 일치.
+ * 계좌 조회 실패 시 장부는 그대로 두고 false 를 돌려준다(임의 초기화로 보유를 방치하지 않게).
+ */
+export async function resyncBgLiveToAccount(symbol: string, poolUsd: number): Promise<boolean> {
+  const actual = await fetchActualHolding(symbol);
+  if (!actual) return false;
+  const store = load();
+  const key = symbol.toUpperCase();
+  const qty = floorQty(actual.quantity);
+  const costBasis = qty * actual.averagePrice;
+  store.positions[key] = {
+    symbol: key,
+    poolUsd,
+    cash: Math.max(0, poolUsd - costBasis),
+    quantity: qty,
+    averagePrice: qty > 0 ? actual.averagePrice : 0,
+    realizedUsd: 0,
+    lastPrice: 0,
+    tpHoldPeak: null,
+    trailPeak: null,
+    openOrders: [],
+    updatedAt: Date.now(),
+  };
+  save();
+  return true;
+}
+
 // ── 일일 실현 손익(전역 한도) ────────────────────────────────────
 
 function todayRealized(): number {
