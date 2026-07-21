@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { HeaderAccountBalance } from './HeaderAccountBalance';
 import { HeaderAccountMenu } from './HeaderAccountMenu';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp';
@@ -17,13 +16,8 @@ export function Header() {
           <SymbolSearch />
           <ThemeToggle />
           <WakeLockToggle />
-          {/* 모바일 전용: 신규 레이아웃(하단 탭) 전환 (데스크톱은 CSS 로 숨김) */}
-          <Link to="/backtest" className="header-backtest-link" title="신호 백테스트">
-            백테스트
-          </Link>
-          <Link to="/server-ai" className="header-backtest-link" title="백그라운드 AI 매매 관리">
-            백그라운드 AI
-          </Link>
+          {/* 백테스트/백그라운드 AI 진입은 하단 내비게이션으로 이동 —
+              데스크톱=DesktopNav(플로팅), 모바일=MobileTabBar/설정 탭 */}
           {/* 모바일 전용: 화면꺼짐 방지 버튼 옆 '내 계좌' 드롭다운 (데스크톱은 CSS 로 숨김) */}
           <HeaderAccountMenu />
           <KeyboardShortcutsHelp />
