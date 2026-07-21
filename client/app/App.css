@@ -4854,6 +4854,35 @@ input[type='checkbox']:focus-visible {
 
 /* ── 서버 AI 매매 페이지 ─────────────────────────────────────────────
    백그라운드 엔진(드라이런) 관리·모니터링. 백테스트 페이지와 같은 좁은 단일 컬럼. */
+/* AI 매매 독립 페이지 레이아웃 — 본문(좌) + 포트폴리오 사이드바(우, 데스크톱) */
+.server-ai-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding-bottom: 5.5rem; /* 하단 플로팅 내비 여백 */
+}
+.server-ai-layout .server-ai-page {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding-bottom: 0;
+}
+.server-ai-layout .portfolio-sidebar {
+  flex: 0 0 var(--portfolio-sidebar-width);
+  width: var(--portfolio-sidebar-width);
+}
+/* 데스크톱 전용 — 좁은 화면(≤1100px)에서는 사이드바 숨김(모바일은 임베드 탭 사용) */
+@media (max-width: 1100px) {
+  .server-ai-layout {
+    display: block;
+  }
+  .server-ai-layout .portfolio-sidebar {
+    display: none;
+  }
+}
+
 .server-ai-page {
   max-width: 760px;
   margin: 0 auto;
