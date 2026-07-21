@@ -1,4 +1,5 @@
 import { Route, Routes } from 'react-router-dom';
+import { DesktopNav } from '../widgets/DesktopNav';
 import { Header } from '../widgets/Header';
 import { PwaUpdatePrompt } from '../widgets/PwaUpdatePrompt';
 import { AppProvider, useAppContext } from './providers/AppContext';
@@ -26,6 +27,9 @@ function AppShell() {
         <Route path="/backtest" element={<BacktestPage />} />
         <Route path="/server-ai" element={<ServerAiPage />} />
       </Routes>
+
+      {/* 데스크톱 전용 플로팅 하단 내비게이션(모바일은 CSS 로 숨김 — MobileTabBar 사용) */}
+      <DesktopNav />
     </div>
   );
 }
