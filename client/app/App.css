@@ -4186,6 +4186,31 @@ input[type='checkbox']:focus-visible {
   font-weight: 700;
 }
 
+/* 종목 행의 AI 최적화 추천 라인 — [추천 요약] [적용] */
+.backtest-row__optimize {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+}
+.backtest-row__optimize-pick {
+  margin: 0;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+/* 상세 모달 내 AI 최적화 표 — 본문 결과 위 섹션 간격 */
+.backtest-optimize--in-modal {
+  margin-bottom: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
 .backtest-add-row {
   display: flex;
   gap: 0.4rem;
