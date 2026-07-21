@@ -93,7 +93,7 @@ export function NumberField({
   return (
     <div className={['ui-textfield', className ?? ''].filter(Boolean).join(' ')} title={title}>
       {label !== undefined && label !== null && (
-        <Typography as="label" size={12} className="ui-textfield__label" htmlFor={inputId}>
+        <Typography as="label" size={10} className="ui-textfield__label" htmlFor={inputId}>
           {label}
         </Typography>
       )}
