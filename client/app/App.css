@@ -4378,18 +4378,17 @@ input[type='checkbox']:focus-visible {
 
 /* ═══════════ 모바일 신규 레이아웃 v2 (하단 탭) + 탭바 ═══════════ */
 
-/* 하단 탭바 — 데스크톱(DesktopNav)과 동일한 플로팅 필(pill) 디자인.
-   화면 하단 중앙에 떠 있고, PWA 홈 인디케이터 위(safe-area-inset-bottom)로 띄운다. */
+/* 하단 탭바 — 데스크톱(DesktopNav)과 동일한 플로팅 스타일(블러·그림자·라운드)이되,
+   좌우는 full width(플로팅 간격 10px 만 남김). PWA 홈 인디케이터 위로 띄운다. */
 .mobile-tab-bar {
   position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 10px;
+  right: 10px;
   bottom: calc(10px + env(safe-area-inset-bottom));
   z-index: 310;
   display: flex;
   gap: 2px;
   padding: 5px;
-  max-width: calc(100vw - 12px);
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
   background: color-mix(in srgb, var(--bg-base) 78%, transparent);
@@ -4399,12 +4398,12 @@ input[type='checkbox']:focus-visible {
 }
 
 .mobile-tab-bar__tab {
-  flex: 0 0 auto;
+  flex: 1 1 0; /* full width 를 탭이 균등 분배 */
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: 6px 9px;
+  padding: 6px 0;
   border: none;
   border-radius: 999px;
   background: none;
@@ -4703,10 +4702,10 @@ input[type='checkbox']:focus-visible {
     text-decoration: none;
   }
 
-  /* 탭이 6개가 되어 라벨·패딩 소폭 축소(플로팅 필 — 좌우 패딩은 유지해야 필이 안 짜부라진다) */
+  /* 탭이 6개가 되어 라벨 소폭 축소(full width 균등 분배라 좌우 패딩은 불필요) */
   .mobile-tab-bar__tab {
     font-size: 0.63rem;
-    padding: 6px 7px;
+    padding: 6px 0;
   }
 }
 
