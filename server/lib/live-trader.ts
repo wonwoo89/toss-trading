@@ -13,9 +13,15 @@ import { fetchSourceCandles } from './fetch-source-candles.js';
 import { getDefaultAccountSeq, tossRequest } from './toss-client.js';
 import {
   getUsMarketSession,
+  isFractionalOrderTime,
   isTradeableSession,
   type UsMarketSessionKind,
 } from './us-market-session.js';
+
+/** 소수점 주문 가능 여부 — 정규장 세션 + KST 04시 이전 소수점 접수 시간대일 때만. */
+function fractionalAllowed(session: UsMarketSessionKind): boolean {
+  return session === 'regular' && isFractionalOrderTime();
+}
 
 /**
  * 포어그라운드(라이브) AI 트레이더 — 클라이언트 'AI 매매' 모드의 서버 이관.
@@ -422,17 +428,17 @@ async function sellAll(
 ): Promise<boolean> {
   const s = loadState();
   const { account, market, session } = ctx;
-  const isRegular = session === 'regular';
-  // 비정규장 + 보유 1주 미만(소수점 잔량) — 소수점 매도가 불가해 생략.
+  const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전 소수점 접수 시간대
+  // 소수점 주문 불가 시간대 + 보유 1주 미만(소수점 잔량) — 소수점 매도가 불가해 생략.
   // 정수 1주 이상은 정수부 매도가 가능하므로 막지 않는다.
-  if (!isRegular && account.holdingQty < 1) {
-    pushLog('block', `${label} 생략(보유 ${account.holdingQty}주 < 1주 — 소수점 잔량, 비정규장)`, 'SELL');
+  if (!canFractional && account.holdingQty < 1) {
+    pushLog('block', `${label} 생략(보유 ${account.holdingQty}주 < 1주 — 소수점 잔량, 소수점 주문 불가 시간대)`, 'SELL');
     return false;
   }
   const base = account.sellableQty !== undefined && account.sellableQty > 0
     ? account.sellableQty
     : account.holdingQty;
-  const qty = isRegular ? Math.floor(base * 1e8) / 1e8 : Math.floor(base);
+  const qty = canFractional ? Math.floor(base * 1e8) / 1e8 : Math.floor(base);
   if (qty <= 0) {
     pushLog('block', `${label} 생략(매도 가능 수량 없음)`, 'SELL');
     return false;
@@ -630,7 +636,7 @@ async function executeAiBuy(
   const budget = Math.floor(account.buyingPower * (effectivePct / 100) * 100) / 100;
   const price = market.currentPrice;
   const qty = Math.floor(budget / price);
-  const isRegular = session === 'regular';
+  const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전
 
   let body: Record<string, unknown>;
   let label: string;
@@ -638,7 +644,7 @@ async function executeAiBuy(
     const exec = floorTick(marketableBuyPrice(price, market.asks));
     body = { symbol: cfg.symbol, side: 'BUY', orderType: 'LIMIT', quantity: qty, price: exec, clientOrderId: `live-${Date.now()}` };
     label = `AI 매수 ${qty}주(비중 ${effectivePct}%) @ $${exec}`;
-  } else if (isRegular && budget >= 1) {
+  } else if (canFractional && budget >= 1) {
     body = { symbol: cfg.symbol, side: 'BUY', orderType: 'MARKET', orderAmount: budget, clientOrderId: `live-${Date.now()}` };
     label = `AI 소수점 매수 $${budget}(비중 ${effectivePct}%) 시장가`;
   } else if (price <= account.buyingPower * (cfg.buyMaxPercent / 100)) {
@@ -718,10 +724,10 @@ async function decisionTickInner(): Promise<void> {
     const trend = computeTrend(candles);
     const bidTotal = market.bids.reduce((sum, b) => sum + b.q, 0);
     const askTotal = market.asks.reduce((sum, a) => sum + a.q, 0);
-    const isRegular = session === 'regular';
+    const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전
     const sellableForAi = (() => {
       const base = account.sellableQty ?? account.holdingQty;
-      const q = isRegular ? base : Math.floor(base);
+      const q = canFractional ? base : Math.floor(base);
       return account.holdingQty > 0 ? Math.max(0, q) : undefined;
     })();
 

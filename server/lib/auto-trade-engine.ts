@@ -39,6 +39,7 @@ import {
 import { tossRequest } from './toss-client.js';
 import {
   getUsMarketSession,
+  isFractionalOrderTime,
   isTradeableSession,
   type UsMarketSessionKind,
 } from './us-market-session.js';
@@ -334,7 +335,8 @@ async function evaluateSymbolLive(
 ): Promise<void> {
   const symbol = symCfg.symbol;
   const { candles, currentPrice, currency, bids, asks, bidTotal, askTotal, signal, trend } = ctx;
-  const isRegular = session === 'regular';
+  // 소수점 매도가능 수량은 소수점 주문 가능 시간대(정규장 + KST 04시 이전)에만.
+  const canFractional = session === 'regular' && isFractionalOrderTime();
 
   const pool = ensureBgLive(symbol, symCfg.poolUsd);
   markBgLivePrice(symbol, currentPrice);
@@ -387,7 +389,7 @@ async function evaluateSymbolLive(
   }
 
   // 2) AI 판단 — 컨텍스트는 풀 장부 기준.
-  const sellableQty = isRegular ? pool.quantity : Math.floor(pool.quantity);
+  const sellableQty = canFractional ? pool.quantity : Math.floor(pool.quantity);
   const request: AiDecisionRequest = {
     symbol,
     interval: AUTO_CANDLE_INTERVAL,
