@@ -69,7 +69,7 @@ export function StockPage() {
   useFocusOnSymbol(symbol, layoutRef);
 
   // 자동매매(차트 영역 상주) — 주문은 OrderForm 을 거치지 않고 createOrder 로 직결.
-  // 세미오토/오토 활성 시 수동 주문(OrderForm)을 잠근다.
+  // AI 매매(오토) 활성 여부는 주문폼 안내 문구에 사용.
   const { showToast } = useToast();
   const [autoTradeActive, setAutoTradeActive] = useState(false);
   const [autoSubmitting, setAutoSubmitting] = useState(false);
@@ -232,7 +232,6 @@ export function StockPage() {
                 {...marketPanelProps}
                 symbol={symbol}
                 onAutoExecute={executeAutoOrder}
-                onAutoCancelOrder={cancelOrder}
                 autoSubmitting={autoSubmitting}
                 onAutoExecModeChange={setAutoTradeActive}
               />

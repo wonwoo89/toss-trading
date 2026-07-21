@@ -49,7 +49,7 @@ interface AutoTradePanelProps {
   buyingPower?: number;
   /** 주문 제출 중 — 실행 버튼 비활성 */
   submitting?: boolean;
-  /** 실제 주문 실행(세미오토 '실행' 탭 시). OrderForm 의 검증된 제출 경로 재사용.
+  /** 실제 주문 실행. OrderForm 의 검증된 제출 경로 재사용.
    *  orderAmount 가 있으면 금액(달러) 시장가 소수점 매수(정규장 한정). */
   onAutoExecute: (
     side: 'BUY' | 'SELL',
@@ -58,8 +58,7 @@ interface AutoTradePanelProps {
     orderAmount?: number
   ) => void;
   /** 미체결 주문 취소 — 가격 이탈로 잡히지 않는 자동 지정가 주문을 정리하고 재판단하기 위함. */
-  onCancelOrder?: (orderId: string) => Promise<void> | void;
-  /** 세미오토/오토(실주문 모드) 활성 여부 변경 알림 — OrderForm 이 주문 입력 영역을 숨기는 데 사용. */
+  /** AI 매매(실주문 모드) 활성 여부 변경 알림 — OrderForm 안내 문구에 사용. */
   onExecModeChange?: (active: boolean) => void;
   /** 모바일(좁은 폭) 여부 — 화면 꺼짐/백그라운드 시 멈춤 안내를 노출하기 위함. */
   isMobile?: boolean;
@@ -116,9 +115,7 @@ const MAX_AI_HISTORY = 10;
 /** 추세 홀드 중 고점 대비 허용 하락(%) — 트레일링 설정이 0(끔)일 때의 기본값. */
 const TP_HOLD_TRAIL_PCT = 0.5;
 /** 미체결 자동 취소: 이 시간 이상 미체결이고(90s)… */
-const STALE_UNFILLED_MS = 90_000;
 /** …가격이 지정가에서 불리한 방향으로 이 % 이상 이탈했으면 취소 후 재판단. */
-const STALE_PRICE_AWAY_PCT = 0.2;
 /** 체결 우선 지정가: 상대 호가를 넘어 즉시 체결을 노리는 버퍼(%). */
 const CROSS_BUFFER_PCT = 0.1;
 /** 체결 우선 지정가의 추격 상한(%) — 판단가에서 이 이상 벗어난 가격으로는 걸지 않는다. */
@@ -138,14 +135,13 @@ const AI_PRICE_MOVE_PCT = 0.3;
  * 자동매매 패널.
  *  - OFF: 비활성(킬 스위치)
  *  - 드라이런: AI 판단·익절/손절/트레일링 신호를 감지해 "했을 주문"을 기록만(실주문 X)
- *  - 세미오토: 트리거 시 대기 카드 노출 → 사용자가 '실행' 탭해야 실제 주문(확인 탭 필수)
  *  - AI 매매(auto): AI 판단 + 가드 통과 시 확인 없이 자동 실주문(켤 때 확인, 탭 숨김 시 일시정지)
  *
  * 매수 진입은 AI 판단(useAi)으로만 이루어지고, 익절/손절/트레일링 보호 매도는 항상 동작한다.
  * 설정(모드·비율·한도)과 로그는 localStorage 에 영속돼 새로고침 후에도 유지된다.
  *
  * 안전장치: 킬 스위치(모드 OFF) · 손절률 · 트레일링 스탑 · 일일 손실 한도(도달 시 강제 OFF) ·
- * 쿨다운 · 탭 가시성(오토) · 종목당 단일 대기(세미) · 감사로그. 데스크탑·모바일 모두 동작하되,
+ * 쿨다운 · 탭 가시성(오토) · 감사로그. 데스크탑·모바일 모두 동작하되,
  * 렌더+포그라운드(탭 보임) 상태에서만 트리거가 돈다(탭 숨김 시 오토 일시정지).
  */
 export function AutoTradePanel({
@@ -169,13 +165,12 @@ export function AutoTradePanel({
   currency = 'USD',
   usMarketCalendar,
   commissions = [],
-  onCancelOrder,
 }: AutoTradePanelProps) {
   // 설정은 localStorage 에서 복원(모바일 PWA 재시작 후에도 유지). 변경 시 즉시 저장.
   const [initialSettings] = useState(getAutoTradeSettings);
-  // 세미/오토는 켜뒀던 종목에서만 복원 — 다른 종목으로 이동(패널 리마운트)하면 안전을 위해 OFF.
+  // AI 매매는 켜뒀던 종목에서만 복원 — 다른 종목으로 이동(패널 리마운트)하면 안전을 위해 OFF.
   const restoredModeBlockedBySymbolChange =
-    (initialSettings.mode === 'auto' || initialSettings.mode === 'semi') &&
+    initialSettings.mode === 'auto' &&
     initialSettings.activeSymbol !== undefined &&
     initialSettings.activeSymbol !== symbol;
   // 'AI 매매'는 서버 실행으로 이관 — 로컬 저장 모드가 auto 여도 서버 상태 동기화(아래 effect)로만 복원.
@@ -212,7 +207,6 @@ export function AutoTradePanel({
   const isRegularSession = resolveUsMarketSession(usMarketCalendar, sessionNow).kind === 'regular';
 
   const [logs, setLogs] = useState<LogEntry[]>(loadAutoTradeLogs);
-  const [pending, setPending] = useState<PendingAction | null>(null);
 
   // AI(LLM) 판단: 봉 마감·의미있는 변동 시 서버에 스냅샷을 보내 BUY/SELL/HOLD 를 받아 실행한다.
   // 안전: 손절/쿨다운/탭가시성/킬스위치 등 가드는 그대로 적용되고, AI 는 그 안에서 '방향'만 정한다.
@@ -225,7 +219,6 @@ export function AutoTradePanel({
   const aiLastClosedKeyRef = useRef<number | null>(null);
   const aiLastPriceRef = useRef<number | null>(null);
 
-  const pendingRef = useRef<PendingAction | null>(null);
   const lastExecRef = useRef(0);
   // 종류별 마지막 기록 스냅샷(가격·수량·시각). 의미 있는 변동 판정 + 도배 억제에 사용.
   // 조건이 false(신호 사라짐)면 null 로 리셋해, 다시 켜질 때 새 에피소드로 즉시 기록.
@@ -237,23 +230,20 @@ export function AutoTradePanel({
   // 추세 홀드 상태 — 목표 도달 후 매도를 보류 중이면 고점을 담는다(null=홀드 아님).
   const tpHoldRef = useRef<{ peak: number } | null>(null);
   // AI 매매(오토) 활성 시각 — 그 이후 접수된 주문만 미체결 자동 취소 대상(수동 주문 보호).
-  const autoSinceRef = useRef<number | null>(null);
   // 이미 취소 요청한 주문 id — 폴링 반영 지연 동안 중복 취소 방지.
-  const cancelRequestedRef = useRef<Set<string>>(new Set());
   // 손절 생략(보유 ≤1주) 로그를 에피소드당 1회로 제한하는 플래그.
   const slSkipLoggedRef = useRef(false);
   const tpSkipLoggedRef = useRef(false);
   // AI 재량 매도(SELL 의견)가 매도 불가 상태에서 반복될 때 로그 도배 방지(에피소드당 1회).
   const aiSellSkipLoggedRef = useRef(false);
   const tsSkipLoggedRef = useRef(false);
-  pendingRef.current = pending;
 
   // 설정 영속화 — 어떤 값이든 바뀌면 저장.
   useEffect(() => {
     saveAutoTradeSettings({
       mode,
-      // 세미/오토일 때만 현재 종목을 기록 — 종목 변경 시 자동 OFF 판정 기준.
-      activeSymbol: mode === 'auto' || mode === 'semi' ? symbol : undefined,
+      // AI 매매일 때만 현재 종목을 기록 — 종목 변경 시 자동 OFF 판정 기준.
+      activeSymbol: mode === 'auto' ? symbol : undefined,
       useAi,
       targetPercent,
       stopLossPercent,
@@ -372,8 +362,6 @@ export function AutoTradePanel({
       lastSignalRef.current = { BUY: null, TP: null, SL: null, TS: null };
       aiHistoryRef.current = [];
       setAiDecision(null);
-      pendingRef.current = null;
-      setPending(null);
     }
     setMode(next);
   };
@@ -381,16 +369,15 @@ export function AutoTradePanel({
   useEffect(() => {
     lastSignalRef.current = { BUY: null, TP: null, SL: null, TS: null };
     trailPeakRef.current = null;
-    setPending(null);
     setAiDecision(null);
     aiHistoryRef.current = [];
     aiLastClosedKeyRef.current = null;
     aiLastPriceRef.current = null;
   }, [symbol]);
 
-  // 세미오토/오토(실주문 모드) 활성 여부를 부모에 알린다(주문 입력 영역 숨김용). 언마운트 시 해제.
+  // AI 매매(실주문 모드) 활성 여부를 부모에 알린다(주문폼 안내용). 언마운트 시 해제.
   useEffect(() => {
-    onExecModeChange?.(mode === 'semi' || mode === 'auto');
+    onExecModeChange?.(mode === 'auto');
     return () => onExecModeChange?.(false);
   }, [mode, onExecModeChange]);
 
@@ -420,7 +407,7 @@ export function AutoTradePanel({
     );
   };
 
-  // 저장된 모드가 실주문 모드(세미/오토)로 복원됐음을 로그로 남긴다(1회).
+  // 저장된 모드가 실주문 모드(AI 매매)로 복원됐음을 로그로 남긴다(1회).
   const restoredNoticeRef = useRef(false);
   useEffect(() => {
     if (restoredNoticeRef.current) return;
@@ -429,13 +416,13 @@ export function AutoTradePanel({
       pushLog(
         'block',
         'BUY',
-        `종목 변경으로 자동매매 OFF (이전: ${initialSettings.activeSymbol} ${initialSettings.mode === 'auto' ? 'AI 매매' : '세미오토'})`
+        `종목 변경으로 자동매매 OFF (이전: ${initialSettings.activeSymbol} AI 매매)`
       );
-    } else if (initialSettings.mode === 'auto' || initialSettings.mode === 'semi') {
+    } else if (initialSettings.mode === 'auto') {
       pushLog(
         'trigger',
         'BUY',
-        `설정 복원: ${initialSettings.mode === 'auto' ? 'AI 매매' : '세미오토'} 모드로 재시작됨 (끄려면 OFF)`
+        '설정 복원: AI 매매 모드로 재시작됨 (끄려면 OFF)'
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -576,8 +563,8 @@ export function AutoTradePanel({
   const slReached = slPrice !== undefined && currentPrice !== undefined && currentPrice <= slPrice;
 
   const active = mode !== 'off';
-  // 로컬 트리거(익절/손절/트레일링/AI 호출)는 드라이런·세미오토에서만 돈다 — AI 매매는 서버 실행.
-  const localActive = mode === 'dryrun' || mode === 'semi';
+  // 로컬 트리거(익절/손절/트레일링/AI 호출)는 드라이런에서만 돈다 — AI 매매는 서버 실행.
+  const localActive = mode === 'dryrun';
   const dailyLossReached = dailyLossLimitUsd > 0 && dailyRealizedUsd <= -dailyLossLimitUsd;
 
   // 서버(포어그라운드) AI 매매 상태 — 기기 간 공유. mode==='auto' 인 동안 5초 폴링.
@@ -605,7 +592,7 @@ export function AutoTradePanel({
       pushLog('block', 'BUY', `차단(일일 손실 한도 도달): ${action.label}`);
       return false;
     }
-    // 쿨다운은 무인 자동(오토) 연사 방지용 — 사람이 직접 누르는 세미오토 '실행'에는 적용하지 않는다.
+    // 쿨다운은 무인 자동(오토) 연사 방지용.
     if (mode === 'auto' && Date.now() - lastExecRef.current < COOLDOWN_MS) {
       const wait = Math.ceil((COOLDOWN_MS - (Date.now() - lastExecRef.current)) / 1000);
       pushLog('block', action.side, `차단(쿨다운 ${wait}s 남음): ${action.label}`);
@@ -639,7 +626,7 @@ export function AutoTradePanel({
     return true;
   };
 
-  // 트리거 처리: 드라이런=기록만, 세미오토=대기 카드, 오토=가드 통과 시 즉시 실행.
+  // 트리거 처리: 드라이런=기록만, 오토=가드 통과 시 즉시 실행.
   // shouldFire 로 의미 있는 변동일 때만 호출된다. 발생 시 스냅샷(가격·수량·시각) 갱신.
   const fireTrigger = (
     action: PendingAction,
@@ -662,14 +649,7 @@ export function AutoTradePanel({
       lastSignalRef.current[action.kind] = snap;
       pushLog('trigger', action.side, `자동 실행 트리거: ${action.label}`);
       runExecute(action); // 가드 통과 시 즉시 주문, 실패 시 block 로그
-      return;
     }
-    // semi: 이미 대기 중이면 새로 만들지 않음(스냅샷도 갱신 안 함 → 대기 해소 후 다음 변동 반영).
-    if (pendingRef.current) return;
-    lastSignalRef.current[action.kind] = snap;
-    pendingRef.current = action;
-    setPending(action);
-    pushLog('trigger', action.side, `대기: ${action.label} — '실행'을 눌러야 주문됩니다`);
   };
 
   // 익절 매도 트리거 — '추세 홀드'가 켜져 있으면 목표 도달 시 상승 추세에서는 매도를 보류하고
@@ -833,57 +813,6 @@ export function AutoTradePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, mode, isTabVisible, hasPosition, tpReached, slReached, sellQty, currentPrice, symbol, trailingStopPercent]);
 
-  // 세미오토 활성 시각 기록 — 이후 접수된 주문만 미체결 자동 취소 대상.
-  // (AI 매매의 미체결 취소는 서버 트레이더가 자체 수행)
-  useEffect(() => {
-    if (mode === 'semi') {
-      autoSinceRef.current ??= Date.now();
-    } else {
-      autoSinceRef.current = null;
-      cancelRequestedRef.current.clear();
-    }
-  }, [mode]);
-
-  // 미체결 자동 취소 — 자동 지정가 주문이 오래(90s+) 미체결이고 가격이 불리한 방향으로
-  // 이탈(매수: 급등, 매도: 급락)했으면 취소한다. 미체결이 사라지면 다음 AI 트리거에서
-  // "미체결 중복 진입 금지" 제약 없이 새로 판단한다.
-  useEffect(() => {
-    if (mode !== 'semi' || !onCancelOrder) return;
-    const since = autoSinceRef.current;
-    if (since === null || currentPrice === undefined || currentPrice <= 0) return;
-
-    const now = Date.now();
-    for (const order of openOrders) {
-      if (order.symbol?.toUpperCase() !== symbol.toUpperCase()) continue;
-      if (order.orderType !== 'LIMIT' || order.price === undefined || order.price <= 0) continue;
-      if (!order.orderedAt) continue;
-      if (cancelRequestedRef.current.has(order.orderId)) continue;
-      const orderedAtMs = new Date(order.orderedAt).getTime();
-      if (!Number.isFinite(orderedAtMs) || orderedAtMs < since) continue; // 오토 이전 주문(수동) 보호
-      if (now - orderedAtMs < STALE_UNFILLED_MS) continue;
-      const away = STALE_PRICE_AWAY_PCT / 100;
-      const priceRanAway =
-        order.side === 'BUY'
-          ? currentPrice >= order.price * (1 + away)
-          : currentPrice <= order.price * (1 - away);
-      if (!priceRanAway) continue;
-
-      cancelRequestedRef.current.add(order.orderId);
-      const label = `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity ?? '-'}주 @ $${fmtPrice(order.price)} — 가격 이탈(현재 $${fmtPrice(currentPrice)}), 다음 트리거에서 재판단`;
-      void Promise.resolve(onCancelOrder(order.orderId))
-        .then(() => pushLog('exec', order.side, label))
-        .catch((err: unknown) => {
-          cancelRequestedRef.current.delete(order.orderId);
-          pushLog(
-            'block',
-            order.side,
-            `미체결 취소 실패(이미 체결됐을 수 있음): ${err instanceof Error ? err.message : '오류'}`
-          );
-        });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, openOrders, currentPrice, symbol]);
-
   // ── AI 판단 이력 관리 ─────────────────────────────────────────
   const pushAiHistory = (decision: AiDecision): string => {
     const entry: AiHistoryEntry = {
@@ -904,7 +833,7 @@ export function AutoTradePanel({
     );
   };
 
-  // AI 결정 실행: BUY/SELL 을 기존 모드 정책(드라이런=기록, 세미=대기, 오토=즉시)·가드로 라우팅.
+  // AI 결정 실행: BUY/SELL 을 기존 모드 정책(드라이런=기록, 오토=즉시)·가드로 라우팅.
   const executeAiDecision = (decision: AiDecision, historyId: string) => {
     if (mode === 'off') return;
     if (decision.action === 'HOLD' || decision.fallback) {
@@ -1012,13 +941,7 @@ export function AutoTradePanel({
       }
       pushLog('trigger', action.side, `AI 자동 실행: ${action.label}`);
       runExecute(action);
-      return;
     }
-    // semi: 종목당 단일 대기
-    if (pendingRef.current) return;
-    pendingRef.current = action;
-    setPending(action);
-    pushLog('trigger', action.side, `AI 대기: ${action.label} — '실행'을 눌러야 주문됩니다`);
   };
 
   // AI 트리거: 봉 마감(완성봉 변경) 또는 의미있는 가격 변동 시(최소 간격 내 억제) 서버에 판단 요청.
@@ -1136,20 +1059,6 @@ export function AutoTradePanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [useAi, active, mode, isTabVisible, candles, currentPrice]);
 
-  const dismissPending = () => {
-    if (pending) pushLog('skip', pending.side, `무시: ${pending.label}`);
-    pendingRef.current = null;
-    setPending(null);
-  };
-
-  const executePending = () => {
-    if (!pending || mode !== 'semi') return; // 킬 스위치
-    if (runExecute(pending)) {
-      pendingRef.current = null;
-      setPending(null);
-    }
-  };
-
   const navigate = useNavigate();
 
   return (
@@ -1180,7 +1089,6 @@ export function AutoTradePanel({
           options={[
             { value: 'off', label: 'OFF' },
             { value: 'dryrun', label: '드라이런' },
-            { value: 'semi', label: '세미오토' },
             { value: 'auto', label: 'AI 매매', activeClassName: 'is-danger' },
           ]}
         />
@@ -1302,35 +1210,6 @@ export function AutoTradePanel({
         <Typography as="p" size={12} className="auto-trade__paused">⏸ 탭이 가려져 자동 실행 일시정지 중 — 이 탭을 다시 보면 재개됩니다.</Typography>
       )}
 
-      {mode === 'semi' && pending && (
-        <div className={`auto-trade__pending ${pending.side === 'BUY' ? 'is-buy' : 'is-sell'}`}>
-          <Typography size={12} className="auto-trade__pending-label">
-            {pending.kind === 'BUY'
-              ? '🟢 매수 대기'
-              : pending.kind === 'TP'
-                ? '🔵 익절 대기'
-                : pending.kind === 'TS'
-                  ? '🟠 트레일링 대기'
-                  : '🔴 손절 대기'}
-          </Typography>
-          <Typography size={12} className="auto-trade__pending-text">{pending.label}</Typography>
-          <div className="auto-trade__pending-actions">
-            <Button
-              variant="accent"
-              size="sm"
-              className="auto-trade__exec"
-              onClick={executePending}
-              disabled={submitting}
-            >
-              실행
-            </Button>
-            <Button variant="ghost" size="sm" className="auto-trade__dismiss" onClick={dismissPending}>
-              무시
-            </Button>
-          </div>
-        </div>
-      )}
-
       {/* 판단/트리거/실행 로그는 AI 매매 페이지에서 확인 — 차트 영역에선 이동 버튼만 제공 */}
       <div className="auto-trade__logs-link">
         <Button size="sm" variant="ghost" onClick={() => navigate('/server-ai')}>
@@ -1346,8 +1225,6 @@ export function AutoTradePanel({
           style={{ position: 'fixed', top: tipPos.top, left: tipPos.left, width: TIP_WIDTH }}
         >
           <Typography as="b" size={12}>드라이런</Typography> 모의 기록만(실주문 없음)
-          <br />
-          <Typography as="b" size={12}>세미오토</Typography> 트리거 시 “실행” 탭해야 실주문
           <br />
           <Typography as="b" size={12}>AI 매매</Typography> 서버에서 실행 — 기기를 꺼도 지속, 모든 기기에서 상태 공유
           <br />
