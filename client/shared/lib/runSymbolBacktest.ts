@@ -11,7 +11,7 @@ export const BACKTEST_INTERVAL_OPTIONS: {
   fetch: number;
 }[] = [
   { value: '1m', label: '1분', fetch: 1500 },
-  { value: '5m', label: '5분', fetch: 1200 },
+  { value: '5m', label: '5분', fetch: 2400 },
   { value: '10m', label: '10분', fetch: 1000 },
   { value: '1d', label: '일', fetch: 600 },
 ];
@@ -23,7 +23,9 @@ async function fetchHistory(
 ): Promise<ChartCandle[]> {
   const byTime = new Map<number, ChartCandle>();
   let before: string | undefined;
-  for (let page = 0; page < 12 && byTime.size < targetCount; page += 1) {
+  // 페이지당 200개 — 목표량을 채울 만큼 + 여유 2페이지(중복/결측 대비)까지 순회.
+  const maxPages = Math.ceil(targetCount / 200) + 2;
+  for (let page = 0; page < maxPages && byTime.size < targetCount; page += 1) {
     const result = unwrapResult(await api.getCandles(symbol, interval, 200, before));
     for (const candle of mapApiCandles(result.candles)) {
       byTime.set(candle.time, candle);
