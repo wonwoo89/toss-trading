@@ -3163,6 +3163,12 @@ input[type='checkbox']:focus-visible {
 .auto-trade__ai-decision.is-fallback {
   color: var(--text-secondary);
 }
+/* 로그 보기 → AI 매매 페이지 이동 버튼 (차트 영역 로그 목록 대체) */
+.auto-trade__logs-link {
+  margin-top: 0.35rem;
+  display: flex;
+  justify-content: flex-end;
+}
 /* AI 판단 이력(접이식) — 최근 판단 흐름을 시간·행동·근거로 나열 */
 .auto-trade__ai-history {
   flex: 1 1 100%;
