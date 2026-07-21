@@ -95,3 +95,16 @@ export async function getUsMarketSession(now = Date.now()): Promise<UsMarketSess
 export function isTradeableSession(kind: UsMarketSessionKind): boolean {
   return kind === 'day' || kind === 'pre' || kind === 'regular' || kind === 'after';
 }
+
+/**
+ * 소수점 주문 접수 가능 시간대인지 — 토스 제약: 미국주식 소수점 주문은 KST 오전 4시까지만 접수.
+ * 정규장이 KST 새벽 5~6시까지 이어져도 04:00 이후엔 소수점 주문이 거절되므로, 그 시간대는
+ * 정수 수량 규칙으로 전환해야 한다(KST 는 DST 없이 항상 UTC+9).
+ *  - 허용: 00:00~03:59(당일 이른 새벽) + 20:00~23:59(정규장 개장 전후 저녁) → 정규장 소수점 구간
+ *  - 차단: 04:00~19:59 → 정규장 꼬리(04~06시)의 소수점 주문 차단
+ * 실제 소수점 실행은 이 시간 조건 + 정규장 세션(regular)이 모두 참일 때만 이뤄진다.
+ */
+export function isFractionalOrderTime(now = Date.now()): boolean {
+  const kstHour = Math.floor((now + 9 * 3600_000) / 3600_000) % 24;
+  return kstHour < 4 || kstHour >= 20;
+}

@@ -9,7 +9,12 @@ import {
 import { computeTrend } from './candle-signals.js';
 import { getDefaultAccountSeq, tossRequest } from './toss-client.js';
 import type { AiDecisionCandle } from './ai-decision.js';
-import type { UsMarketSessionKind } from './us-market-session.js';
+import { isFractionalOrderTime, type UsMarketSessionKind } from './us-market-session.js';
+
+/** 소수점 주문 가능 여부 — 정규장 세션 + KST 04시 이전 소수점 접수 시간대일 때만. */
+function fractionalAllowed(session: UsMarketSessionKind): boolean {
+  return session === 'regular' && isFractionalOrderTime();
+}
 
 /**
  * 백그라운드 실거래(3단계) — 종목별 배정 풀(poolUsd) 장부 + 실제 주문 실행.
@@ -479,9 +484,9 @@ export async function sellAllBgLive(
   const symbol = symCfg.symbol;
   const pos = getBgLive(symbol);
   if (!pos || pos.quantity <= 0) return { ok: false, text: `${label} 생략(풀 보유 없음)` };
-  const isRegular = session === 'regular';
-  if (!isRegular && pos.quantity < 1) {
-    return { ok: false, text: `${label} 생략(보유 ${pos.quantity}주 < 1주 — 소수점 잔량, 비정규장)` };
+  const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전 소수점 접수 시간대
+  if (!canFractional && pos.quantity < 1) {
+    return { ok: false, text: `${label} 생략(보유 ${pos.quantity}주 < 1주 — 소수점 잔량, 소수점 주문 불가 시간대)` };
   }
   if (inCooldown(symbol)) return { ok: false, text: `차단(쿨다운): ${label}` };
 
@@ -504,7 +509,7 @@ export async function sellAllBgLive(
     }
   }
 
-  const qty = isRegular ? floorQty(capQty) : Math.floor(capQty);
+  const qty = canFractional ? floorQty(capQty) : Math.floor(capQty);
   if (qty <= 0) return { ok: false, text: `${label} 생략(매도 수량 없음)` };
   const fractional = !Number.isInteger(qty);
   const execPrice = fractional ? market.price : floorTick(marketableSellPrice(market.price, market.bestBid));
@@ -567,7 +572,7 @@ export async function executeBgLiveBuy(
   const budget = Math.min(pos.cash, Math.floor(pos.cash * (effectivePct / 100) * 100) / 100);
   const price = market.price;
   const qty = Math.floor(budget / price);
-  const isRegular = session === 'regular';
+  const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전
 
   let body: Record<string, unknown>;
   let fillQty: number;
@@ -579,14 +584,14 @@ export async function executeBgLiveBuy(
     fillQty = qty;
     body = { symbol, side: 'BUY', orderType: 'LIMIT', quantity: qty, price: fillPrice, clientOrderId: `bg-${Date.now()}` };
     label = `실매수 ${qty}주(비중 ${effectivePct}%) @ $${fillPrice}`;
-  } else if (isRegular && budget >= MIN_BUY_BUDGET_USD) {
+  } else if (canFractional && budget >= MIN_BUY_BUDGET_USD) {
     isAmountOrder = true;
     fillPrice = price;
     fillQty = floorQty(budget / price);
     body = { symbol, side: 'BUY', orderType: 'MARKET', orderAmount: budget, clientOrderId: `bg-${Date.now()}` };
     label = `실 소수점 매수 $${budget}(비중 ${effectivePct}%) 시장가`;
   } else if (price <= pos.cash * (symCfg.buyMaxPercent / 100) || price <= pos.cash) {
-    // 비정규장 1주 폴백 — 풀 현금 이내에서만.
+    // 소수점 불가 시간대 1주 폴백 — 풀 현금 이내에서만.
     if (price > pos.cash) {
       return { ok: false, text: `AI 매수 보류 — 풀 현금($${pos.cash.toFixed(2)}) < 1주($${price.toFixed(2)}): ${reason}` };
     }
