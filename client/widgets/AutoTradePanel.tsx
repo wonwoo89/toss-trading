@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { NumberField } from './NumberField';
 import { Button } from '../shared/ui/Button';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
@@ -217,7 +218,7 @@ export function AutoTradePanel({
   // 안전: 손절/쿨다운/탭가시성/킬스위치 등 가드는 그대로 적용되고, AI 는 그 안에서 '방향'만 정한다.
   const [aiDecision, setAiDecision] = useState<AiDecision | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiHistory, setAiHistory] = useState<AiHistoryEntry[]>([]);
+  // 판단 이력은 ref 로만 유지 — 화면 표시는 AI 매매 페이지가 담당(다음 판단 컨텍스트용).
   const aiHistoryRef = useRef<AiHistoryEntry[]>([]);
   const aiInFlightRef = useRef(false);
   const aiLastCallRef = useRef(0);
@@ -370,7 +371,6 @@ export function AutoTradePanel({
       setLogs([]);
       lastSignalRef.current = { BUY: null, TP: null, SL: null, TS: null };
       aiHistoryRef.current = [];
-      setAiHistory([]);
       setAiDecision(null);
       pendingRef.current = null;
       setPending(null);
@@ -383,7 +383,6 @@ export function AutoTradePanel({
     trailPeakRef.current = null;
     setPending(null);
     setAiDecision(null);
-    setAiHistory([]);
     aiHistoryRef.current = [];
     aiLastClosedKeyRef.current = null;
     aiLastPriceRef.current = null;
@@ -597,19 +596,6 @@ export function AutoTradePanel({
   });
   const buildLiveConfigRef = useRef(buildLiveConfig);
   buildLiveConfigRef.current = buildLiveConfig;
-
-  // AI 매매(서버) 동안 로그는 서버 로그를 표시(기기 간 동일) — 로컬 로그는 드라이런/세미오토용.
-  const displayLogs: LogEntry[] =
-    mode === 'auto' && liveStatus
-      ? liveStatus.logs.map((l) => ({
-          id: String(l.id),
-          time: new Date(l.t).toLocaleTimeString('ko-KR'),
-          level: (l.level === 'ai' ? 'trigger' : l.level === 'error' ? 'block' : l.level) as LogEntry['level'],
-          side: l.side ?? 'BUY',
-          symbol,
-          text: l.text,
-        }))
-      : logs;
 
   // 실제 주문 실행 + 공통 가드(제출 중·쿨다운·일일 손실 한도). 통과해 주문을 내면 true.
   const runExecute = (action: PendingAction): boolean => {
@@ -908,16 +894,14 @@ export function AutoTradePanel({
       reason: decision.reason,
       executed: false,
     };
-    const next = [entry, ...aiHistoryRef.current].slice(0, MAX_AI_HISTORY);
-    aiHistoryRef.current = next;
-    setAiHistory(next);
+    aiHistoryRef.current = [entry, ...aiHistoryRef.current].slice(0, MAX_AI_HISTORY);
     return entry.id;
   };
 
   const markAiHistoryExecuted = (id: string) => {
-    const next = aiHistoryRef.current.map((h) => (h.id === id ? { ...h, executed: true } : h));
-    aiHistoryRef.current = next;
-    setAiHistory(next);
+    aiHistoryRef.current = aiHistoryRef.current.map((h) =>
+      h.id === id ? { ...h, executed: true } : h
+    );
   };
 
   // AI 결정 실행: BUY/SELL 을 기존 모드 정책(드라이런=기록, 세미=대기, 오토=즉시)·가드로 라우팅.
@@ -1166,8 +1150,7 @@ export function AutoTradePanel({
     }
   };
 
-  const fmtHistoryTime = (t: number) =>
-    new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  const navigate = useNavigate();
 
   return (
     <div className={`auto-trade ${active ? 'is-active' : ''}`}>
@@ -1305,24 +1288,7 @@ export function AutoTradePanel({
               {aiDecision.confidence ? ` ${(aiDecision.confidence * 100).toFixed(0)}%` : ''} — {aiDecision.reason}
             </Typography>
           )}
-          {aiHistory.length > 1 && (
-            <details className="auto-trade__ai-history">
-              <Typography as="summary" size={12}>판단 이력 ({aiHistory.length})</Typography>
-              <ul>
-                {aiHistory.map((h) => (
-                  <Typography as="li" size={12} key={h.id} className={`is-${h.action.toLowerCase()}`}>
-                    <Typography size={12} className="auto-trade__ai-history-time">{fmtHistoryTime(h.t)}</Typography>
-                    <Typography size={12} className="auto-trade__ai-history-action">
-                      {h.action === 'BUY' ? '매수' : h.action === 'SELL' ? '매도' : '관망'}
-                      {h.confidence ? ` ${(h.confidence * 100).toFixed(0)}%` : ''}
-                      {h.executed ? ' ✓실행' : ''}
-                    </Typography>
-                    <Typography size={12} className="auto-trade__ai-history-reason">{h.reason}</Typography>
-                  </Typography>
-                ))}
-              </ul>
-            </details>
-          )}
+          {/* 판단 이력·상세 로그는 AI 매매 페이지에서 — 차트 영역은 최신 판단 한 줄만 유지 */}
       </div>
 
       {isMobile && active && (
@@ -1365,23 +1331,12 @@ export function AutoTradePanel({
         </div>
       )}
 
-      {active && (
-        <ul className="auto-trade__log">
-          {displayLogs.length === 0 ? (
-            <Typography as="li" size={12} className="auto-trade__empty">아직 감지된 신호 없음…</Typography>
-          ) : (
-            displayLogs.map((log) => (
-              <Typography as="li" size={12} key={log.id} className={`auto-trade__row level-${log.level}`}>
-                <Typography size={12} className="auto-trade__time">{log.time}</Typography>
-                <Typography size={12} className="auto-trade__text">
-                  {log.symbol && log.symbol !== symbol ? `[${log.symbol}] ` : ''}
-                  {log.text}
-                </Typography>
-              </Typography>
-            ))
-          )}
-        </ul>
-      )}
+      {/* 판단/트리거/실행 로그는 AI 매매 페이지에서 확인 — 차트 영역에선 이동 버튼만 제공 */}
+      <div className="auto-trade__logs-link">
+        <Button size="sm" variant="ghost" onClick={() => navigate('/server-ai')}>
+          로그 보기 →
+        </Button>
+      </div>
 
       {tipPos &&
         createPortal(
