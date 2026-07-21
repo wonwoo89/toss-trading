@@ -7,6 +7,7 @@ import {
   saveAutoTradeConfig,
 } from '../lib/auto-trade-config.js';
 import { getAutoEngineLogs, getAutoEngineStatus } from '../lib/auto-trade-engine.js';
+import { pruneBgLive } from '../lib/bg-live.js';
 import { prunePaperPortfolio } from '../lib/paper-portfolio.js';
 
 export const autoRouter = Router();
@@ -30,6 +31,8 @@ autoRouter.put('/config', (req, res) => {
   const config = saveAutoTradeConfig(req.body);
   // 설정에서 빠진 종목의 페이퍼 장부는 정리 — 다시 추가하면 새 $1,000 로 시작.
   prunePaperPortfolio(config.symbols.map((s) => s.symbol));
+  // 실거래 해제/제거된 종목의 풀 장부 정리(보유·미체결 없을 때만 삭제 — 안전).
+  pruneBgLive(config.symbols.filter((s) => s.live).map((s) => s.symbol));
   res.json({ result: { config } });
 });
 

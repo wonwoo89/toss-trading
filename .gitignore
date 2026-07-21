@@ -29,3 +29,4 @@ public/_icon-source.svg
 server/data/auto-trade-config.json
 server/data/paper-portfolio.json
 server/data/live-trader.json
+server/data/bg-live-ledger.json

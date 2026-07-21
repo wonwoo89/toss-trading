@@ -11,6 +11,17 @@ import {
   type AiDecisionCandle,
   type AiDecisionRequest,
 } from './ai-decision.js';
+import {
+  ensureBgLive,
+  executeBgLiveBuy,
+  getBgLive,
+  getBgLiveSummaries,
+  markBgLivePrice,
+  reconcileBgOrders,
+  runBgLiveGuards,
+  sellAllBgLive,
+  type BgLiveSummary,
+} from './bg-live.js';
 import { aggregateCandles, getRequiredSourceCount, type AggregatedCandle } from './candle-aggregate.js';
 import { computeSignal, computeTrend } from './candle-signals.js';
 import { fetchSourceCandles } from './fetch-source-candles.js';
@@ -109,6 +120,8 @@ export interface AutoEngineStatus {
   candleInterval: string;
   /** 페이퍼(가상 $1,000/종목) 포트폴리오 현황 — 클라이언트 수익률 표시용. */
   paper: PaperSummary[];
+  /** 실거래 종목별 배정 풀 장부 요약(3단계). */
+  livePools: BgLiveSummary[];
 }
 
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -116,7 +129,7 @@ let ticking = false;
 let logSeq = 0;
 const logs: AutoLogEntry[] = [];
 
-const status: Omit<AutoEngineStatus, 'paper'> = {
+const status: Omit<AutoEngineStatus, 'paper' | 'livePools'> = {
   running: false,
   mode: 'dry-run',
   enabled: false,
@@ -137,7 +150,7 @@ function pushLog(entry: Omit<AutoLogEntry, 'id'>): void {
 }
 
 export function getAutoEngineStatus(): AutoEngineStatus {
-  return { ...status, ticking, paper: getPaperSummaries() };
+  return { ...status, ticking, paper: getPaperSummaries(), livePools: getBgLiveSummaries() };
 }
 
 export function getAutoEngineLogs(limit = 100): AutoLogEntry[] {
@@ -295,6 +308,161 @@ function logGuardOutcome(
   });
 }
 
+interface LiveEvalCtx {
+  candles: AiDecisionCandle[];
+  currentPrice: number;
+  currency: string;
+  bids: { p: number; q: number }[];
+  asks: { p: number; q: number }[];
+  bidTotal: number;
+  askTotal: number;
+  signal: ReturnType<typeof computeSignal>;
+  trend: ReturnType<typeof computeTrend>;
+}
+
+/**
+ * 실거래(3단계) 판단 경로 — 배정 풀 장부 기준.
+ * 미체결 대조/취소 → 보호 가드(실매도) → AI 판단 → 실매수/실매도.
+ * 미체결 방어는 단일 종목 트레이더와 동일(체결 우선 지정가 + 90s/0.2% 취소).
+ */
+async function evaluateSymbolLive(
+  symCfg: AutoSymbolConfig,
+  config: AutoTradeConfig,
+  session: UsMarketSessionKind,
+  ctx: LiveEvalCtx
+): Promise<void> {
+  const symbol = symCfg.symbol;
+  const { candles, currentPrice, currency, bids, asks, bidTotal, askTotal, signal, trend } = ctx;
+  const isRegular = session === 'regular';
+
+  const pool = ensureBgLive(symbol, symCfg.poolUsd);
+  markBgLivePrice(symbol, currentPrice);
+
+  const liveLog = (
+    action: AiAction,
+    reason: string,
+    model: string,
+    extra?: { sizePct?: number; confidence?: number; fallback?: boolean }
+  ) => {
+    const pos = getBgLive(symbol);
+    pushLog({
+      t: Date.now(),
+      symbol,
+      session,
+      action,
+      sizePct: extra?.sizePct ?? 0,
+      confidence: extra?.confidence ?? 1,
+      reason,
+      fallback: extra?.fallback ?? false,
+      currentPrice,
+      position:
+        pos && pos.quantity > 0 && pos.averagePrice > 0
+          ? {
+              quantity: pos.quantity,
+              averagePrice: pos.averagePrice,
+              profitLossPct: ((currentPrice - pos.averagePrice) / pos.averagePrice) * 100,
+            }
+          : undefined,
+      model,
+    });
+  };
+
+  // 0) 미체결 대조 — 체결 확정/오래된 미체결 취소(장부 롤백).
+  for (const note of await reconcileBgOrders(symbol, currentPrice)) {
+    liveLog('HOLD', note, 'live-order');
+  }
+
+  // 1) 보호 가드(실매도) — 발화 시 이번 틱 AI 생략.
+  const guard = await runBgLiveGuards(symCfg, currentPrice, candles, session, 'full');
+  if (guard) {
+    liveLog(guard.sold ? 'SELL' : 'HOLD', `[실거래] ${guard.reason}`, 'live-guard', {
+      sizePct: guard.sold ? 100 : 0,
+    });
+    if (guard.forcedOff) liveLog('HOLD', '일일 손실 한도 도달 — 백그라운드 엔진 전역 OFF', 'live-guard');
+    if (guard.handled) return;
+  }
+
+  // 2) AI 판단 — 컨텍스트는 풀 장부 기준.
+  const sellableQty = isRegular ? pool.quantity : Math.floor(pool.quantity);
+  const request: AiDecisionRequest = {
+    symbol,
+    interval: AUTO_CANDLE_INTERVAL,
+    currency,
+    currentPrice,
+    position:
+      pool.quantity > 0 && pool.averagePrice > 0
+        ? {
+            quantity: pool.quantity,
+            averagePrice: pool.averagePrice,
+            profitLossPct: ((currentPrice - pool.averagePrice) / pool.averagePrice) * 100,
+          }
+        : undefined,
+    buyingPower: Math.round(pool.cash * 100) / 100,
+    maxBuyQuantity: pool.cash > 0 ? Math.floor((pool.cash / currentPrice) * 1e4) / 1e4 : undefined,
+    sellableQuantity: pool.quantity > 0 ? Math.max(0, sellableQty) : undefined,
+    targetProfitPct: symCfg.targetPercent,
+    stopLossPct: symCfg.stopLossPercent,
+    signal: { level: signal.level, score: signal.score, rsi: signal.rsi, sma20: signal.sma20, sma50: signal.sma50, atr: signal.atr },
+    trend: { state: trend.state, confirmedBars: trend.confirmedBars },
+    orderbook: {
+      bestBid: bids[0]?.p,
+      bestAsk: asks[0]?.p,
+      bidRatio: bidTotal + askTotal > 0 ? bidTotal / (bidTotal + askTotal) : undefined,
+      bids: bids.slice(0, 5),
+      asks: asks.slice(0, 5),
+    },
+    openOrders: getBgLive(symbol)?.openOrders.slice(0, 10).map((o) => ({
+      side: o.side,
+      price: o.price,
+      quantity: o.quantity,
+    })) ?? [],
+    guards: {
+      trailingStopPct: symCfg.trailingStopPercent > 0 ? symCfg.trailingStopPercent : undefined,
+      buyMaxPercent: symCfg.buyMaxPercent,
+      dailyLossLimitUsd: config.dailyLossLimitUsd > 0 ? config.dailyLossLimitUsd : undefined,
+    },
+    candles,
+  };
+
+  // 펄스 트리거 기준 갱신 — 실거래도 ±0.3% 급변 시 즉시 재판단 대상.
+  lastAiJudgment.set(symbol, { price: currentPrice, t: Date.now() });
+
+  const decision = await getAiTradeDecision(request);
+  liveLog(decision.action, `[실거래] ${decision.reason}`, decision.model, {
+    sizePct: decision.sizePct,
+    confidence: decision.confidence,
+    fallback: Boolean(decision.fallback),
+  });
+
+  if (decision.fallback || decision.action === 'HOLD') return;
+  if (decision.action === 'BUY') {
+    // 같은 방향 미체결이 있으면 중복 진입 방지(미체결 취소 후 다음 판단에서 재시도).
+    if (getBgLive(symbol)?.openOrders.some((o) => o.side === 'BUY')) {
+      liveLog('HOLD', '[실거래] 매수 보류 — 미체결 매수 주문 존재', 'live-exec');
+      return;
+    }
+    const res = await executeBgLiveBuy(
+      symCfg,
+      { price: currentPrice, bestAsk: asks[0]?.p },
+      session,
+      decision.sizePct,
+      decision.reason
+    );
+    liveLog(res.ok ? 'BUY' : 'HOLD', `[실거래] ${res.text}`, 'live-exec', {
+      sizePct: decision.sizePct,
+    });
+  } else {
+    const res = await sellAllBgLive(
+      symCfg,
+      { price: currentPrice, bestBid: bids[0]?.p },
+      session,
+      `AI 매도(전량) — ${decision.reason.slice(0, 80)}`
+    );
+    liveLog(res.ok ? 'SELL' : 'HOLD', `[실거래] ${res.text}`, 'live-exec', { sizePct: 100 });
+    if (res.forcedOff) liveLog('HOLD', '일일 손실 한도 도달 — 백그라운드 엔진 전역 OFF', 'live-exec');
+  }
+}
+
 async function evaluateSymbol(
   symCfg: AutoSymbolConfig,
   config: AutoTradeConfig,
@@ -347,6 +515,22 @@ async function evaluateSymbol(
 
   const signal = computeSignal(candles);
   const trend = computeTrend(candles);
+
+  // ── 실거래(3단계) 분기 — 배정 풀 장부 기준으로 실제 주문 ──
+  if (symCfg.live) {
+    await evaluateSymbolLive(symCfg, config, session, {
+      candles,
+      currentPrice,
+      currency,
+      bids,
+      asks,
+      bidTotal,
+      askTotal,
+      signal,
+      trend,
+    });
+    return;
+  }
 
   // 3) 판단 컨텍스트는 페이퍼 장부 기준 — 가상 $1,000 에서 0 부터 시작하는 실험.
   //    (markPaperPrice 가 장부 항목을 생성/평가가 갱신해 요약이 항상 존재하게 한다)
@@ -513,9 +697,15 @@ async function runGuardTick(): Promise<void> {
   if (guardTicking) return;
   const config = getAutoTradeConfig();
   if (!config.enabled) return;
-  const withPosition = config.symbols.filter(
-    (s) => s.active && (getPaperSummary(s.symbol)?.quantity ?? 0) > 0
-  );
+  const withPosition = config.symbols.filter((s) => {
+    if (!s.active) return false;
+    if (s.live) {
+      const pool = getBgLive(s.symbol);
+      // 보유가 있거나 미체결이 남아 있으면(취소 판정 필요) 1분 틱 대상.
+      return Boolean(pool && (pool.quantity > 0 || pool.openOrders.length > 0));
+    }
+    return (getPaperSummary(s.symbol)?.quantity ?? 0) > 0;
+  });
   if (withPosition.length === 0) return;
 
   const session = await getUsMarketSession();
@@ -537,6 +727,44 @@ async function runGuardTick(): Promise<void> {
     for (const symCfg of withPosition) {
       const price = priceMap.get(symCfg.symbol);
       if (price === undefined) continue;
+
+      if (symCfg.live) {
+        // 실거래: 미체결 대조/취소 + 하락 보호(실매도). 로그는 pushLog 로 남긴다.
+        markBgLivePrice(symCfg.symbol, price);
+        const notes = await reconcileBgOrders(symCfg.symbol, price);
+        const guard = await runBgLiveGuards(symCfg, price, [], session, 'protect');
+        const entries: { action: AiAction; reason: string; model: string }[] = [
+          ...notes.map((n) => ({ action: 'HOLD' as AiAction, reason: n, model: 'live-order' })),
+          ...(guard
+            ? [{ action: (guard.sold ? 'SELL' : 'HOLD') as AiAction, reason: `[실거래] ${guard.reason}`, model: 'live-guard' }]
+            : []),
+        ];
+        for (const e of entries) {
+          const pos = getBgLive(symCfg.symbol);
+          pushLog({
+            t: Date.now(),
+            symbol: symCfg.symbol,
+            session,
+            action: e.action,
+            sizePct: e.action === 'SELL' ? 100 : 0,
+            confidence: 1,
+            reason: e.reason,
+            fallback: false,
+            currentPrice: price,
+            position:
+              pos && pos.quantity > 0 && pos.averagePrice > 0
+                ? {
+                    quantity: pos.quantity,
+                    averagePrice: pos.averagePrice,
+                    profitLossPct: ((price - pos.averagePrice) / pos.averagePrice) * 100,
+                  }
+                : undefined,
+            model: e.model,
+          });
+        }
+        continue;
+      }
+
       markPaperPrice(symCfg.symbol, price); // 수익률 표시도 1분 단위로 갱신
       const guardPos = getPaperSummary(symCfg.symbol);
       const guard = runPaperGuards(symCfg, price, [], 'protect');
