@@ -4923,6 +4923,56 @@ input[type='checkbox']:focus-visible {
   color: var(--color-up);
 }
 
+/* ── 단일 종목 집중 AI 매매(라이브) 섹션 ── */
+.server-ai-live-config {
+  margin: 0.35rem 0 0;
+}
+.server-ai-live-logs {
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.server-ai-live-log {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  padding: 0.3rem 0.45rem;
+  border-radius: 8px;
+  background: var(--bg-subtle);
+}
+.server-ai-live-log__level {
+  flex: 0 0 auto;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: color-mix(in srgb, var(--text-secondary) 14%, transparent);
+}
+.server-ai-live-log__level.is-exec {
+  color: #fff;
+  background: var(--accent, #3182f6);
+}
+.server-ai-live-log__level.is-ai {
+  color: var(--accent, #3182f6);
+  background: color-mix(in srgb, var(--accent, #3182f6) 16%, transparent);
+}
+.server-ai-live-log__level.is-error,
+.server-ai-live-log__level.is-block {
+  color: var(--color-down);
+  background: color-mix(in srgb, var(--color-down) 14%, transparent);
+}
+.server-ai-live-log__text {
+  min-width: 0;
+  color: var(--text-primary);
+  line-height: 1.35;
+}
+
 .server-ai-add {
   display: flex;
   align-items: center;

@@ -245,8 +245,8 @@ export function StockPage() {
             <div className="mobile-assets-extras">
               <AccountSummaryCard />
             </div>
-            {/* AI 봇 탭: 백그라운드 AI 매매 관리(임베드) — 탭 활성 시에만 마운트해 폴링 절약 */}
-            <section className="mobile-serverai-panel" aria-label="백그라운드 AI 매매">
+            {/* AI 매매 탭: 단일 종목(라이브)+백그라운드(페이퍼) 관리(임베드) — 탭 활성 시에만 마운트해 폴링 절약 */}
+            <section className="mobile-serverai-panel" aria-label="AI 매매">
               {mobileTab === 'ai' && <ServerAiPage embedded />}
             </section>
             {/* 설정 탭: 테마·화면꺼짐방지·레이아웃 전환·백테스트 */}

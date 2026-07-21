@@ -28,7 +28,7 @@ const ITEMS: { id: NavId; label: string; path: string; icon: React.ReactNode }[]
   },
   {
     id: 'server-ai',
-    label: '백그라운드 AI',
+    label: 'AI 매매',
     path: '/server-ai',
     icon: (
       <svg {...ICON_PROPS}>
