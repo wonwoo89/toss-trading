@@ -334,10 +334,6 @@ export function saveLiveConfig(raw: unknown): LiveTraderConfig {
   return s.config;
 }
 
-export function getLiveConfig(): LiveTraderConfig {
-  return loadState().config;
-}
-
 // ── 계좌/시세 헬퍼 ────────────────────────────────────────────────
 
 let cachedAccountSeq: string | null = null;

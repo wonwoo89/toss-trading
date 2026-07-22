@@ -159,12 +159,3 @@ export async function searchStocks(query: string, limit = MAX_RESULTS): Promise<
 
   return results;
 }
-
-export function registerStocks(stocks: SearchableStock[]) {
-  if (!stockIndex) {
-    stockIndex = new Map();
-  }
-  for (const stock of stocks) {
-    upsertStock(stockIndex, normalizeStock(stock));
-  }
-}

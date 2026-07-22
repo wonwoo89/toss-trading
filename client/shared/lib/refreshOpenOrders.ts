@@ -54,13 +54,3 @@ export async function refreshOpenOrdersAfterCreate(
     return signature !== baselineSignature;
   });
 }
-
-export async function refreshOpenOrdersAfterCancel(
-  refresh: () => Promise<void>,
-  getOrders: () => Order[],
-  cancelledOrderId: string
-) {
-  await refreshWithRetry(refresh, () => {
-    return !getOrders().some((order) => order.orderId === cancelledOrderId);
-  });
-}

@@ -26,14 +26,6 @@ export function getInitialTheme(): ThemeMode {
   return getStoredTheme() ?? getSystemTheme();
 }
 
-export function setStoredTheme(theme: ThemeMode) {
-  try {
-    localStorage.setItem(STORAGE_KEY, theme);
-  } catch {
-    // ignore storage write errors
-  }
-}
-
 export function getStoredThemePreference(): ThemePreference {
   return getStoredTheme() ?? 'system';
 }
@@ -48,10 +40,6 @@ export function setStoredThemePreference(preference: ThemePreference) {
   } catch {
     // ignore storage write errors
   }
-}
-
-export function resolveTheme(preference: ThemePreference): ThemeMode {
-  return preference === 'system' ? getSystemTheme() : preference;
 }
 
 export function applyTheme(theme: ThemeMode) {
