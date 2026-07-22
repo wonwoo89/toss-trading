@@ -747,11 +747,12 @@ function toAiCandle(c: AggregatedCandle): AiDecisionCandle {
   };
 }
 
-/** 시장 맥락 — 지수 ETF(QQQ)의 최근 30분 흐름(1분봉 30개). 60초 캐시, 실패 시 undefined. */
+/** 시장 맥락 — 지수 ETF(QQQ)의 최근 30분 흐름(1분봉 30개). 60초 캐시, 실패 시 undefined.
+ *  백그라운드 엔진도 같은 캐시를 공유한다(다종목이어도 60초당 1회 조회). */
 const MARKET_REF_SYMBOL = 'QQQ';
 let marketRefCache: { t: number; data?: { symbol: string; movePct30m?: number; trendState?: string } } | null = null;
 
-async function fetchMarketRef(): Promise<{ symbol: string; movePct30m?: number; trendState?: string } | undefined> {
+export async function fetchMarketRef(): Promise<{ symbol: string; movePct30m?: number; trendState?: string } | undefined> {
   if (marketRefCache && Date.now() - marketRefCache.t < 60_000) return marketRefCache.data;
   try {
     const source = await fetchSourceCandles({ symbol: MARKET_REF_SYMBOL, interval: '1m', count: 30, adjusted: true });

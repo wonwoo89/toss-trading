@@ -35,6 +35,8 @@ export interface PaperPosition {
   tpHoldPeak?: number | null;
   /** 포지션 관측 고점 — 트레일링 스탑 판정용. null=미관측. */
   trailPeak?: number | null;
+  /** 매매 성과 통계(실현 매도 기준) — 승률 표시용. */
+  stats?: { sells: number; wins: number; losses: number };
 }
 
 export interface PaperFill {
@@ -156,9 +158,15 @@ export function applyPaperDecision(
     return null;
   }
   const proceeds = quantity * price * (1 - PAPER_COMMISSION_RATE);
-  pos.realizedPnlUsd += proceeds - pos.averagePrice * quantity;
+  const realizedDelta = proceeds - pos.averagePrice * quantity;
+  pos.realizedPnlUsd += realizedDelta;
   pos.quantity = floorQty(pos.quantity - quantity);
   pos.cash += proceeds;
+  // 매매 성과 통계 — 실현 매도 1건 기준 승/패.
+  pos.stats ??= { sells: 0, wins: 0, losses: 0 };
+  pos.stats.sells += 1;
+  if (realizedDelta > 0) pos.stats.wins += 1;
+  else if (realizedDelta < 0) pos.stats.losses += 1;
   if (pos.quantity <= 0) {
     pos.quantity = 0;
     pos.averagePrice = 0;

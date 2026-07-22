@@ -795,6 +795,11 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
                         : '보유 없음',
                       `실현 ${pool.realizedUsd >= 0 ? '+' : ''}$${pool.realizedUsd.toFixed(2)}`,
                       ...(pool.openOrderCount > 0 ? [`미체결 ${pool.openOrderCount}건`] : []),
+                      ...(pool.stats && pool.stats.sells > 0
+                        ? [
+                            `매도 ${pool.stats.sells}회 · 승 ${pool.stats.wins}/패 ${pool.stats.losses} (승률 ${Math.round((pool.stats.wins / pool.stats.sells) * 100)}%)`,
+                          ]
+                        : []),
                     ];
                     return (
                       <Typography size={12} as="p" className="server-ai-symbol__paper-detail">
@@ -817,6 +822,11 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
                       ? `보유 ${paper.quantity}주 @ $${paper.averagePrice.toFixed(2)}`
                       : '보유 없음',
                     `실현 ${paper.realizedPnlUsd >= 0 ? '+' : ''}$${paper.realizedPnlUsd.toFixed(2)}`,
+                    ...(paper.stats && paper.stats.sells > 0
+                      ? [
+                          `매도 ${paper.stats.sells}회 · 승 ${paper.stats.wins}/패 ${paper.stats.losses} (승률 ${Math.round((paper.stats.wins / paper.stats.sells) * 100)}%)`,
+                        ]
+                      : []),
                   ];
                   return (
                     <Typography size={12} as="p" className="server-ai-symbol__paper-detail">

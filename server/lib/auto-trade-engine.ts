@@ -25,8 +25,9 @@ import {
   type BgLiveSummary,
 } from './bg-live.js';
 import { aggregateCandles, getRequiredSourceCount, type AggregatedCandle } from './candle-aggregate.js';
-import { computeSignal, computeTrend } from './candle-signals.js';
+import { computeRegime, computeSignal, computeTrend } from './candle-signals.js';
 import { fetchSourceCandles } from './fetch-source-candles.js';
+import { fetchMarketRef } from './live-trader.js';
 import {
   applyPaperDecision,
   getPaperSummaries,
@@ -91,6 +92,50 @@ function paperBuyCapPercent(symCfg: AutoSymbolConfig): number {
 
 /** 종목별 마지막 AI 판단 시점의 가격·시각 — 펄스 트리거의 변동 기준. */
 const lastAiJudgment = new Map<string, { price: number; t: number }>();
+
+// ── 판단 피드백 루프(단일 종목 트레이더와 동일) ─────────────────────
+// 종목별 AI 판단 이력(메모리) — 판단 시점 가격과 이후 변동률(적중 피드백)을 프롬프트에 제공해
+// 모델이 자기 판단을 교정하게 한다. 재시작 시 초기화(다음 판단부터 다시 누적).
+interface BgAiHistoryEntry {
+  t: number;
+  action: AiAction;
+  confidence: number;
+  executed: boolean;
+  reason: string;
+  priceAtDecision: number;
+}
+const MAX_BG_AI_HISTORY = 10;
+const aiHistories = new Map<string, BgAiHistoryEntry[]>();
+
+function pushAiHistory(symbol: string, entry: BgAiHistoryEntry): void {
+  const list = aiHistories.get(symbol) ?? [];
+  list.unshift(entry);
+  aiHistories.set(symbol, list.slice(0, MAX_BG_AI_HISTORY));
+}
+
+function buildAiHistory(symbol: string, currentPrice: number): AiDecisionRequest['history'] {
+  const list = aiHistories.get(symbol);
+  if (!list?.length) return undefined;
+  return list.slice(0, 8).map((h) => ({
+    t: h.t,
+    action: h.action,
+    confidence: h.confidence,
+    executed: h.executed,
+    reason: h.reason.slice(0, 100),
+    priceAtDecision: h.priceAtDecision,
+    moveSincePct:
+      h.priceAtDecision > 0 ? ((currentPrice - h.priceAtDecision) / h.priceAtDecision) * 100 : undefined,
+  }));
+}
+
+// ── 데이터 품질 가드(단일 종목 트레이더와 동일 기준) ─────────────────
+/** 최근 캔들이 이보다 오래됐으면(시세 지연·거래정지 의심) AI 판단을 보류한다. */
+const STALE_CANDLE_MAX_MIN = 20;
+/** 실거래 매수 억제 스프레드 상한(%) — 유동성 부족·슬리피지 위험. */
+const MAX_SPREAD_PCT = 1.0;
+/** 품질/사전 필터 로그 과다 방지 — 종목별 마지막 로그 시각. */
+const lastQualityLogAt = new Map<string, number>();
+const lastSkipLogAt = new Map<string, number>();
 
 export interface AutoLogEntry {
   id: number;
@@ -171,6 +216,9 @@ export async function resetAutoEngine(): Promise<{ paper: number; live: number; 
   logs.length = 0;
   logSeq = 0;
   lastAiJudgment.clear();
+  aiHistories.clear();
+  lastQualityLogAt.clear();
+  lastSkipLogAt.clear();
 
   const config = getAutoTradeConfig();
   const liveSymbols = config.symbols.filter((s) => s.live);
@@ -363,6 +411,10 @@ interface LiveEvalCtx {
   askTotal: number;
   signal: ReturnType<typeof computeSignal>;
   trend: ReturnType<typeof computeTrend>;
+  regime: ReturnType<typeof computeRegime>;
+  marketRef: Awaited<ReturnType<typeof fetchMarketRef>>;
+  /** 최근 캔들 경과(분) — 데이터 품질 가드. */
+  candleAgeMin: number;
 }
 
 /**
@@ -377,7 +429,7 @@ async function evaluateSymbolLive(
   ctx: LiveEvalCtx
 ): Promise<void> {
   const symbol = symCfg.symbol;
-  const { candles, currentPrice, currency, bids, asks, bidTotal, askTotal, signal, trend } = ctx;
+  const { candles, currentPrice, currency, bids, asks, bidTotal, askTotal, signal, trend, regime, marketRef, candleAgeMin } = ctx;
   // 소수점 매도가능 수량은 소수점 주문 가능 시간대(정규장 + KST 04시 이전)에만.
   const canFractional = session === 'regular' && isFractionalOrderTime();
 
@@ -416,8 +468,8 @@ async function evaluateSymbolLive(
   // 0) 실계좌 포지션 동기화(단일 진실) — 수량·평단·가용예산을 실계좌 기준으로 맞춘다.
   const syncNote = await syncPositionFromAccount(symbol, symCfg.poolUsd);
   if (syncNote) liveLog('HOLD', `[실거래] ${syncNote}`, 'live-reconcile');
-  // 0-b) 미체결 대조 — 체결 확정/오래된 미체결 취소(API·추적만, 포지션은 위 동기화가 담당).
-  for (const note of await reconcileBgOrders(symbol, currentPrice)) {
+  // 0-b) 미체결 대조 — 체결 확정/취소/재호가(API·추적만, 포지션은 위 동기화가 담당).
+  for (const note of await reconcileBgOrders(symbol, currentPrice, { bestBid: bids[0]?.p, bestAsk: asks[0]?.p })) {
     liveLog('HOLD', note, 'live-order');
   }
 
@@ -428,7 +480,37 @@ async function evaluateSymbolLive(
       sizePct: guard.sold ? 100 : 0,
     });
     if (guard.forcedOff) liveLog('HOLD', '일일 손실 한도 도달 — 백그라운드 엔진 전역 OFF', 'live-guard');
+    if (guard.circuitOff)
+      liveLog('HOLD', `[실거래] 서킷 브레이커: 연속 손실 — ${symbol} 종목 자동 정지(설정 재검토 권장)`, 'live-guard');
     if (guard.handled) return;
+  }
+
+  // 1-b) 데이터 품질 가드 — 캔들이 오래됐으면(시세 지연·거래정지) AI 신규 판단만 보류.
+  //      보호 매도(위)는 이미 수행됨.
+  if (candleAgeMin > STALE_CANDLE_MAX_MIN) {
+    if (Date.now() - (lastQualityLogAt.get(symbol) ?? 0) > 10 * 60 * 1000) {
+      lastQualityLogAt.set(symbol, Date.now());
+      liveLog('HOLD', `[실거래] 데이터 품질: 최근 캔들이 ${Math.round(candleAgeMin)}분 전 — AI 판단 보류`, 'quality');
+    }
+    return;
+  }
+
+  // 1-c) 티어드 사전 필터(실거래 전용) — 무포지션 + 신호 완전 중립 + 미세 변동이면
+  //      AI 호출 생략(비용·노이즈 절감). 기준가는 갱신하지 않아 다음 유의미 변동에서 즉시 판단.
+  //      (페이퍼는 드라이런 표본 확보가 목적이라 필터를 적용하지 않는다)
+  if (pool.quantity <= 0) {
+    const last = lastAiJudgment.get(symbol);
+    const flatSignal =
+      Math.abs(signal.score) <= 0.5 && (signal.rsi === undefined || (signal.rsi > 45 && signal.rsi < 55));
+    const microMove =
+      last !== undefined && last.price > 0 && (Math.abs(currentPrice - last.price) / last.price) * 100 < 0.15;
+    if (flatSignal && trend.state !== 'up' && microMove) {
+      if (Date.now() - (lastSkipLogAt.get(symbol) ?? 0) > 30 * 60 * 1000) {
+        lastSkipLogAt.set(symbol, Date.now());
+        liveLog('HOLD', `[실거래] AI 호출 생략(사전 필터): 무포지션 · 신호 중립(score ${signal.score}) · 변동 미미`, 'skip');
+      }
+      return;
+    }
   }
 
   // 2) AI 판단 — 컨텍스트는 풀 장부 기준.
@@ -452,6 +534,8 @@ async function evaluateSymbolLive(
     targetProfitPct: symCfg.targetPercent,
     stopLossPct: symCfg.stopLossPercent,
     signal: { level: signal.level, score: signal.score, rsi: signal.rsi, sma20: signal.sma20, sma50: signal.sma50, atr: signal.atr },
+    regime: { adx: regime.adx, state: regime.state },
+    marketRef,
     trend: { state: trend.state, confirmedBars: trend.confirmedBars },
     orderbook: {
       bestBid: bids[0]?.p,
@@ -465,6 +549,7 @@ async function evaluateSymbolLive(
       price: o.price,
       quantity: o.quantity,
     })) ?? [],
+    history: buildAiHistory(symbol, currentPrice),
     guards: {
       trailingStopPct: symCfg.trailingStopPercent > 0 ? symCfg.trailingStopPercent : undefined,
       buyMaxPercent: symCfg.buyMaxPercent,
@@ -482,6 +567,20 @@ async function evaluateSymbolLive(
     confidence: decision.confidence,
     fallback: Boolean(decision.fallback),
   });
+  if (!decision.fallback) {
+    pushAiHistory(symbol, {
+      t: Date.now(),
+      action: decision.action,
+      confidence: decision.confidence,
+      executed: false,
+      reason: decision.reason,
+      priceAtDecision: currentPrice,
+    });
+  }
+  const markExecuted = () => {
+    const h = aiHistories.get(symbol)?.[0];
+    if (h) h.executed = true;
+  };
 
   if (decision.fallback || decision.action === 'HOLD') return;
   if (decision.action === 'BUY') {
@@ -490,6 +589,16 @@ async function evaluateSymbolLive(
       liveLog('HOLD', '[실거래] 매수 보류 — 미체결 매수 주문 존재', 'live-exec');
       return;
     }
+    // 데이터 품질 가드 — 스프레드가 넓으면(유동성 부족·슬리피지 위험) 신규 매수 억제.
+    const bestBid = bids[0]?.p;
+    const bestAsk = asks[0]?.p;
+    if (bestBid !== undefined && bestAsk !== undefined && bestBid > 0) {
+      const spreadPct = ((bestAsk - bestBid) / bestBid) * 100;
+      if (spreadPct > MAX_SPREAD_PCT) {
+        liveLog('HOLD', `[실거래] AI 매수 보류 — 스프레드 ${spreadPct.toFixed(2)}% > ${MAX_SPREAD_PCT}%(유동성 부족)`, 'quality');
+        return;
+      }
+    }
     const res = await executeBgLiveBuy(
       symCfg,
       { price: currentPrice, bestAsk: asks[0]?.p },
@@ -497,6 +606,7 @@ async function evaluateSymbolLive(
       decision.sizePct,
       decision.reason
     );
+    if (res.ok) markExecuted();
     liveLog(res.ok ? 'BUY' : 'HOLD', `[실거래] ${res.text}`, 'live-exec', {
       sizePct: decision.sizePct,
     });
@@ -507,8 +617,11 @@ async function evaluateSymbolLive(
       session,
       `AI 매도(전량) — ${decision.reason.slice(0, 80)}`
     );
+    if (res.ok) markExecuted();
     liveLog(res.ok ? 'SELL' : 'HOLD', `[실거래] ${res.text}`, 'live-exec', { sizePct: 100 });
     if (res.forcedOff) liveLog('HOLD', '일일 손실 한도 도달 — 백그라운드 엔진 전역 OFF', 'live-exec');
+    if (res.circuitOff)
+      liveLog('HOLD', `[실거래] 서킷 브레이커: 연속 손실 — ${symbol} 종목 자동 정지(설정 재검토 권장)`, 'live-exec');
   }
 }
 
@@ -564,6 +677,10 @@ async function evaluateSymbol(
 
   const signal = computeSignal(candles);
   const trend = computeTrend(candles);
+  // 시장 국면(ADX) + 시장 맥락(QQQ, 60초 캐시 — 다종목이 한 조회를 공유).
+  const regime = computeRegime(candles);
+  const marketRef = await fetchMarketRef();
+  const candleAgeMin = (Date.now() / 1000 - candles[candles.length - 1].t) / 60;
 
   // ── 실거래(3단계) 분기 — 배정 풀 장부 기준으로 실제 주문 ──
   if (symCfg.live) {
@@ -577,6 +694,9 @@ async function evaluateSymbol(
       askTotal,
       signal,
       trend,
+      regime,
+      marketRef,
+      candleAgeMin,
     });
     return;
   }
@@ -591,6 +711,26 @@ async function evaluateSymbol(
   if (guard?.handled) {
     logGuardOutcome(symbol, session, currentPrice, guardPos, guard);
     return; // 이번 틱은 보호 로직이 처리 — AI 호출 생략(다음 틱부터 재개)
+  }
+
+  // 데이터 품질 가드 — 캔들이 오래됐으면(시세 지연·거래정지) AI 판단만 보류(보호 매도는 위에서 수행).
+  if (candleAgeMin > STALE_CANDLE_MAX_MIN) {
+    if (Date.now() - (lastQualityLogAt.get(symbol) ?? 0) > 10 * 60 * 1000) {
+      lastQualityLogAt.set(symbol, Date.now());
+      pushLog({
+        t: Date.now(),
+        symbol,
+        session,
+        action: 'HOLD',
+        sizePct: 0,
+        confidence: 1,
+        reason: `데이터 품질: 최근 캔들이 ${Math.round(candleAgeMin)}분 전 — 시세 지연/거래정지 의심, AI 판단 보류`,
+        fallback: false,
+        currentPrice,
+        model: 'quality',
+      });
+    }
+    return;
   }
 
   const paperBefore = getPaperSummary(symbol);
@@ -620,6 +760,8 @@ async function evaluateSymbol(
     targetProfitPct: symCfg.targetPercent,
     stopLossPct: symCfg.stopLossPercent,
     signal: { level: signal.level, score: signal.score, rsi: signal.rsi, sma20: signal.sma20, sma50: signal.sma50, atr: signal.atr },
+    regime: { adx: regime.adx, state: regime.state },
+    marketRef,
     trend: { state: trend.state, confirmedBars: trend.confirmedBars },
     orderbook: {
       bestBid: bids[0]?.p,
@@ -630,6 +772,7 @@ async function evaluateSymbol(
     },
     // 페이퍼 장부는 현재가 즉시 체결 가정이라 미체결 주문이 없다.
     openOrders: [],
+    history: buildAiHistory(symbol, currentPrice),
     guards: {
       trailingStopPct: symCfg.trailingStopPercent > 0 ? symCfg.trailingStopPercent : undefined,
       // 페이퍼 샌드박스는 공격성 배수 적용 상한을 알려, AI 가 더 큰 비중을 제안할 수 있게 한다.
@@ -653,6 +796,17 @@ async function evaluateSymbol(
         ? Math.min(decision.sizePct, paperBuyCapPercent(symCfg))
         : decision.sizePct;
     paperFill = applyPaperDecision(symbol, decision.action, paperPct, currentPrice);
+  }
+  // 판단 피드백 이력 — 다음 판단에서 '이후 변동률'로 적중 여부를 되먹인다.
+  if (!decision.fallback) {
+    pushAiHistory(symbol, {
+      t: Date.now(),
+      action: decision.action,
+      confidence: decision.confidence,
+      executed: Boolean(paperFill),
+      reason: decision.reason,
+      priceAtDecision: currentPrice,
+    });
   }
   const paperSummary = getPaperSummary(symbol);
 
@@ -788,6 +942,12 @@ async function runGuardTick(): Promise<void> {
           ...notes.map((n) => ({ action: 'HOLD' as AiAction, reason: n, model: 'live-order' })),
           ...(guard
             ? [{ action: (guard.sold ? 'SELL' : 'HOLD') as AiAction, reason: `[실거래] ${guard.reason}`, model: 'live-guard' }]
+            : []),
+          ...(guard?.forcedOff
+            ? [{ action: 'HOLD' as AiAction, reason: '일일 손실 한도 도달 — 백그라운드 엔진 전역 OFF', model: 'live-guard' }]
+            : []),
+          ...(guard?.circuitOff
+            ? [{ action: 'HOLD' as AiAction, reason: `[실거래] 서킷 브레이커: 연속 손실 — ${symCfg.symbol} 종목 자동 정지(설정 재검토 권장)`, model: 'live-guard' }]
             : []),
         ];
         for (const e of entries) {

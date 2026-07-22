@@ -179,6 +179,8 @@ export interface BgLiveSummary {
   openOrderCount: number;
   equityUsd: number;
   returnPct: number;
+  /** 매매 성과 통계(실현 매도 기준). */
+  stats?: { sells: number; wins: number; losses: number };
 }
 
 export interface AutoTradeConfig {
@@ -204,6 +206,8 @@ export interface PaperSummary {
   updatedAt: number;
   equityUsd: number;
   returnPct: number;
+  /** 매매 성과 통계(실현 매도 기준). */
+  stats?: { sells: number; wins: number; losses: number };
 }
 
 export interface AutoEngineStatus {

@@ -42,6 +42,10 @@ const STALE_UNFILLED_MS = 90_000;
 const STALE_PRICE_AWAY_PCT = 0.2;
 const COOLDOWN_MS = 30_000;
 const TP_HOLD_TRAIL_PCT = 0.5;
+/** 서킷 브레이커 — 연속 실현 손실이 이 횟수에 도달하면 해당 종목 실거래를 자동 정지. */
+const CONSECUTIVE_LOSS_LIMIT = 3;
+/** 손실 직후 신규 매수 쿨다운(복수 매매 방지) — 단일 종목 트레이더와 동일. */
+const LOSS_COOLDOWN_MS = 5 * 60 * 1000;
 /** 익절 목표가 계산용 편도 수수료 가정(단일 종목 트레이더와 동일). */
 const COMMISSION_RATE = 0.001;
 const MIN_BUY_BUDGET_USD = 1;
@@ -70,6 +74,12 @@ interface BgLivePosition {
   trailPeak: number | null;
   /** 엔진이 낸 미체결(자체 기록) — 취소/체결 확인의 기준. */
   openOrders: BgLiveOrder[];
+  /** 연속 실현 손실 매도 횟수 — CONSECUTIVE_LOSS_LIMIT 도달 시 종목 자동 정지. */
+  lossStreak?: number;
+  /** 마지막 실현 손실 시각 — 손실 직후 매수 쿨다운 기준. */
+  lastLossAt?: number | null;
+  /** 매매 성과 통계(실현 매도 기준). */
+  stats?: { sells: number; wins: number; losses: number };
   updatedAt: number;
 }
 
@@ -91,6 +101,7 @@ export interface BgLiveSummary {
   openOrderCount: number;
   equityUsd: number;
   returnPct: number;
+  stats: { sells: number; wins: number; losses: number };
 }
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -153,6 +164,9 @@ export function ensureBgLive(symbol: string, poolUsd: number): BgLivePosition {
       tpHoldPeak: null,
       trailPeak: null,
       openOrders: [],
+      lossStreak: 0,
+      lastLossAt: null,
+      stats: { sells: 0, wins: 0, losses: 0 },
       updatedAt: Date.now(),
     };
     save();
@@ -187,7 +201,20 @@ function summarize(pos: BgLivePosition): BgLiveSummary {
     openOrderCount: pos.openOrders.length,
     equityUsd,
     returnPct: pos.poolUsd > 0 ? ((equityUsd - pos.poolUsd) / pos.poolUsd) * 100 : 0,
+    stats: {
+      sells: pos.stats?.sells ?? 0,
+      wins: pos.stats?.wins ?? 0,
+      losses: pos.stats?.losses ?? 0,
+    },
   };
+}
+
+/** 통계 필드 폴백 초기화(구버전 장부 호환) — 갱신 직전에 호출. */
+function ensureStats(pos: BgLivePosition): { sells: number; wins: number; losses: number } {
+  pos.stats ??= { sells: 0, wins: 0, losses: 0 };
+  pos.lossStreak ??= 0;
+  pos.lastLossAt ??= null;
+  return pos.stats;
 }
 
 export function getBgLiveSummaries(): BgLiveSummary[] {
@@ -241,6 +268,9 @@ export async function resyncBgLiveToAccount(symbol: string, poolUsd: number): Pr
     tpHoldPeak: null,
     trailPeak: null,
     openOrders: [],
+    lossStreak: 0,
+    lastLossAt: null,
+    stats: { sells: 0, wins: 0, losses: 0 },
     updatedAt: Date.now(),
   };
   save();
@@ -409,12 +439,18 @@ function noteExec(symbol: string): void {
 
 /**
  * 엔진이 낸 미체결 주문을 실계좌와 대조한다(장부 포지션은 syncPositionFromAccount 가 담당하므로
- * 여기서는 취소·추적만 하고 수량/현금은 건드리지 않는다).
+ * 여기서는 취소·재호가·추적만 하고 수량/현금은 건드리지 않는다).
  *  - 계좌 열린 주문에 없으면 → 체결/외부취소로 간주해 추적에서 제거.
- *  - 90초 경과 + 가격 0.2% 이상 불리하게 이탈 → 취소 요청 후 추적에서 제거(다음 판단에서 재시도).
+ *  - 90초 경과 + 가격 0.2% 이상 불리하게 이탈 → 취소만(추격 금지, 다음 판단에서 재시도).
+ *  - 90초 경과 + 가격이 아직 부근(호가만 어긋남) → 재호가: 취소 후 현재 체결 우선가로 재접수
+ *    (단일 종목 트레이더와 동일 — 특히 보호 매도가 미체결로 방치되지 않게).
  * 반환: 로그로 남길 문구 목록.
  */
-export async function reconcileBgOrders(symbol: string, currentPrice: number): Promise<string[]> {
+export async function reconcileBgOrders(
+  symbol: string,
+  currentPrice: number,
+  book?: { bestBid?: number; bestAsk?: number }
+): Promise<string[]> {
   const pos = getBgLive(symbol);
   if (!pos || pos.openOrders.length === 0) return [];
   const notes: string[] = [];
@@ -439,15 +475,15 @@ export async function reconcileBgOrders(symbol: string, currentPrice: number): P
       continue;
     }
     const stale = now - order.placedAt >= STALE_UNFILLED_MS;
+    if (!stale) {
+      remaining.push(order);
+      continue;
+    }
     const away = STALE_PRICE_AWAY_PCT / 100;
     const ranAway =
       order.side === 'BUY'
         ? currentPrice >= order.price * (1 + away)
         : currentPrice <= order.price * (1 - away);
-    if (!(stale && ranAway)) {
-      remaining.push(order);
-      continue;
-    }
     try {
       const accountSeq = await resolveAccountSeq();
       await tossRequest({
@@ -457,12 +493,41 @@ export async function reconcileBgOrders(symbol: string, currentPrice: number): P
         body: {},
         retryOnRateLimit: false,
       });
-      notes.push(
-        `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price} — 가격 이탈(현재 $${currentPrice.toFixed(2)})`
-      );
     } catch {
       remaining.push(order); // 취소 실패(이미 체결됐을 수 있음) — 다음 틱 재대조
       notes.push(`미체결 취소 실패(다음 틱 재확인): ${order.side} ${order.quantity}주 @ $${order.price}`);
+      continue;
+    }
+
+    if (ranAway) {
+      notes.push(
+        `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price} — 가격 이탈(현재 $${currentPrice.toFixed(2)}), 재판단`
+      );
+      continue;
+    }
+
+    // 재호가(cancel-and-replace): 같은 수량을 현재 체결 우선가로 재접수.
+    const newPrice =
+      order.side === 'BUY'
+        ? floorTick(marketableBuyPrice(currentPrice, book?.bestAsk))
+        : floorTick(marketableSellPrice(currentPrice, book?.bestBid));
+    const replaced = await placeOrder({
+      symbol,
+      side: order.side,
+      orderType: 'LIMIT',
+      quantity: order.quantity,
+      price: newPrice,
+      clientOrderId: `bg-${Date.now()}`,
+    });
+    if (replaced.ok && replaced.orderId) {
+      remaining.push({ ...order, orderId: replaced.orderId, price: newPrice, placedAt: Date.now() });
+      notes.push(
+        `재호가: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 $${order.price} → $${newPrice} (90초 미체결, 체결 우선가로 갱신)`
+      );
+    } else {
+      notes.push(
+        `재호가 실패(${order.side} ${order.quantity}주): ${replaced.error ?? '주문 실패'} — 취소만 반영, 다음 판단에서 재시도`
+      );
     }
   }
   pos.openOrders = remaining;
@@ -477,6 +542,8 @@ export interface BgExecResult {
   ok: boolean;
   text: string;
   forcedOff?: boolean;
+  /** 서킷 브레이커 발동(연속 손실) — 이 종목 실거래가 자동 정지됨. */
+  circuitOff?: boolean;
 }
 
 /** 풀 전량 매도(보호/AI 공통) — 세션별 소수점 규칙 + 체결 우선 가격. */
@@ -553,12 +620,38 @@ export async function sellAllBgLive(
   }
   pos.lastPrice = market.price;
   pos.updatedAt = Date.now();
+
+  // 매매 성과 통계 + 서킷 브레이커(연속 손실 시 이 종목 실거래 자동 정지).
+  const stats = ensureStats(pos);
+  stats.sells += 1;
+  let circuitOff = false;
+  if (realizedDelta < 0) {
+    stats.losses += 1;
+    pos.lossStreak = (pos.lossStreak ?? 0) + 1;
+    pos.lastLossAt = Date.now();
+    if (pos.lossStreak >= CONSECUTIVE_LOSS_LIMIT) {
+      const config = getAutoTradeConfig();
+      const target = config.symbols.find((c) => c.symbol === symbol && c.live && c.active);
+      if (target) {
+        saveAutoTradeConfig({
+          ...config,
+          symbols: config.symbols.map((c) => (c.symbol === symbol ? { ...c, active: false } : c)),
+        });
+        circuitOff = true;
+      }
+      pos.lossStreak = 0; // 재활성화 후 새로 계수
+    }
+  } else if (realizedDelta > 0) {
+    stats.wins += 1;
+    pos.lossStreak = 0;
+  }
   save();
   const { forcedOff } = addRealized(realizedDelta);
   return {
     ok: true,
     text: `${label}: ${qty}주 @ ${fractional ? '시장가' : `$${execPrice}`} (실현 ${realizedDelta >= 0 ? '+' : ''}$${realizedDelta.toFixed(2)})${cappedNote}`,
     forcedOff,
+    circuitOff,
   };
 }
 
@@ -574,6 +667,11 @@ export async function executeBgLiveBuy(
   const pos = ensureBgLive(symbol, symCfg.poolUsd);
   if (pos.cash < MIN_BUY_BUDGET_USD) {
     return { ok: false, text: `AI 매수 보류 — 풀 현금 부족($${pos.cash.toFixed(2)}): ${reason}` };
+  }
+  // 손실 직후 쿨다운 — 복수 매매(연속 재진입) 방지(단일 종목 트레이더와 동일).
+  if (pos.lastLossAt != null && Date.now() - pos.lastLossAt < LOSS_COOLDOWN_MS) {
+    const waitMin = Math.ceil((LOSS_COOLDOWN_MS - (Date.now() - pos.lastLossAt)) / 60000);
+    return { ok: false, text: `차단(손실 직후 쿨다운 ${waitMin}분 남음): AI 매수 — ${reason.slice(0, 60)}` };
   }
   if (inCooldown(symbol)) return { ok: false, text: '차단(쿨다운): AI 매수' };
 
@@ -638,6 +736,8 @@ export interface BgGuardExit {
   reason: string;
   handled: boolean;
   forcedOff?: boolean;
+  /** 서킷 브레이커 발동(연속 손실) — 이 종목 실거래가 자동 정지됨. */
+  circuitOff?: boolean;
 }
 
 export async function runBgLiveGuards(
@@ -665,7 +765,7 @@ export async function runBgLiveGuards(
 
   const doSell = async (label: string): Promise<BgGuardExit> => {
     const res = await sellAllBgLive(symCfg, { price: currentPrice }, session, label);
-    return { sold: res.ok, reason: res.text, handled: true, forcedOff: res.forcedOff };
+    return { sold: res.ok, reason: res.text, handled: true, forcedOff: res.forcedOff, circuitOff: res.circuitOff };
   };
 
   // 1) 손절 — 최우선.
