@@ -4936,6 +4936,39 @@ input[type='checkbox']:focus-visible {
   gap: 0.85rem;
 }
 
+/* AI 매매 3열 배치 래퍼 — 기본(모바일/임베드/좁은 화면)은 세로 스택 */
+.server-ai-columns,
+.server-ai-columns__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+/* 데스크톱(독립 페이지): 좌(백그라운드 설정+단일종목) | 중(판단 로그) | 우(포트폴리오 사이드바) */
+@media (min-width: 1101px) {
+  .server-ai-layout {
+    max-width: 1560px;
+  }
+  .server-ai-layout .server-ai-page {
+    max-width: none;
+  }
+  .server-ai-layout .server-ai-columns {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 1.25rem;
+  }
+  /* 종목 설정 열 — 단일 컬럼(760px)보다 좁게. 좁은 데스크톱에서는 로그 열 확보를 위해 수축 허용 */
+  .server-ai-layout .server-ai-columns__main {
+    flex: 0 1 27.5rem;
+    min-width: 21rem;
+  }
+  .server-ai-layout .server-ai-columns__logs {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
 .server-ai-intro {
   margin: 0;
   line-height: 1.5;

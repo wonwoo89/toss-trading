@@ -620,6 +620,10 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
 
       {loadError && <div className="banner error">{loadError}</div>}
 
+      {/* 데스크톱 3열 배치: 좌(설정+단일종목) | 중(판단 로그) | 우(포트폴리오 사이드바).
+          모바일/임베드는 세로 스택 그대로. */}
+      <div className="server-ai-columns">
+        <div className="server-ai-columns__main">
       {/* 백그라운드 엔진 상태 + 킬스위치 */}
       <section className="panel server-ai-card" aria-label="백그라운드 엔진 상태">
         <div className="server-ai-card__head">
@@ -884,10 +888,17 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
         </div>
       </section>
 
-      {/* 판단 로그(종합) — 데스크톱 전용(종목 필터 칩).
+      {/* 백그라운드(위) ↔ 단일 종목 집중(아래) 영역 구분선 */}
+      <hr className="server-ai-divider" aria-hidden="true" />
+
+      {/* 단일 종목 집중(서버 실주문) — 현재 실행 중인 종목의 진행 상황·결과 */}
+      <LiveTraderSection />
+        </div>
+
+      {/* 판단 로그(종합) — 데스크톱 3열 배치의 가운데 열(종목 필터 칩).
           모바일은 화면 절약을 위해 숨기고, 종목 카드의 '로그' 버튼 → 모달로 종목별만 본다. */}
       {!isMobile && (
-        <section className="panel server-ai-card" aria-label="판단 로그">
+        <section className="panel server-ai-card server-ai-columns__logs" aria-label="판단 로그">
           <div className="server-ai-card__head">
             <Typography size={16} as="h2">판단 로그</Typography>
             <Button size="sm" variant="ghost" onClick={() => void refresh()}>
@@ -920,12 +931,7 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
           />
         </section>
       )}
-
-      {/* 백그라운드(위) ↔ 단일 종목 집중(아래) 영역 구분선 */}
-      <hr className="server-ai-divider" aria-hidden="true" />
-
-      {/* 단일 종목 집중(서버 실주문) — 현재 실행 중인 종목의 진행 상황·결과 */}
-      <LiveTraderSection />
+      </div>
 
       {/* 종목별 로그 모달(모바일) */}
       {logModalSymbol && (
