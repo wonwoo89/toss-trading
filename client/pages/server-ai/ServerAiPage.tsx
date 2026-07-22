@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   api,
   type AutoEngineStatus,
@@ -332,8 +333,9 @@ function LiveTraderSection() {
         </ul>
       )}
 
-      {/* 전체보기 모달 — 전체 로그를 축약 없이(전문) 넓은 모달에서 열람 */}
-      {showAllLogs && live && (
+      {/* 전체보기 모달 — 전체 로그를 축약 없이(전문) 넓은 모달에서 열람.
+          카드(.panel)의 backdrop-filter 가 fixed 기준을 가두므로 body 포털로 띄운다. */}
+      {showAllLogs && live && createPortal(
         <div
           className="backtest-modal__overlay"
           onClick={() => setShowAllLogs(false)}
@@ -376,7 +378,8 @@ function LiveTraderSection() {
               </ul>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </section>
   );
