@@ -1231,7 +1231,7 @@ export function AutoTradePanel({
 
       {/* 판단/트리거/실행 로그는 AI 매매 페이지에서 확인 — 차트 영역에선 이동 버튼만 제공 */}
       <div className="auto-trade__logs-link">
-        <Button size="sm" variant="ghost" onClick={() => navigate('/server-ai')}>
+        <Button size="sm" variant="ghost" onClick={() => navigate('/server-ai', { state: { openLiveLog: true } })}>
           로그 보기 →
         </Button>
       </div>

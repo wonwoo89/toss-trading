@@ -662,7 +662,7 @@ export async function executeBgLiveBuy(
   const symbol = symCfg.symbol;
   const pos = ensureBgLive(symbol, symCfg.poolUsd);
   if (pos.cash < MIN_BUY_BUDGET_USD) {
-    return { ok: false, text: `AI 매수 보류 — 풀 현금 부족($${pos.cash.toFixed(2)}): ${reason}` };
+    return { ok: false, text: `AI 매수 의견 미실행 — 풀 현금 부족($${pos.cash.toFixed(2)})` };
   }
   // 손실 직후 쿨다운 — 복수 매매(연속 재진입) 방지(단일 종목 트레이더와 동일).
   if (pos.lastLossAt != null && Date.now() - pos.lastLossAt < LOSS_COOLDOWN_MS) {
@@ -696,14 +696,14 @@ export async function executeBgLiveBuy(
   } else if (price <= pos.cash * (symCfg.buyMaxPercent / 100) || price <= pos.cash) {
     // 소수점 불가 시간대 1주 폴백 — 풀 현금 이내에서만.
     if (price > pos.cash) {
-      return { ok: false, text: `AI 매수 보류 — 풀 현금($${pos.cash.toFixed(2)}) < 1주($${price.toFixed(2)}): ${reason}` };
+      return { ok: false, text: `AI 매수 의견 미실행 — 풀 현금($${pos.cash.toFixed(2)}) < 1주($${price.toFixed(2)})` };
     }
     fillPrice = floorTick(marketableBuyPrice(price, market.bestAsk));
     fillQty = 1;
     body = { symbol, side: 'BUY', orderType: 'LIMIT', quantity: 1, price: fillPrice, clientOrderId: `bg-${Date.now()}` };
     label = `실매수 1주(비중 ${effectivePct}%→최소 수량) @ $${fillPrice}`;
   } else {
-    return { ok: false, text: `AI 매수 보류 — 배정 $${budget}로 1주($${price.toFixed(2)}) 미만: ${reason}` };
+    return { ok: false, text: `AI 매수 의견 미실행 — 1회 매수 배정 $${budget} < 1주 $${price.toFixed(2)} (소수점 주문 불가 시간대)` };
   }
 
   const result = await placeOrder(body);
