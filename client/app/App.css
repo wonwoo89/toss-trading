@@ -4887,6 +4887,9 @@ input[type='checkbox']:focus-visible {
   display: flex;
   align-items: flex-start;
   gap: 1.25rem;
+  /* margin:auto(가로 중앙)가 flex 컨테이너의 stretch 를 무효화해 fit-content 로
+     줄어들지 않도록 폭을 명시한다. */
+  width: 100%;
   max-width: 1140px;
   margin: 0 auto;
   padding-bottom: 5.5rem; /* 하단 플로팅 내비 여백 */
@@ -4895,6 +4898,8 @@ input[type='checkbox']:focus-visible {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
+  /* 타이틀/인트로 제거 후 사이드바와 같은 높이(헤더 바로 아래)에서 시작 */
+  padding-top: 0;
   padding-bottom: 0;
 }
 .server-ai-layout .portfolio-sidebar {
@@ -4963,15 +4968,75 @@ input[type='checkbox']:focus-visible {
     flex: 0 1 27.5rem;
     min-width: 21rem;
   }
+  /* 판단 로그 열 — 사이드바처럼 헤더 아래~화면 하단까지 고정(sticky)하고 내부 스크롤.
+     페이지 스크롤은 좌측(설정+단일종목) 열만 담당한다. */
   .server-ai-layout .server-ai-columns__logs {
     flex: 1 1 0;
     min-width: 0;
+    position: sticky;
+    top: calc(var(--header-height) + 1.5rem + env(safe-area-inset-top));
+    height: calc(100vh - var(--header-height) - 3.5rem - env(safe-area-inset-top));
+    overflow: hidden;
+  }
+  .server-ai-layout .server-ai-columns__logs .server-ai-logs {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 0;
   }
 }
 
-.server-ai-intro {
-  margin: 0;
-  line-height: 1.5;
+/* 카드 제목 옆 '?' 설명 툴팁 — hover/focus 시 표시(모바일은 탭=focus) */
+.server-ai-help {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.45rem;
+  vertical-align: middle;
+}
+
+.server-ai-help__trigger {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  cursor: help;
+}
+
+.server-ai-help__tip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: min(320px, 74vw);
+  z-index: 350;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-panel);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+  font-size: 0.7rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: normal;
+}
+
+.server-ai-help:hover .server-ai-help__tip,
+.server-ai-help:focus-within .server-ai-help__tip {
+  display: block;
+}
+
+.server-ai-help__tip strong {
+  color: var(--text-primary);
 }
 
 .server-ai-card {

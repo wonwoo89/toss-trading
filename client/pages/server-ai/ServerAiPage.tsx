@@ -604,20 +604,8 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
 
   const content = (
     <main className={`server-ai-page${embedded ? ' server-ai-page--embedded' : ''}`}>
-      {!embedded && (
-        <div className="backtest-head">
-          <Typography size={18} as="h1">AI 매매</Typography>
-          {/* 트레이딩 복귀는 하단 내비게이션('투자' 탭)으로 — 우상단 링크 제거 */}
-        </div>
-      )}
-
-      <Typography size={14} as="p" className="hint server-ai-intro">
-        <strong>백그라운드 AI 매매</strong>는 브라우저를 꺼도 서버가{' '}
-        <strong>미국장이 열려 있는 동안</strong>(데이·프리·정규·애프터) 5분봉 마감마다 등록
-        종목을 AI로 판단합니다. 페이퍼는 종목마다 <strong>가상 $1,000</strong>, 실거래는 지정한
-        풀 안에서 실제 주문(수수료 반영)해 수익률을 추적합니다.
-      </Typography>
-
+      {/* 타이틀·인트로 문단 제거 — 설명은 백그라운드 카드 제목 옆 '?' 툴팁으로 이동.
+          콘텐츠가 포트폴리오 사이드바처럼 헤더 바로 아래에서 시작한다. */}
       {loadError && <div className="banner error">{loadError}</div>}
 
       {/* 데스크톱 3열 배치: 좌(설정+단일종목) | 중(판단 로그) | 우(포트폴리오 사이드바).
@@ -628,7 +616,22 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
       <section className="panel server-ai-card" aria-label="백그라운드 엔진 상태">
         <div className="server-ai-card__head">
           <Typography size={16} as="h2">
-            백그라운드 AI 매매 <span className="hint">(다종목 페이퍼)</span>
+            백그라운드 AI 매매
+            <span className="server-ai-help">
+              <button
+                type="button"
+                className="server-ai-help__trigger"
+                aria-label="백그라운드 AI 매매 설명"
+              >
+                ?
+              </button>
+              <span className="server-ai-help__tip" role="tooltip">
+                브라우저를 꺼도 서버가 <strong>미국장이 열려 있는 동안</strong>
+                (데이·프리·정규·애프터) 5분봉 마감마다 등록 종목을 AI로 판단합니다. 페이퍼는
+                종목마다 <strong>가상 $1,000</strong>, 실거래는 지정한 풀 안에서 실제
+                주문(수수료 반영)해 수익률을 추적합니다.
+              </span>
+            </span>
           </Typography>
           <div className="server-ai-kill">
             <Typography size={14} className={savedConfig.enabled ? 'server-ai-kill__on' : 'hint'}>
