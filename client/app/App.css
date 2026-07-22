@@ -1,4 +1,5 @@
 .app {
+  --header-height: 36px; /* 데스크톱 sticky 헤더 높이 — 사이드바 오프셋 계산에 사용 */
   max-width: 2560px;
   min-height: 100vh;
   margin: 0 auto;
@@ -7,6 +8,22 @@
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
+}
+
+/* 데스크톱: 상단 헤더를 항상 보이도록 sticky 고정.
+   (트레이딩 화면은 .app 이 overflow:hidden 이라 페이지 스크롤이 없어 무영향 —
+   /server-ai·백테스트·포트폴리오 등 스크롤되는 화면에서만 효과) */
+@media (min-width: 1101px) {
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 300; /* 콘텐츠·차트(200) 위, 모달·팝오버(400) 아래 */
+    background: var(--bg-base);
+    /* 스크롤 콘텐츠가 헤더 아래로 비치지 않게 + 좌우 패딩만큼 넓혀 완전히 덮기 */
+    margin: 0 -1rem 1rem;
+    padding: 0 1rem 0.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+  }
 }
 
 .app:has(main.trading-layout:not(.trading-layout--portfolio-only)) {
@@ -4872,6 +4889,14 @@ input[type='checkbox']:focus-visible {
 .server-ai-layout .portfolio-sidebar {
   flex: 0 0 var(--portfolio-sidebar-width);
   width: var(--portfolio-sidebar-width);
+}
+/* 데스크톱: sticky 헤더(높이 + 하단 여백) 아래로 사이드바 sticky 오프셋을 내려
+   주문가능 금액·총 투자금액·보유 종목이 헤더에 가리지 않게 한다. */
+@media (min-width: 1101px) {
+  .server-ai-layout .portfolio-sidebar {
+    top: calc(var(--header-height) + 1.5rem);
+    max-height: calc(100vh - var(--header-height) - 2.5rem);
+  }
 }
 /* 데스크톱 전용 — 좁은 화면(≤1100px)에서는 사이드바 숨김(모바일은 임베드 탭 사용) */
 @media (max-width: 1100px) {
