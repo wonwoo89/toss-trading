@@ -1208,13 +1208,15 @@ textarea {
 }
 
 .trading-layout:not(.trading-layout--portfolio-only) .portfolio-sidebar__holdings,
-.trading-layout--portfolio-only .portfolio-sidebar__holdings {
+.trading-layout--portfolio-only .portfolio-sidebar__holdings,
+.server-ai-layout .portfolio-sidebar__holdings {
   flex: unset;
   min-height: 0;
 }
 
 .trading-layout:not(.trading-layout--portfolio-only) .portfolio-sidebar .open-orders-panel,
-.trading-layout--portfolio-only .portfolio-sidebar .open-orders-panel {
+.trading-layout--portfolio-only .portfolio-sidebar .open-orders-panel,
+.server-ai-layout .portfolio-sidebar .open-orders-panel {
   flex: unset;
   min-height: 0;
   max-height: none;
@@ -4899,12 +4901,20 @@ input[type='checkbox']:focus-visible {
   flex: 0 0 var(--portfolio-sidebar-width);
   width: var(--portfolio-sidebar-width);
 }
-/* 데스크톱: sticky 헤더(높이 + 하단 여백) 아래로 사이드바 sticky 오프셋을 내려
-   주문가능 금액·총 투자금액·보유 종목이 헤더에 가리지 않게 한다. */
+/* 데스크톱: sticky 헤더(높이 + 하단 여백) 아래로 사이드바 sticky 오프셋을 내리고,
+   투자 탭과 동일한 3행 그리드(요약 / 보유 종목(가변·내부 스크롤) / 미체결(하단 고정))로
+   렌더링해 두 페이지의 우측 영역 UI 를 완전히 일치시킨다.
+   (투자 탭은 컬럼 높이가 고정이라 height:100% — 여기는 페이지가 스크롤되므로
+    sticky + 뷰포트 기준 height 로 같은 프레임을 만든다) */
 @media (min-width: 1101px) {
   .server-ai-layout .portfolio-sidebar {
     top: calc(var(--header-height) + 1.5rem + env(safe-area-inset-top));
-    max-height: calc(100vh - var(--header-height) - 2.5rem - env(safe-area-inset-top));
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) minmax(120px, min(220px, 30vh));
+    /* 하단 1rem 여백 포함(투자 탭과 동일한 프레임) */
+    height: calc(100vh - var(--header-height) - 3.5rem - env(safe-area-inset-top));
+    max-height: none;
+    overflow: hidden;
   }
 }
 /* 데스크톱 전용 — 좁은 화면(≤1100px)에서는 사이드바 숨김(모바일은 임베드 탭 사용) */
