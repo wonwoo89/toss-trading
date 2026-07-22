@@ -305,10 +305,6 @@ function addRealized(deltaUsd: number): { total: number; forcedOff: boolean } {
   return { total: store.dailyRealizedUsd, forcedOff: false };
 }
 
-export function getBgLiveDailyRealizedUsd(): number {
-  return todayRealized();
-}
-
 // ── 계좌/주문 헬퍼 ───────────────────────────────────────────────
 
 let cachedAccountSeq: string | null = null;
