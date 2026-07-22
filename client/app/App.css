@@ -5159,6 +5159,33 @@ input[type='checkbox']:focus-visible {
   max-height: 320px;
   overflow-y: auto;
 }
+
+/* 라이브 로그 헤더 행 — '전체보기' 버튼 자리 */
+.server-ai-live-logs__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.4rem;
+}
+
+/* 전체보기 모달 — 넓게, 로그는 축약 없이 전문 표시(스크롤은 모달 body 가 담당) */
+.server-ai-fulllog-modal {
+  max-width: 860px;
+}
+
+.server-ai-live-logs--full {
+  margin-top: 0;
+  max-height: none;
+  overflow-y: visible;
+}
+
+.server-ai-live-logs--full .server-ai-live-log__text {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+  display: block;
+}
 .server-ai-live-log {
   display: flex;
   align-items: baseline;
