@@ -5277,6 +5277,9 @@ input[type='checkbox']:focus-visible {
   font-weight: 700;
   color: #fff;
   background: var(--color-down);
+  /* 좁은 화면에서 글자가 세로로 꺾이지 않게 */
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 /* 실거래 스위치 — 필드 행에서 인풋들과 하단 정렬되는 라벨+스위치 컬럼 */
 .server-ai-symbol__live-toggle {
@@ -5324,6 +5327,23 @@ input[type='checkbox']:focus-visible {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+/* 모바일: 헤더 한 줄에 다 몰리지 않게 2행으로 정리 —
+   1행 = 종목명·실거래 뱃지·수익률, 2행 = AI 추천·로그·활성·삭제(우측 정렬) */
+@media (max-width: 640px) {
+  .server-ai-symbol__head {
+    flex-wrap: wrap;
+    gap: 0.35rem 0.75rem;
+  }
+  .server-ai-symbol__title {
+    flex: 1 1 100%;
+  }
+  .server-ai-symbol__controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 
 /* 종목별 수치 인풋 — 자동매매 폼과 동일하게 한 줄 흐름 + 자연 줄바꿈 */
@@ -5450,6 +5470,8 @@ input[type='checkbox']:focus-visible {
   border-radius: 6px;
   color: var(--text-secondary);
   background: var(--bg-subtle, rgba(128, 128, 128, 0.12));
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .server-ai-symbol__paper.is-up {
