@@ -19,6 +19,8 @@ import { Typography } from '../../shared/ui/Typography';
 import { NumberField } from '../../widgets/NumberField';
 import { ServerAiSidebar } from '../../widgets/ServerAiSidebar';
 import { useToast } from '../../app/providers/ToastContext';
+import { runSymbolBacktestFull } from '../../shared/lib/runSymbolBacktest';
+import type { CandleInterval } from '../../shared/types';
 
 /** 상태·로그 폴링 주기 — 엔진 틱이 5분 간격이라 촘촘할 필요 없다. */
 const POLL_MS = 15_000;
@@ -466,6 +468,76 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
     }));
   };
 
+  // AI 백테스트 추천 — 종목별 진행 상태(버튼 로딩)와 중복 실행 가드.
+  const [recommending, setRecommending] = useState<Set<string>>(new Set());
+  const recommendingRef = useRef<Set<string>>(new Set());
+
+  /** 최근 캔들로 백테스트 그리드 + AI 종합 추천을 계산해 해당 종목의 목표/손절 초안에 적용.
+   *  백테스트 페이지의 'AI 추천 → 적용'과 같은 산식(그리드 24조합 + AI bestIndex, 실패 시 누적 1위). */
+  const applyAiRecommendation = useCallback(
+    async (symbol: string) => {
+      if (recommendingRef.current.has(symbol)) return;
+      recommendingRef.current.add(symbol);
+      setRecommending(new Set(recommendingRef.current));
+      try {
+        const interval = limits.candleInterval as CandleInterval;
+        const base = { forwardBars: 15, costPct: 0.2 };
+        const outcome = await runSymbolBacktestFull(symbol, interval, {
+          ...base,
+          targetPct: 1,
+          stopPct: 3,
+        });
+        const scenarios = outcome.scenarios ?? [];
+        if (scenarios.length === 0) throw new Error('최적화 결과가 없습니다.');
+        // AI 종합 추천(bestIndex) — 실패 시 누적 수익 1위(0) 폴백.
+        let bestIndex = 0;
+        try {
+          const res = await api.analyzeBacktestScenarios({
+            symbol,
+            interval,
+            forwardBars: base.forwardBars,
+            costPct: base.costPct,
+            usedCandles: outcome.usedCandles,
+            scenarios: scenarios.map((s) => ({
+              targetPct: s.targetPct,
+              stopPct: s.stopPct,
+              trades: s.trades,
+              winRatePct: s.winRatePct,
+              avgReturnPct: s.avgReturnPct,
+              totalReturnPct: s.totalReturnPct,
+              maxDrawdownPct: s.maxDrawdownPct,
+            })),
+          });
+          bestIndex = Math.min(Math.max(0, res.result.bestIndex), scenarios.length - 1);
+        } catch {
+          // AI 종합 추천 실패 — 누적 1위 시나리오 사용.
+        }
+        const best = scenarios[bestIndex];
+        setDraft((current) => ({
+          ...current,
+          symbols: current.symbols.map((s) =>
+            s.symbol === symbol
+              ? { ...s, targetPercent: best.targetPct, stopLossPercent: best.stopPct }
+              : s
+          ),
+        }));
+        showToast(
+          `${symbol} AI 추천 적용: 목표 +${best.targetPct}% / 손절 -${best.stopPct}% — '저장'을 누르면 반영됩니다.`,
+          'success'
+        );
+      } catch (err) {
+        showToast(
+          `${symbol} AI 추천 실패: ${err instanceof Error ? err.message : '백테스트 오류'}`,
+          'error'
+        );
+      } finally {
+        recommendingRef.current.delete(symbol);
+        setRecommending(new Set(recommendingRef.current));
+      }
+    },
+    [limits.candleInterval, showToast]
+  );
+
   const addSymbol = () => {
     const symbol = newSymbol.trim().toUpperCase();
     if (!symbol) return;
@@ -494,6 +566,9 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
       ],
     }));
     setNewSymbol('');
+    // 새 종목은 AI 백테스트 추천을 자동 1회 계산해 목표/손절 초안에 적용한다.
+    showToast(`${symbol} 추가 — AI 백테스트 추천 계산 중…`, 'success');
+    void applyAiRecommendation(symbol);
   };
 
   const sessionLabel = status?.lastTickSession
@@ -671,6 +746,15 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
                     })()}
                   </div>
                   <div className="server-ai-symbol__controls">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={recommending.has(s.symbol)}
+                      onClick={() => void applyAiRecommendation(s.symbol)}
+                      title="최근 캔들로 백테스트 최적화를 돌려 AI 추천 목표/손절을 이 종목에 적용"
+                    >
+                      {recommending.has(s.symbol) ? '추천 중…' : 'AI 추천'}
+                    </Button>
                     {isMobile && (
                       <Button size="sm" variant="ghost" onClick={() => setLogModalSymbol(s.symbol)}>
                         로그
