@@ -46,6 +46,11 @@ function atr(candles: AiDecisionCandle[], period = 14): number | undefined {
   return slice.reduce((sum, v) => sum + v, 0) / slice.length;
 }
 
+/** 평균 진폭(ATR, TR 단순평균) — 표본이 period+1 미만이면 undefined. 반응형 ATR 블렌드용. */
+export function computeAtr(candles: AiDecisionCandle[], period = 14): number | undefined {
+  return atr(candles, period);
+}
+
 export interface ComputedSignal {
   level: string;
   score: number;
