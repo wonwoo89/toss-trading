@@ -61,6 +61,12 @@ const STALE_UNFILLED_MS = 90_000;
 const STALE_PRICE_AWAY_PCT = 0.2;
 /** 익절 목표가 수수료(편도) 가정 — 왕복 반영해 목표 실수익을 보전. */
 const COMMISSION_RATE = 0.001;
+// ── 데이터 품질 가드 ──
+/** 최근 캔들이 이보다 오래됐으면(분) 시세 지연/거래정지로 보고 신규 판단 보류. */
+const STALE_CANDLE_MAX_MIN = 20;
+/** 호가 스프레드가 이보다 넓으면(%) 유동성 부족 — 신규 매수 억제. */
+const MAX_SPREAD_PCT = 1.0;
+let lastQualityLogAt = 0;
 
 export interface LiveTraderConfig {
   enabled: boolean;
@@ -89,7 +95,15 @@ interface LiveTraderState {
   dailyRealizedUsd: number;
   tpHoldPeak: number | null;
   trailPeak: number | null;
-  aiHistory: { t: number; action: string; confidence: number; executed: boolean; reason: string }[];
+  aiHistory: {
+    t: number;
+    action: string;
+    confidence: number;
+    executed: boolean;
+    reason: string;
+    /** 판단 시점 가격 — 이후 변동률(적중 피드백) 계산용. */
+    priceAtDecision?: number;
+  }[];
   logs: LiveLogEntry[];
   logSeq: number;
 }
@@ -623,6 +637,16 @@ async function executeAiBuy(
     pushLog('block', `AI 매수 보류 — 주문가능 없음: ${reason}`, 'BUY');
     return;
   }
+  // 데이터 품질 가드: 스프레드가 넓으면(유동성 부족·슬리피지 위험) 신규 매수 억제.
+  const bestBid = market.bids[0]?.p;
+  const bestAsk = market.asks[0]?.p;
+  if (bestBid !== undefined && bestAsk !== undefined && bestBid > 0) {
+    const spreadPct = ((bestAsk - bestBid) / bestBid) * 100;
+    if (spreadPct > MAX_SPREAD_PCT) {
+      pushLog('block', `AI 매수 보류 — 스프레드 ${spreadPct.toFixed(2)}% > ${MAX_SPREAD_PCT}%(유동성 부족): ${reason}`, 'BUY');
+      return;
+    }
+  }
   const limit = cfg.dailyLossLimitUsd;
   if (limit > 0 && todayRealized() <= -limit) {
     pushLog('block', `차단(일일 손실 한도 도달): AI 매수`, 'BUY');
@@ -720,6 +744,17 @@ async function decisionTickInner(): Promise<void> {
     if (await runProtectiveGuards(ctx, candles, 'full')) return;
     if (!loadState().config.enabled) return; // 한도 도달로 꺼졌을 수 있음
 
+    // 데이터 품질 가드 — 캔들이 오래됐으면(거래정지·시세 지연) AI 판단 자체를 보류.
+    // 보호 매도(위)는 이미 수행됨 — 낡은 데이터로 '신규 진입 판단'만 막는다.
+    const lastCandleAgeMin = (Date.now() / 1000 - candles[candles.length - 1].t) / 60;
+    if (lastCandleAgeMin > STALE_CANDLE_MAX_MIN) {
+      if (Date.now() - lastQualityLogAt > 10 * 60 * 1000) {
+        lastQualityLogAt = Date.now();
+        pushLog('block', `데이터 품질: 최근 캔들이 ${Math.round(lastCandleAgeMin)}분 전 — 시세 지연/거래정지 의심, AI 판단 보류`);
+      }
+      return;
+    }
+
     const signal = computeSignal(candles);
     const trend = computeTrend(candles);
     const bidTotal = market.bids.reduce((sum, b) => sum + b.q, 0);
@@ -768,6 +803,12 @@ async function decisionTickInner(): Promise<void> {
         confidence: h.confidence,
         executed: h.executed,
         reason: h.reason.slice(0, 100),
+        priceAtDecision: h.priceAtDecision,
+        // 판단 이후 현재까지 변동률 — 판단 적중 여부의 피드백(모델이 자기 교정에 사용).
+        moveSincePct:
+          h.priceAtDecision !== undefined && h.priceAtDecision > 0
+            ? ((market.currentPrice - h.priceAtDecision) / h.priceAtDecision) * 100
+            : undefined,
       })),
       guards: {
         trailingStopPct: s.config.trailingStopPercent > 0 ? s.config.trailingStopPercent : undefined,
@@ -790,6 +831,7 @@ async function decisionTickInner(): Promise<void> {
         confidence: decision.confidence,
         executed: false,
         reason: decision.reason,
+        priceAtDecision: market.currentPrice,
       });
       s.aiHistory = s.aiHistory.slice(0, MAX_AI_HISTORY);
       saveState();
