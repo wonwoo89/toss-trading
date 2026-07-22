@@ -4956,7 +4956,9 @@ input[type='checkbox']:focus-visible {
   overflow-wrap: anywhere;
 }
 
-/* 추세 홀드 토글 — 자동매매 설정 행의 인풋들과 같은 구조(라벨 위 + 컨트롤 아래) */
+/* 추세 홀드/ATR 자동 토글 — 자동매매 설정 행의 인풋들과 같은 구조(라벨 위 + 컨트롤 아래).
+   라벨은 인풋 라벨(ui-textfield__label)과 동일한 톤, 스위치는 인풋 박스 높이(--control-height)
+   안에 세로 중앙 정렬해 행의 베이스라인을 맞춘다. */
 .auto-trade__hold-toggle {
   display: flex;
   flex-direction: column;
@@ -4967,7 +4969,14 @@ input[type='checkbox']:focus-visible {
 
 .auto-trade__hold-label {
   color: var(--text-secondary);
+  font-weight: 600;
   white-space: nowrap;
+}
+
+.auto-trade__hold-toggle .ui-switch {
+  height: var(--control-height);
+  display: inline-flex;
+  align-items: center;
 }
 
 /* 판단 로그 종목 필터 칩(데스크톱) */
