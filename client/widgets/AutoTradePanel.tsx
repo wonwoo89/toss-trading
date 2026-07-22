@@ -1144,11 +1144,15 @@ export function AutoTradePanel({
           value={dailyLossLimitUsd}
           onChange={setDailyLossLimitUsd}
         />
+      </div>
+
+      {/* 토글 옵션 그룹 — 숫자 설정과 분리해 한 곳에 모아 배치 */}
+      <div className="auto-trade__options">
         <div
-          className="auto-trade__field auto-trade__hold-toggle"
+          className="auto-trade__option"
           title={`목표 도달 시 상승 추세면 매도를 보류하고 고점을 추적합니다. 보전선(목표가) 또는 고점 대비 -${trailingStopPercent > 0 ? trailingStopPercent : TP_HOLD_TRAIL_PCT}% 이탈 시 전량 매도해 목표 수익은 확보합니다.`}
         >
-          <Typography size={10} className="auto-trade__hold-label">추세 홀드</Typography>
+          <Typography size={12} className="auto-trade__option-label">추세 홀드</Typography>
           <Switch
             checked={holdTpOnTrend}
             onChange={setHoldTpOnTrend}
@@ -1156,10 +1160,10 @@ export function AutoTradePanel({
           />
         </div>
         <div
-          className="auto-trade__field auto-trade__hold-toggle"
+          className="auto-trade__option"
           title="변동성(ATR) 기반 동적 목표/손절 — 서버 AI 매매 전용. 목표는 설정값 이상(2×ATR, 최대 3배), 손절은 설정값 이하(1.5×ATR)로 종목 변동성에 맞춰 자동 조정합니다."
         >
-          <Typography size={10} className="auto-trade__hold-label">ATR 자동</Typography>
+          <Typography size={12} className="auto-trade__option-label">ATR 자동</Typography>
           <Switch
             checked={useAtrLevels}
             onChange={setUseAtrLevels}
