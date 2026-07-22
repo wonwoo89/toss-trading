@@ -699,7 +699,7 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
           symbol,
           active: true,
           live: false,
-          poolUsd: 1000,
+          poolUsd: 500,
           targetPercent: 1,
           stopLossPercent: 3,
           trailingStopPercent: 0,

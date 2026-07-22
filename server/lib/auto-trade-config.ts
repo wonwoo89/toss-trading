@@ -22,7 +22,7 @@ export const AUTO_CANDLE_INTERVAL = '5m' as const;
 
 export const BG_LIVE_POOL_MIN_USD = 50;
 export const BG_LIVE_POOL_MAX_USD = 100_000;
-export const BG_LIVE_POOL_DEFAULT_USD = 1000;
+export const BG_LIVE_POOL_DEFAULT_USD = 500;
 
 export interface AutoSymbolConfig {
   symbol: string;
