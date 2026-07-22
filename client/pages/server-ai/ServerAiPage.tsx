@@ -311,6 +311,73 @@ function LiveTraderSection() {
   );
 }
 
+/** 종목별 판단 로그 미니 라인차트 — 판단 시점 가격(currentPrice)의 흐름 + 평단가 점선(보유 시).
+ *  실시간 시세가 아니라 판단 로그가 갱신되는 시점(폴링)에만 다시 그려진다. */
+function LogSparkline({ entries, avgPrice }: { entries: AutoLogEntry[]; avgPrice?: number }) {
+  const points = useMemo(
+    () =>
+      entries
+        .filter((l) => l.currentPrice > 0)
+        .map((l) => ({ t: l.t, p: l.currentPrice }))
+        .sort((a, b) => a.t - b.t),
+    [entries]
+  );
+  if (points.length < 2) return null;
+
+  const W = 600;
+  const H = 110;
+  const PAD_X = 4;
+  const PAD_Y = 10;
+  const avg = avgPrice !== undefined && avgPrice > 0 ? avgPrice : undefined;
+  let min = Math.min(...points.map((pt) => pt.p));
+  let max = Math.max(...points.map((pt) => pt.p));
+  if (avg !== undefined) {
+    min = Math.min(min, avg);
+    max = Math.max(max, avg);
+  }
+  if (max - min < 1e-9) {
+    max += max * 0.001 + 0.01;
+    min -= min * 0.001 + 0.01;
+  }
+  const t0 = points[0].t;
+  const t1 = points[points.length - 1].t;
+  const span = Math.max(1, t1 - t0);
+  const x = (t: number) => PAD_X + ((t - t0) / span) * (W - PAD_X * 2);
+  const y = (p: number) => PAD_Y + (1 - (p - min) / (max - min)) * (H - PAD_Y * 2);
+  const path = points
+    .map((pt, i) => `${i === 0 ? 'M' : 'L'}${x(pt.t).toFixed(1)} ${y(pt.p).toFixed(1)}`)
+    .join(' ');
+  const last = points[points.length - 1];
+  const ref = avg ?? points[0].p;
+  const lineColor = last.p >= ref ? 'var(--color-up)' : 'var(--color-down)';
+
+  return (
+    <div className="server-ai-sparkline" aria-label="판단 시점 가격 흐름 차트">
+      <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" role="img" aria-hidden="true">
+        {avg !== undefined && (
+          <line
+            x1={PAD_X}
+            x2={W - PAD_X}
+            y1={y(avg)}
+            y2={y(avg)}
+            className="server-ai-sparkline__avg"
+          />
+        )}
+        <path d={path} className="server-ai-sparkline__line" style={{ stroke: lineColor }} />
+        <circle cx={x(last.t)} cy={y(last.p)} r={2.5} fill={lineColor} />
+      </svg>
+      <div className="server-ai-sparkline__meta">
+        <Typography size={10} className="server-ai-sparkline__label">
+          {formatTime(t0)} ~ {formatTime(t1)} · 판단 {points.length}회
+        </Typography>
+        <Typography size={10} className="server-ai-sparkline__label">
+          {avg !== undefined ? `평단 $${avg.toFixed(2)} · ` : ''}최근 ${last.p.toFixed(2)}
+        </Typography>
+      </div>
+    </div>
+  );
+}
+
 /**
  * AI 매매 페이지 — 단일 종목 집중(서버 실주문) 현황 + 백그라운드(다종목 페이퍼) 엔진의
  * 관리·모니터링을 한 화면에서 보여준다.
@@ -588,6 +655,15 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
     for (const p of status?.livePools ?? []) map.set(p.symbol, p);
     return map;
   }, [status]);
+
+  // 종목별 미니 차트의 평단가 — 실거래는 풀 장부, 페이퍼는 가상 장부 기준(보유 시에만).
+  const sparkAvgFor = (symbol: string): number | undefined => {
+    const cfg = draft.symbols.find((s) => s.symbol === symbol);
+    const summary = cfg?.live ? liveBySymbol.get(symbol) : paperBySymbol.get(symbol);
+    return summary && summary.quantity > 0 && summary.averagePrice > 0
+      ? summary.averagePrice
+      : undefined;
+  };
 
   // 실거래 토글 — 켤 때 명시적 확인(실제 주문이 나간다).
   const toggleLive = (index: number, next: boolean) => {
@@ -934,6 +1010,13 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
               ))}
             </div>
           )}
+          {/* 종목 선택 시: 판단 시점 가격 흐름 미니 차트(평단가 점선 포함) */}
+          {logFilter !== 'ALL' && (
+            <LogSparkline
+              entries={logs.filter((l) => l.symbol === logFilter)}
+              avgPrice={sparkAvgFor(logFilter)}
+            />
+          )}
           <LogList
             entries={logFilter !== 'ALL' ? logs.filter((l) => l.symbol === logFilter) : logs}
             emptyText={
@@ -974,6 +1057,10 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
               </button>
             </div>
             <div className="backtest-modal__body server-ai-log-modal__body">
+              <LogSparkline
+                entries={logs.filter((l) => l.symbol === logModalSymbol)}
+                avgPrice={sparkAvgFor(logModalSymbol)}
+              />
               <LogList
                 entries={logs.filter((l) => l.symbol === logModalSymbol)}
                 emptyText={`${logModalSymbol} 판단 기록이 아직 없습니다.`}
