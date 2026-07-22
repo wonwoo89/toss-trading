@@ -4601,9 +4601,12 @@ input[type='checkbox']:focus-visible {
   margin-top: 0.4rem;
 }
 
-/* 전체보기 모달 — 넓게, 로그는 축약 없이 전문 표시(스크롤은 모달 body 가 담당) */
+/* 전체보기 모달 — 화면에 가깝게 크게(가로 1280px 캡·세로 92vh 고정),
+   로그는 축약 없이 전문 표시(스크롤은 모달 body 가 담당) */
 .server-ai-fulllog-modal {
-  max-width: 860px;
+  max-width: min(1280px, calc(100vw - 2rem));
+  height: 92vh;
+  max-height: 92vh;
 }
 
 .server-ai-live-logs--full {
