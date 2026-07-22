@@ -120,6 +120,8 @@ export interface LiveTraderConfig {
   buyMaxPercent: number;
   dailyLossLimitUsd: number;
   holdTpOnTrend: boolean;
+  /** 변동성(ATR) 기반 동적 목표/손절 사용 여부. */
+  useAtrLevels: boolean;
 }
 
 export interface LiveLogEntry {

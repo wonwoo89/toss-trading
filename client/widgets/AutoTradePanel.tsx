@@ -194,6 +194,7 @@ export function AutoTradePanel({
   const [dailyLossLimitUsd, setDailyLossLimitUsd] = useState(initialSettings.dailyLossLimitUsd);
   // 추세 홀드 — 목표 도달 시 상승 추세면 익절을 보류하고 고점 추적(보전선 이탈 시 매도).
   const [holdTpOnTrend, setHoldTpOnTrend] = useState(initialSettings.holdTpOnTrend);
+  const [useAtrLevels, setUseAtrLevels] = useState(initialSettings.useAtrLevels);
   // 매수는 항상 AI 판단으로만 이루어진다(오토=AI 매매 모드). 별도 토글 없음.
   const useAi = true;
   const [dailyRealizedUsd, setDailyRealizedUsd] = useState(getDailyRealizedUsd);
@@ -251,8 +252,9 @@ export function AutoTradePanel({
       buyMaxPercent,
       dailyLossLimitUsd,
       holdTpOnTrend,
+      useAtrLevels,
     });
-  }, [mode, useAi, targetPercent, stopLossPercent, trailingStopPercent, buyMaxPercent, dailyLossLimitUsd, holdTpOnTrend, symbol]);
+  }, [mode, useAi, targetPercent, stopLossPercent, trailingStopPercent, buyMaxPercent, dailyLossLimitUsd, holdTpOnTrend, useAtrLevels, symbol]);
 
   // 로그 영속화 — 새로고침 후에도 감사 기록 유지.
   useEffect(() => {
@@ -444,6 +446,7 @@ export function AutoTradePanel({
           setBuyMaxPercent(st.config.buyMaxPercent);
           setDailyLossLimitUsd(st.config.dailyLossLimitUsd);
           setHoldTpOnTrend(st.config.holdTpOnTrend);
+          setUseAtrLevels(st.config.useAtrLevels);
           setLiveStatus(st);
           setMode('auto');
           pushLog('trigger', 'BUY', '서버 AI 매매 실행 중 — 이 기기에서 이어봅니다');
@@ -498,7 +501,7 @@ export function AutoTradePanel({
     }, 800);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, targetPercent, stopLossPercent, trailingStopPercent, buyMaxPercent, dailyLossLimitUsd, holdTpOnTrend]);
+  }, [mode, targetPercent, stopLossPercent, trailingStopPercent, buyMaxPercent, dailyLossLimitUsd, holdTpOnTrend, useAtrLevels]);
 
   // 파생 트리거 값 ──────────────────────────────────────────────
   /*
@@ -580,6 +583,7 @@ export function AutoTradePanel({
     buyMaxPercent,
     dailyLossLimitUsd,
     holdTpOnTrend,
+    useAtrLevels,
   });
   const buildLiveConfigRef = useRef(buildLiveConfig);
   buildLiveConfigRef.current = buildLiveConfig;
@@ -1149,6 +1153,17 @@ export function AutoTradePanel({
             checked={holdTpOnTrend}
             onChange={setHoldTpOnTrend}
             aria-label="목표 도달 시 추세 홀드(익절 보류 후 고점 추적)"
+          />
+        </div>
+        <div
+          className="auto-trade__field auto-trade__hold-toggle"
+          title="변동성(ATR) 기반 동적 목표/손절 — 서버 AI 매매 전용. 목표는 설정값 이상(2×ATR, 최대 3배), 손절은 설정값 이하(1.5×ATR)로 종목 변동성에 맞춰 자동 조정합니다."
+        >
+          <Typography size={12} className="auto-trade__hold-label">ATR 자동</Typography>
+          <Switch
+            checked={useAtrLevels}
+            onChange={setUseAtrLevels}
+            aria-label="변동성(ATR) 기반 동적 목표/손절 (서버 AI 매매 전용)"
           />
         </div>
       </div>
