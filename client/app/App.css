@@ -11,8 +11,7 @@
 }
 
 /* 데스크톱: 상단 헤더를 항상 보이도록 sticky 고정.
-   (트레이딩 화면은 .app 이 overflow:hidden 이라 페이지 스크롤이 없어 무영향 —
-   /server-ai·백테스트·포트폴리오 등 스크롤되는 화면에서만 효과) */
+   (/server-ai·백테스트·포트폴리오 등 스크롤되는 화면에서만 효과) */
 @media (min-width: 1101px) {
   .header {
     position: sticky;
@@ -25,6 +24,14 @@
     margin: calc(-1 * env(safe-area-inset-top)) -1rem 1rem;
     padding: env(safe-area-inset-top) 1rem 0.5rem;
     border-bottom: 1px solid var(--border-subtle);
+  }
+
+  /* 트레이딩 화면: .app 이 height:100vh + overflow:hidden 이라 페이지 스크롤이 없어
+     sticky 가 불필요하고, iOS WebKit 은 overflow:hidden 스크롤 컨테이너 안의 sticky 를
+     오배치(헤더만 안전영역만큼 아래로 밀림)하므로 static 으로 되돌린다.
+     (마진/패딩은 유지 → 다른 페이지와 rest 위치 동일) */
+  .app:has(main.trading-layout:not(.trading-layout--portfolio-only)) .header {
+    position: static;
   }
 }
 
