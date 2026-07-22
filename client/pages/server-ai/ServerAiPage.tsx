@@ -528,17 +528,11 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
         </div>
       )}
 
-      {/* 단일 종목 집중(서버 실주문) — 현재 실행 중인 종목의 진행 상황·결과 */}
-      <LiveTraderSection />
-
-      {/* 단일 종목(라이브) ↔ 백그라운드(페이퍼) 영역 구분선 */}
-      <hr className="server-ai-divider" aria-hidden="true" />
-
       <Typography size={14} as="p" className="hint server-ai-intro">
-        아래 <strong>백그라운드 AI 매매</strong>는 브라우저를 꺼도 서버가{' '}
+        <strong>백그라운드 AI 매매</strong>는 브라우저를 꺼도 서버가{' '}
         <strong>미국장이 열려 있는 동안</strong>(데이·프리·정규·애프터) 5분봉 마감마다 등록
-        종목을 AI로 판단합니다. 현재는 <strong>드라이런 단계</strong>로 실제 주문 없이, 종목마다{' '}
-        <strong>가상 $1,000</strong> 로 모의 매매(수수료 반영)해 수익률을 추적합니다.
+        종목을 AI로 판단합니다. 페이퍼는 종목마다 <strong>가상 $1,000</strong>, 실거래는 지정한
+        풀 안에서 실제 주문(수수료 반영)해 수익률을 추적합니다.
       </Typography>
 
       {loadError && <div className="banner error">{loadError}</div>}
@@ -593,9 +587,14 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
           </Typography>
         )}
         <div className="server-ai-reset">
-          <Button size="sm" variant="ghost" disabled={resetting} onClick={resetEngine}>
-            {resetting ? '초기화 중…' : '엔진 초기화'}
-          </Button>
+          <button
+            type="button"
+            className="server-ai-reset__btn"
+            disabled={resetting}
+            onClick={resetEngine}
+          >
+            ↻ {resetting ? '초기화 중…' : '엔진 초기화'}
+          </button>
           <Typography size={12} className="hint">
             판단 로그를 비우고, 페이퍼는 $1,000 로·실거래 풀은 실계좌 보유로 재동기화해 새로
             시작합니다.
@@ -829,6 +828,12 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
           />
         </section>
       )}
+
+      {/* 백그라운드(위) ↔ 단일 종목 집중(아래) 영역 구분선 */}
+      <hr className="server-ai-divider" aria-hidden="true" />
+
+      {/* 단일 종목 집중(서버 실주문) — 현재 실행 중인 종목의 진행 상황·결과 */}
+      <LiveTraderSection />
 
       {/* 종목별 로그 모달(모바일) */}
       {logModalSymbol && (
