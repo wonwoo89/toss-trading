@@ -8,7 +8,7 @@ import {
   type AiDecisionRequest,
 } from './ai-decision.js';
 import { aggregateCandles, getRequiredSourceCount, type AggregatedCandle } from './candle-aggregate.js';
-import { computeSignal, computeTrend } from './candle-signals.js';
+import { computeRegime, computeSignal, computeTrend } from './candle-signals.js';
 import { fetchSourceCandles } from './fetch-source-candles.js';
 import { getDefaultAccountSeq, tossRequest } from './toss-client.js';
 import {
@@ -729,6 +729,27 @@ function toAiCandle(c: AggregatedCandle): AiDecisionCandle {
   };
 }
 
+/** 시장 맥락 — 지수 ETF(QQQ)의 최근 30분 흐름(1분봉 30개). 60초 캐시, 실패 시 undefined. */
+const MARKET_REF_SYMBOL = 'QQQ';
+let marketRefCache: { t: number; data?: { symbol: string; movePct30m?: number; trendState?: string } } | null = null;
+
+async function fetchMarketRef(): Promise<{ symbol: string; movePct30m?: number; trendState?: string } | undefined> {
+  if (marketRefCache && Date.now() - marketRefCache.t < 60_000) return marketRefCache.data;
+  try {
+    const source = await fetchSourceCandles({ symbol: MARKET_REF_SYMBOL, interval: '1m', count: 30, adjusted: true });
+    const candles = source.candles.map(toAiCandle);
+    if (candles.length < 5) throw new Error('표본 부족');
+    const first = candles[0];
+    const last = candles[candles.length - 1];
+    const movePct30m = first.o > 0 ? ((last.c - first.o) / first.o) * 100 : undefined;
+    const trend = computeTrend(candles);
+    marketRefCache = { t: Date.now(), data: { symbol: MARKET_REF_SYMBOL, movePct30m, trendState: trend.state } };
+  } catch {
+    marketRefCache = { t: Date.now(), data: undefined }; // 실패도 캐시(과호출 방지)
+  }
+  return marketRefCache.data;
+}
+
 async function executeAiBuy(
   ctx: { account: AccountCtx; market: MarketCtx; session: UsMarketSessionKind },
   sizePct: number,
@@ -867,6 +888,8 @@ async function decisionTickInner(): Promise<void> {
 
     const signal = computeSignal(candles);
     const trend = computeTrend(candles);
+    const regime = computeRegime(candles);
+    const marketRef = await fetchMarketRef();
 
     // 변동성(ATR) 동적 목표/손절 갱신 — 사용자 설정을 리스크 경계로 유지:
     // 목표는 설정값 이상(최대 3배), 손절은 설정값 이하(0.5% 하한)로만 움직인다.
@@ -914,6 +937,8 @@ async function decisionTickInner(): Promise<void> {
       targetProfitPct: effLevels.targetPct,
       stopLossPct: effLevels.stopPct,
       signal: { level: signal.level, score: signal.score, rsi: signal.rsi, sma20: signal.sma20, sma50: signal.sma50, atr: signal.atr },
+      regime: { adx: regime.adx, state: regime.state },
+      marketRef,
       trend: { state: trend.state, confirmedBars: trend.confirmedBars },
       orderbook: {
         bestBid: market.bids[0]?.p,

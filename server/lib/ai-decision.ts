@@ -42,6 +42,10 @@ export interface AiDecisionRequest {
   targetProfitPct?: number;
   stopLossPct?: number;
   signal?: { level?: string; score?: number; rsi?: number; sma20?: number; sma50?: number; atr?: number };
+  /** 시장 국면 — ADX 기반(추세장/횡보장/전환). 전략 스위칭 컨텍스트. */
+  regime?: { adx?: number; state?: string };
+  /** 시장 전체 맥락 — 지수 ETF(QQQ 등)의 최근 흐름. */
+  marketRef?: { symbol: string; movePct30m?: number; trendState?: string };
   trend?: { state?: string; confirmedBars?: number };
   orderbook?: {
     bestBid?: number;
@@ -110,6 +114,11 @@ const SYSTEM_PROMPT = `당신은 미국 주식 단기 매매를 보조하는 규
   필요가 없습니다 — 틀리면 손절이 지켜줍니다. 진입 문턱을 낮게 잡으세요.
 - 다만 두 가지는 피합니다: 급등 마지막 봉 고점 추격, 그리고 직전 판단의 무근거 뒤집기.
   직전 판단을 뒤집을 때는 새 근거(추세 전환·급변)를 reason 에 명시하세요.
+- 시장 국면에 전략을 맞추세요: '추세장'(ADX≥25)에서는 추세추종 — 눌림 매수와 추세 유지에
+  무게를 두고, '횡보장'(ADX<20)에서는 평균회귀 — 박스 하단 반등 매수·상단 이익 실현 위주로,
+  돌파 추격은 자제합니다. '전환' 구간은 확증을 더 요구하세요.
+- 시장 맥락(QQQ 등 지수 흐름)이 급락 중이면 개별 종목 신규 매수는 보수적으로, 지수와 같은
+  방향의 신호에는 신뢰를 더하세요.
 - 직전 판단 이력의 '이후 변동'은 내 판단의 적중 피드백입니다. 최근 같은 방향 판단이 반복해서
   반대로 움직였다면(예: BUY 후 연속 하락) 같은 근거의 재진입에는 더 강한 확증을 요구하고
   confidence 를 낮추세요. 반대로 판단이 잘 맞고 있으면 일관성을 유지하세요.
@@ -194,6 +203,12 @@ function buildUserPrompt(req: AiDecisionRequest): string {
         `SMA20 ${req.signal.sma20 ?? '-'}, SMA50 ${req.signal.sma50 ?? '-'}, ATR ${req.signal.atr ?? '-'}`
       : '',
     req.trend ? `추세: ${req.trend.state ?? '-'}(확정봉 ${req.trend.confirmedBars ?? 0})` : '',
+    req.regime
+      ? `시장 국면: ${req.regime.state ?? '-'}${req.regime.adx !== undefined ? ` (ADX ${req.regime.adx})` : ''}`
+      : '',
+    req.marketRef
+      ? `시장 맥락(${req.marketRef.symbol}): 최근 30분 ${req.marketRef.movePct30m !== undefined ? `${req.marketRef.movePct30m >= 0 ? '+' : ''}${req.marketRef.movePct30m.toFixed(2)}%` : '-'}${req.marketRef.trendState ? `, 추세 ${req.marketRef.trendState}` : ''}`
+      : '',
     req.orderbook
       ? `호가: 매수1 ${req.orderbook.bestBid ?? '-'} / 매도1 ${req.orderbook.bestAsk ?? '-'}` +
         (req.orderbook.bidRatio !== undefined ? `, 매수비중 ${(req.orderbook.bidRatio * 100).toFixed(0)}%` : '')

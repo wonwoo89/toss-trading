@@ -83,6 +83,68 @@ export function computeSignal(candles: AiDecisionCandle[]): ComputedSignal {
   };
 }
 
+export interface ComputedRegime {
+  /** Wilder ADX(14). 표본 부족 시 undefined. */
+  adx?: number;
+  /** 추세장(ADX≥25) / 횡보장(ADX<20) / 전환(20~25) / 미상(표본 부족). */
+  state: '추세장' | '횡보장' | '전환' | '미상';
+}
+
+/**
+ * 시장 국면(regime) 판별 — Wilder ADX(14).
+ * 추세장이면 추세추종(눌림 매수·추세홀드), 횡보장이면 평균회귀(박스 매매·추격 금지)가 유리하다.
+ */
+export function computeRegime(candles: AiDecisionCandle[], period = 14): ComputedRegime {
+  if (candles.length < period * 2 + 1) return { state: '미상' };
+
+  // +DM/-DM/TR → Wilder smoothing → DI → DX → ADX
+  const plusDM: number[] = [];
+  const minusDM: number[] = [];
+  const trs: number[] = [];
+  for (let i = 1; i < candles.length; i += 1) {
+    const c = candles[i];
+    const p = candles[i - 1];
+    const up = c.h - p.h;
+    const down = p.l - c.l;
+    plusDM.push(up > down && up > 0 ? up : 0);
+    minusDM.push(down > up && down > 0 ? down : 0);
+    trs.push(Math.max(c.h - c.l, Math.abs(c.h - p.c), Math.abs(c.l - p.c)));
+  }
+
+  const smooth = (values: number[]): number[] => {
+    const out: number[] = [];
+    let acc = values.slice(0, period).reduce((s, v) => s + v, 0);
+    out.push(acc);
+    for (let i = period; i < values.length; i += 1) {
+      acc = acc - acc / period + values[i];
+      out.push(acc);
+    }
+    return out;
+  };
+
+  const sTR = smooth(trs);
+  const sPlus = smooth(plusDM);
+  const sMinus = smooth(minusDM);
+  const dxs: number[] = [];
+  for (let i = 0; i < sTR.length; i += 1) {
+    if (sTR[i] <= 0) continue;
+    const pdi = (sPlus[i] / sTR[i]) * 100;
+    const mdi = (sMinus[i] / sTR[i]) * 100;
+    const sum = pdi + mdi;
+    if (sum <= 0) continue;
+    dxs.push((Math.abs(pdi - mdi) / sum) * 100);
+  }
+  if (dxs.length < period) return { state: '미상' };
+
+  let adx = dxs.slice(0, period).reduce((s, v) => s + v, 0) / period;
+  for (let i = period; i < dxs.length; i += 1) {
+    adx = (adx * (period - 1) + dxs[i]) / period;
+  }
+
+  const state = adx >= 25 ? '추세장' : adx < 20 ? '횡보장' : '전환';
+  return { adx: round(adx, 1), state };
+}
+
 export interface ComputedTrend {
   state: string;
   confirmedBars: number;
