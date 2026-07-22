@@ -53,13 +53,17 @@ export interface AiDecisionRequest {
   };
   /** 이 종목의 미체결 주문 — 중복 진입/청산 판단에 사용. */
   openOrders?: { side: 'BUY' | 'SELL'; price?: number; quantity?: number }[];
-  /** 직전 AI 판단 이력(최근→과거). 일관성 있는 연속 판단을 위해 제공. */
+  /** 직전 AI 판단 이력(최근→과거). 일관성 있는 연속 판단 + 결과 피드백(적중 여부)에 사용. */
   history?: {
     t: number; // epoch ms
     action: string;
     confidence?: number;
     executed?: boolean;
     reason?: string;
+    /** 판단 시점 가격 — 이후 변동률 계산용. */
+    priceAtDecision?: number;
+    /** 판단 이후 현재까지 가격 변동(%) — 판단이 맞았는지의 피드백. */
+    moveSincePct?: number;
   }[];
   /** 코드가 강제하는 가드 상태 — 모델이 상황을 이해하고 무리한 제안을 줄이도록 제공. */
   guards?: {
@@ -106,6 +110,9 @@ const SYSTEM_PROMPT = `당신은 미국 주식 단기 매매를 보조하는 규
   필요가 없습니다 — 틀리면 손절이 지켜줍니다. 진입 문턱을 낮게 잡으세요.
 - 다만 두 가지는 피합니다: 급등 마지막 봉 고점 추격, 그리고 직전 판단의 무근거 뒤집기.
   직전 판단을 뒤집을 때는 새 근거(추세 전환·급변)를 reason 에 명시하세요.
+- 직전 판단 이력의 '이후 변동'은 내 판단의 적중 피드백입니다. 최근 같은 방향 판단이 반복해서
+  반대로 움직였다면(예: BUY 후 연속 하락) 같은 근거의 재진입에는 더 강한 확증을 요구하고
+  confidence 를 낮추세요. 반대로 판단이 잘 맞고 있으면 일관성을 유지하세요.
 - 보유 중 목표 수익률/손절률 부근이거나 추세가 꺾이면 청산(SELL) 제안을 주저하지 않습니다.
 - 같은 방향의 미체결 주문이 이미 있으면 중복 진입(BUY)·중복 청산(SELL)을 제안하지 않습니다.
 - 보유 중이어도 매도가능 수량이 0이면(비정규장 소수점 잔량 등) SELL 을 제안하지 않습니다 —
@@ -210,11 +217,15 @@ function buildUserPrompt(req: AiDecisionRequest): string {
           : '')
       : '',
     req.history?.length
-      ? `직전 판단(최근→과거): ${req.history
+      ? `직전 판단(최근→과거, '이후'=판단 이후 현재까지 가격 변동): ${req.history
           .slice(0, 8)
           .map(
             (h) =>
-              `${h.action}${h.confidence !== undefined ? `(${(h.confidence * 100).toFixed(0)}%)` : ''}${h.executed ? '·실행됨' : ''}`
+              `${h.action}${h.confidence !== undefined ? `(${(h.confidence * 100).toFixed(0)}%)` : ''}${h.executed ? '·실행됨' : ''}${
+                h.moveSincePct !== undefined
+                  ? `·이후 ${h.moveSincePct >= 0 ? '+' : ''}${h.moveSincePct.toFixed(2)}%`
+                  : ''
+              }`
           )
           .join(' → ')}`
       : '',
