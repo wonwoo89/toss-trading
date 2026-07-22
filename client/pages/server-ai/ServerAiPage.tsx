@@ -226,6 +226,14 @@ function LiveTraderSection() {
               </dd>
             </div>
             <div>
+              <dt>매매 성과</dt>
+              <dd>
+                {live?.stats && live.stats.sells > 0
+                  ? `매도 ${live.stats.sells}회 · 승 ${live.stats.wins}/패 ${live.stats.losses} (승률 ${((live.stats.wins / live.stats.sells) * 100).toFixed(0)}%)`
+                  : '아직 없음'}
+              </dd>
+            </div>
+            <div>
               <dt>보유</dt>
               <dd>
                 {pos ? `${pos.quantity}주 @ $${pos.averagePrice.toFixed(2)}` : '없음'}

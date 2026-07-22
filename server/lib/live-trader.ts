@@ -77,6 +77,7 @@ const STALE_CANDLE_MAX_MIN = 20;
 /** 호가 스프레드가 이보다 넓으면(%) 유동성 부족 — 신규 매수 억제. */
 const MAX_SPREAD_PCT = 1.0;
 let lastQualityLogAt = 0;
+let lastSkipLogAt = 0;
 
 export interface LiveTraderConfig {
   enabled: boolean;
@@ -112,6 +113,8 @@ interface LiveTraderState {
   dynStopPct: number | null;
   /** 연속 실현 손실 매도 횟수 — CONSECUTIVE_LOSS_LIMIT 도달 시 강제 OFF. */
   lossStreak: number;
+  /** 에피소드(켠 이후) 매매 성과 — 매도 기준 승/패 집계. */
+  stats: { sells: number; wins: number; losses: number };
   /** 마지막 실현 손실 시각 — 손실 직후 신규 매수 쿨다운. */
   lastLossAt: number | null;
   aiHistory: {
@@ -143,6 +146,8 @@ export interface LiveTraderStatus {
     profitLossPct?: number;
   } | null;
   aiConfigured: boolean;
+  /** 에피소드(켠 이후) 매매 성과 — 매도 기준. */
+  stats: { sells: number; wins: number; losses: number };
   logs: LiveLogEntry[];
 }
 
@@ -186,6 +191,7 @@ function defaultState(): LiveTraderState {
     dynStopPct: null,
     lossStreak: 0,
     lastLossAt: null,
+    stats: { sells: 0, wins: 0, losses: 0 },
     aiHistory: [],
     logs: [],
     logSeq: 0,
@@ -201,6 +207,14 @@ function loadState(): LiveTraderState {
       ...base,
       ...raw,
       config: { ...base.config, ...(raw.config ?? {}) },
+      stats:
+        raw.stats && typeof raw.stats === 'object'
+          ? {
+              sells: Number(raw.stats.sells) || 0,
+              wins: Number(raw.stats.wins) || 0,
+              losses: Number(raw.stats.losses) || 0,
+            }
+          : { sells: 0, wins: 0, losses: 0 },
       logs: Array.isArray(raw.logs) ? raw.logs.slice(-MAX_LOGS) : [],
       aiHistory: Array.isArray(raw.aiHistory) ? raw.aiHistory.slice(0, MAX_AI_HISTORY) : [],
     };
@@ -286,6 +300,7 @@ export function saveLiveConfig(raw: unknown): LiveTraderConfig {
     s.dynStopPct = null;
     s.lossStreak = 0;
     s.lastLossAt = null;
+    s.stats = { sells: 0, wins: 0, losses: 0 };
     s.aiHistory = [];
     s.logs = [];
     s.logSeq = 0;
@@ -514,10 +529,13 @@ async function sellAll(
   if (account.averagePrice > 0) {
     const realized = (market.currentPrice - account.averagePrice) * qty;
     const total = addRealized(realized);
+    s.stats.sells += 1;
     if (realized < 0) {
+      s.stats.losses += 1;
       s.lossStreak += 1;
       s.lastLossAt = Date.now(); // 손실 직후 신규 매수 쿨다운 기준
     } else if (realized > 0) {
+      s.stats.wins += 1;
       s.lossStreak = 0;
     }
     saveState();
@@ -906,6 +924,24 @@ async function decisionTickInner(): Promise<void> {
     }
     const effLevels = effectiveLevels(s);
 
+    // 티어드 사전 필터 — 무포지션 + 신호 완전 중립 + 미세 변동이면 AI 호출 생략(비용·노이즈 절감).
+    // 공격적 매수 정책과의 충돌 최소화: 추세 up / score>0.5 / RSI 이탈 / 유의미 변동이면 스킵하지 않음.
+    if (account.holdingQty <= 0) {
+      const flatSignal =
+        Math.abs(signal.score) <= 0.5 &&
+        (signal.rsi === undefined || (signal.rsi > 45 && signal.rsi < 55));
+      const microMove =
+        aiLastPrice !== null && aiLastPrice > 0 &&
+        (Math.abs(market.currentPrice - aiLastPrice) / aiLastPrice) * 100 < 0.15;
+      if (flatSignal && trend.state !== 'up' && microMove) {
+        if (Date.now() - lastSkipLogAt > 30 * 60 * 1000) {
+          lastSkipLogAt = Date.now();
+          pushLog('skip', `AI 호출 생략(사전 필터): 무포지션 · 신호 중립(score ${signal.score}) · 변동 미미 — 다음 변화까지 대기`);
+        }
+        return; // 기준가(aiLastPrice)는 갱신하지 않음 — 다음 유의미 변동에서 즉시 판단
+      }
+    }
+
     const bidTotal = market.bids.reduce((sum, b) => sum + b.q, 0);
     const askTotal = market.asks.reduce((sum, a) => sum + a.q, 0);
     const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전
@@ -1110,6 +1146,7 @@ export function getLiveTraderStatus(): LiveTraderStatus {
     todayRealizedUsd: todayRealized(),
     position: status.position,
     aiConfigured: isAiConfigured(),
+    stats: s.stats,
     logs: [...s.logs].reverse(),
   };
 }
