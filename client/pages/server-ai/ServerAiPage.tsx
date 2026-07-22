@@ -148,6 +148,22 @@ function LiveTraderSection() {
   const [live, setLive] = useState<LiveTraderStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  // '전체보기' — 좁은 로그 영역 대신 큰 모달에서 전체 로그를 상세(전문)로 본다.
+  const [showAllLogs, setShowAllLogs] = useState(false);
+
+  useEffect(() => {
+    if (!showAllLogs) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowAllLogs(false);
+    };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [showAllLogs]);
   const toggleLog = (id: number) =>
     setExpandedIds((prev) => {
       const next = new Set(prev);
@@ -273,7 +289,15 @@ function LiveTraderSection() {
       )}
 
       {/* 로그는 꺼진 뒤에도 마지막 세션 기록을 볼 수 있게 항상 표시.
-          긴 내용은 기본 1줄 말줄임 — 로그별 '상세' 토글로 전체 확인. */}
+          긴 내용은 기본 1줄 말줄임 — 로그별 '상세' 토글, '전체보기'로 큰 모달 열람. */}
+      {(live?.logs.length ?? 0) > 0 && (
+        <div className="server-ai-live-logs__head">
+          <Typography size={12} className="hint">라이브 로그 (최근 {Math.min(live!.logs.length, 30)}건)</Typography>
+          <Button size="sm" variant="ghost" onClick={() => setShowAllLogs(true)}>
+            전체보기
+          </Button>
+        </div>
+      )}
       {(live?.logs.length ?? 0) > 0 && (
         <ul className="server-ai-live-logs">
           {live!.logs.slice(0, 30).map((log) => {
@@ -306,6 +330,53 @@ function LiveTraderSection() {
             );
           })}
         </ul>
+      )}
+
+      {/* 전체보기 모달 — 전체 로그를 축약 없이(전문) 넓은 모달에서 열람 */}
+      {showAllLogs && live && (
+        <div
+          className="backtest-modal__overlay"
+          onClick={() => setShowAllLogs(false)}
+          role="presentation"
+        >
+          <div
+            className="backtest-modal server-ai-fulllog-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="단일 종목 판단 로그 전체"
+          >
+            <div className="backtest-modal__head">
+              <Typography size={16} as="h2" className="backtest-modal__title">
+                단일 종목 판단 로그{cfg?.symbol ? ` · ${cfg.symbol}` : ''}{' '}
+                <span className="hint">(전체 {live.logs.length}건)</span>
+              </Typography>
+              <button
+                type="button"
+                className="backtest-modal__close"
+                onClick={() => setShowAllLogs(false)}
+                aria-label="닫기"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="backtest-modal__body server-ai-log-modal__body">
+              <ul className="server-ai-live-logs server-ai-live-logs--full">
+                {live.logs.map((log) => (
+                  <li key={log.id} className={`server-ai-live-log is-${log.level}`}>
+                    <span className="server-ai-log__time">{formatTime(log.t)}</span>
+                    <span className={`server-ai-live-log__level is-${log.level}`}>
+                      {LIVE_LEVEL_LABELS[log.level] ?? log.level}
+                    </span>
+                    <Typography size={12} as="span" className="server-ai-live-log__text">
+                      {log.text}
+                    </Typography>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );
@@ -410,13 +481,14 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
     return () => window.removeEventListener('resize', update);
   }, []);
   const [logFilter, setLogFilter] = useState<string>('ALL');
-  const [logModalSymbol, setLogModalSymbol] = useState<string | null>(null);
+  // 모바일 판단 로그 모달 — 데스크톱 로그 패널 전체(필터 칩 포함)를 모달로 띄운다.
+  const [logModalOpen, setLogModalOpen] = useState(false);
 
   // 모달 열림 중 Esc 닫기 + 배경 스크롤 잠금.
   useEffect(() => {
-    if (!logModalSymbol) return;
+    if (!logModalOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setLogModalSymbol(null);
+      if (e.key === 'Escape') setLogModalOpen(false);
     };
     window.addEventListener('keydown', onKey);
     const prevOverflow = document.body.style.overflow;
@@ -425,7 +497,7 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
       window.removeEventListener('keydown', onKey);
       document.body.style.overflow = prevOverflow;
     };
-  }, [logModalSymbol]);
+  }, [logModalOpen]);
 
   const dirty = useMemo(
     () => JSON.stringify(draft) !== JSON.stringify(savedConfig),
@@ -839,7 +911,14 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
                       {recommending.has(s.symbol) ? '추천 중…' : 'AI 추천'}
                     </Button>
                     {isMobile && (
-                      <Button size="sm" variant="ghost" onClick={() => setLogModalSymbol(s.symbol)}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setLogFilter(s.symbol);
+                          setLogModalOpen(true);
+                        }}
+                      >
                         로그
                       </Button>
                     )}
@@ -1029,11 +1108,12 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
       )}
       </div>
 
-      {/* 종목별 로그 모달(모바일) */}
-      {logModalSymbol && (
+      {/* 판단 로그 모달(모바일) — 데스크톱 로그 패널 전체를 모달로.
+          종목 필터 칩이 있어 모달을 닫지 않고도 다른 종목 로그로 바로 전환할 수 있다. */}
+      {logModalOpen && (
         <div
           className="backtest-modal__overlay"
-          onClick={() => setLogModalSymbol(null)}
+          onClick={() => setLogModalOpen(false)}
           role="presentation"
         >
           <div
@@ -1041,29 +1121,51 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            aria-label={`${logModalSymbol} 판단 로그`}
+            aria-label="판단 로그"
           >
             <div className="backtest-modal__head">
               <Typography size={16} as="h2" className="backtest-modal__title">
-                판단 로그 · {logModalSymbol}
+                판단 로그
               </Typography>
               <button
                 type="button"
                 className="backtest-modal__close"
-                onClick={() => setLogModalSymbol(null)}
+                onClick={() => setLogModalOpen(false)}
                 aria-label="닫기"
               >
                 ✕
               </button>
             </div>
             <div className="backtest-modal__body server-ai-log-modal__body">
-              <LogSparkline
-                entries={logs.filter((l) => l.symbol === logModalSymbol)}
-                avgPrice={sparkAvgFor(logModalSymbol)}
-              />
+              {draft.symbols.length > 0 && (
+                <div className="server-ai-log-filter" role="tablist" aria-label="판단 로그 종목 필터">
+                  <Chip selected={logFilter === 'ALL'} onClick={() => setLogFilter('ALL')}>
+                    전체
+                  </Chip>
+                  {draft.symbols.map((s) => (
+                    <Chip
+                      key={s.symbol}
+                      selected={logFilter === s.symbol}
+                      onClick={() => setLogFilter(s.symbol)}
+                    >
+                      {s.symbol}
+                    </Chip>
+                  ))}
+                </div>
+              )}
+              {logFilter !== 'ALL' && (
+                <LogSparkline
+                  entries={logs.filter((l) => l.symbol === logFilter)}
+                  avgPrice={sparkAvgFor(logFilter)}
+                />
+              )}
               <LogList
-                entries={logs.filter((l) => l.symbol === logModalSymbol)}
-                emptyText={`${logModalSymbol} 판단 기록이 아직 없습니다.`}
+                entries={logFilter !== 'ALL' ? logs.filter((l) => l.symbol === logFilter) : logs}
+                emptyText={
+                  logFilter !== 'ALL'
+                    ? `${logFilter} 판단 기록이 아직 없습니다.`
+                    : '아직 기록이 없습니다.'
+                }
               />
             </div>
           </div>
