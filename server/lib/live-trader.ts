@@ -438,7 +438,9 @@ async function placeOrder(
 /** 전량 매도(보호/AI 공통) — 세션별 소수점 규칙 + 체결 우선 가격. true=주문 접수됨. */
 async function sellAll(
   ctx: { account: AccountCtx; market: MarketCtx; session: UsMarketSessionKind },
-  label: string
+  label: string,
+  /** 매도 비율(0<..<=1). 1=전량. 부분 익절(절반 확보 + 나머지 추세 연장)에 사용. */
+  portion = 1
 ): Promise<boolean> {
   const s = loadState();
   const { account, market, session } = ctx;
@@ -452,10 +454,11 @@ async function sellAll(
   const base = account.sellableQty !== undefined && account.sellableQty > 0
     ? account.sellableQty
     : account.holdingQty;
-  const qty = canFractional ? Math.floor(base * 1e8) / 1e8 : Math.floor(base);
+  const scaled = base * Math.min(Math.max(portion, 0), 1);
+  const qty = canFractional ? Math.floor(scaled * 1e8) / 1e8 : Math.floor(scaled);
   if (qty <= 0) {
-    pushLog('block', `${label} 생략(매도 가능 수량 없음)`, 'SELL');
-    return false;
+    if (portion >= 1) pushLog('block', `${label} 생략(매도 가능 수량 없음)`, 'SELL');
+    return false; // 부분 매도에서 0 이 되면(소수점 불가 시간대 1주 보유 등) 조용히 생략
   }
   if (Date.now() - lastExecAt < COOLDOWN_MS) {
     pushLog('block', `차단(쿨다운): ${label}`, 'SELL');
@@ -490,10 +493,13 @@ async function sellAll(
       pushLog('block', `일일 손실 한도 도달($${total.toFixed(2)} ≤ -$${limit}) — 서버 AI 매매 강제 OFF`);
     }
   }
-  // 포지션 종료 가정 → 에피소드 추적 상태 해제.
-  s.tpHoldPeak = null;
-  s.trailPeak = null;
-  saveState();
+  // 전량 매도 시에만 포지션 종료 가정 → 에피소드 추적 상태 해제.
+  // (부분 익절은 나머지 포지션의 홀드/트레일 추적을 이어간다)
+  if (portion >= 1) {
+    s.tpHoldPeak = null;
+    s.trailPeak = null;
+    saveState();
+  }
   return true;
 }
 
@@ -556,9 +562,20 @@ async function runProtectiveGuards(
   if (mode === 'full' && price >= tpPrice) {
     const trend = computeTrend(candles);
     if (cfg.holdTpOnTrend && trend.state === 'up' && trend.confirmedBars >= 2) {
+      // 부분 익절: 절반은 지금 확보(목표 수익 실현), 나머지는 고점 추적으로 추세 연장.
+      // (수량이 부족해 절반 매도가 안 되면 — 예: 소수점 불가 시간대 1주 — 기존처럼 전량 홀드)
+      const partialSold = await sellAll(
+        ctx,
+        `부분 익절(1/2 확보·추세 연장): 목표 +${cfg.targetPercent}% 도달, 상승 ${trend.confirmedBars}봉`,
+        0.5
+      );
       s.tpHoldPeak = price;
       saveState();
-      pushLog('skip', `익절 보류(상승 추세 ${trend.confirmedBars}봉) — 고점 추적 시작, 보전선 $${tpPrice.toFixed(2)}`, 'SELL');
+      pushLog(
+        'skip',
+        `${partialSold ? '나머지 절반' : '전량'} 추세홀드 — 고점 추적 시작, 보전선 $${tpPrice.toFixed(2)}`,
+        'SELL'
+      );
       return true; // 이번 틱은 홀드 진입으로 처리(AI 생략)
     }
     return sellAll(ctx, `익절 매도(자동): 목표 +${cfg.targetPercent}% 도달`);
@@ -572,7 +589,12 @@ async function runProtectiveGuards(
   return false;
 }
 
-/** 미체결 자동 취소 — 활성화 이후 접수된 지정가 주문이 오래 미체결 + 가격 이탈 시. */
+/**
+ * 미체결 처리 — 활성화 이후 접수된 지정가 주문이 90초+ 미체결이면:
+ *  - 가격이 불리하게 0.2%+ 이탈(ranAway) → 취소만(다음 판단에서 재평가, 추격 금지).
+ *  - 가격이 아직 부근(호가만 어긋나 안 잡힘) → 재호가: 취소 후 현재 체결 우선가로 재접수
+ *    (특히 보호 매도가 미체결로 방치되지 않게). 재접수 주문도 90초 후 다시 이 로직을 탄다.
+ */
 async function cancelStaleOrders(ctx: {
   account: AccountCtx;
   market: MarketCtx;
@@ -592,7 +614,6 @@ async function cancelStaleOrders(ctx: {
       order.side === 'BUY'
         ? ctx.market.currentPrice >= order.price * (1 + away)
         : ctx.market.currentPrice <= order.price * (1 - away);
-    if (!ranAway) continue;
     try {
       await tossRequest({
         method: 'POST',
@@ -601,13 +622,43 @@ async function cancelStaleOrders(ctx: {
         body: {},
         retryOnRateLimit: false,
       });
+    } catch (error) {
+      pushLog('block', `미체결 취소 실패: ${error instanceof Error ? error.message : '오류'}`, order.side);
+      continue;
+    }
+
+    if (ranAway) {
       pushLog(
         'exec',
         `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity ?? '-'}주 @ $${order.price} — 가격 이탈, 재판단`,
         order.side
       );
-    } catch (error) {
-      pushLog('block', `미체결 취소 실패: ${error instanceof Error ? error.message : '오류'}`, order.side);
+      continue;
+    }
+
+    // 재호가(cancel-and-replace): 같은 수량을 현재 체결 우선가로 재접수.
+    const qty = order.quantity;
+    if (qty === undefined || qty <= 0) continue;
+    const newPrice =
+      order.side === 'BUY'
+        ? floorTick(marketableBuyPrice(ctx.market.currentPrice, ctx.market.asks))
+        : floorTick(marketableSellPrice(ctx.market.currentPrice, ctx.market.bids));
+    const result = await placeOrder(ctx.account.accountSeq, {
+      symbol: s.config.symbol,
+      side: order.side,
+      orderType: 'LIMIT',
+      quantity: qty,
+      price: newPrice,
+      clientOrderId: `live-${Date.now()}`,
+    });
+    if (result.ok) {
+      pushLog(
+        'exec',
+        `재호가: ${order.side === 'BUY' ? '매수' : '매도'} ${qty}주 $${order.price} → $${newPrice} (90초 미체결, 체결 우선가로 갱신)`,
+        order.side
+      );
+    } else {
+      pushLog('error', `재호가 실패(${order.side} ${qty}주): ${result.error} — 다음 판단에서 재평가`, order.side);
     }
   }
 }
