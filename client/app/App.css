@@ -19,9 +19,11 @@
     top: 0;
     z-index: 300; /* 콘텐츠·차트(200) 위, 모달·팝오버(400) 아래 */
     background: var(--bg-base);
-    /* 스크롤 콘텐츠가 헤더 아래로 비치지 않게 + 좌우 패딩만큼 넓혀 완전히 덮기 */
-    margin: 0 -1rem 1rem;
-    padding: 0 1rem 0.5rem;
+    /* 스크롤 콘텐츠가 헤더 아래로 비치지 않게 + 좌우 패딩만큼 넓혀 완전히 덮기.
+       상단 안전영역(iPad standalone 상태바): 헤더가 그 영역까지 배경으로 덮고 콘텐츠는
+       아래에 두도록 상단 패딩=안전영역, 음수 마진=안전영역으로 상쇄(rest 위치 보존). */
+    margin: calc(-1 * env(safe-area-inset-top)) -1rem 1rem;
+    padding: env(safe-area-inset-top) 1rem 0.5rem;
     border-bottom: 1px solid var(--border-subtle);
   }
 }
@@ -4894,8 +4896,8 @@ input[type='checkbox']:focus-visible {
    주문가능 금액·총 투자금액·보유 종목이 헤더에 가리지 않게 한다. */
 @media (min-width: 1101px) {
   .server-ai-layout .portfolio-sidebar {
-    top: calc(var(--header-height) + 1.5rem);
-    max-height: calc(100vh - var(--header-height) - 2.5rem);
+    top: calc(var(--header-height) + 1.5rem + env(safe-area-inset-top));
+    max-height: calc(100vh - var(--header-height) - 2.5rem - env(safe-area-inset-top));
   }
 }
 /* 데스크톱 전용 — 좁은 화면(≤1100px)에서는 사이드바 숨김(모바일은 임베드 탭 사용) */
