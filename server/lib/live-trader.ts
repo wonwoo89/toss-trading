@@ -8,7 +8,7 @@ import {
   type AiDecisionRequest,
 } from './ai-decision.js';
 import { aggregateCandles, getRequiredSourceCount, type AggregatedCandle } from './candle-aggregate.js';
-import { computeRegime, computeSignal, computeTrend } from './candle-signals.js';
+import { computeAtr, computeRegime, computeSignal, computeTrend } from './candle-signals.js';
 import { fetchSourceCandles } from './fetch-source-candles.js';
 import { getDefaultAccountSeq, tossRequest } from './toss-client.js';
 import {
@@ -64,8 +64,21 @@ const COMMISSION_RATE = 0.001;
 // ── 변동성(ATR) 동적 목표/손절 — useAtrLevels 켠 경우 ──
 /** 손절 거리 = ATR × 이 배수. 사용자 손절률을 넘지 않는 범위에서 적용(더 타이트해질 수만 있음). */
 const ATR_STOP_MULT = 1.5;
-/** 목표 거리 = ATR × 이 배수. 사용자 목표를 밑돌지 않는 범위(최대 3배)에서 적용. */
+/** 목표 거리 = ATR × 이 배수. 저변동 구간 회전을 위해 하한은 설정값이 아니라 ATR_TP_MIN_PCT. */
 const ATR_TP_MULT = 2.0;
+/** ATR 모드 목표 하한(%) — 왕복 수수료(0.2%)를 빼고도 수익이 남는 최소선.
+ *  목표가 설정값 아래로 내려가는 건 '더 일찍 익절'이라 리스크를 늘리지 않는다. */
+const ATR_TP_MIN_PCT = 0.5;
+/** 최신 반응형 ATR%(현재가 대비) — 펄스 임계 계산용. full 틱마다 갱신, 미확보 시 null. */
+let lastAtrPct: number | null = null;
+
+/** 펄스 임계(%) — 변동성 비례: 0.5×ATR%를 0.15~0.6%로 클램프.
+ *  조용한 장에서는 0.15% 변동에도 즉시 판단(기민), 폭풍장에서는 노이즈 발화를 줄인다.
+ *  ATR 미확보(첫 판단 전)면 기존 고정값(AI_PRICE_MOVE_PCT). */
+function pulseThresholdPct(): number {
+  if (lastAtrPct === null || !(lastAtrPct > 0)) return AI_PRICE_MOVE_PCT;
+  return Math.min(0.6, Math.max(0.15, lastAtrPct * 0.5));
+}
 // ── 서킷 브레이커 ──
 /** 연속 실현 손실 매도가 이 횟수에 도달하면 강제 OFF(재검토 유도). */
 const CONSECUTIVE_LOSS_LIMIT = 3;
@@ -88,7 +101,7 @@ export interface LiveTraderConfig {
   buyMaxPercent: number;
   dailyLossLimitUsd: number;
   holdTpOnTrend: boolean;
-  /** 변동성(ATR) 기반 동적 목표/손절 — 목표=max(설정, 2×ATR≤3배), 손절=min(설정, 1.5×ATR). */
+  /** 변동성(ATR) 기반 동적 목표/손절 — 목표=clamp(2×ATR, 0.5%, 설정×3), 손절=min(설정, max(1.5×ATR, 0.5%)). */
   useAtrLevels: boolean;
 }
 
@@ -293,6 +306,8 @@ export function saveLiveConfig(raw: unknown): LiveTraderConfig {
     // 즉각 판단 기준가 리셋 — 첫 판단(5분 틱)이 새 기준가를 세울 때까지 펄스 트리거는 쉼.
     aiLastPrice = null;
     aiLastCallAt = 0;
+    lastAtrPct = null; // 종목이 바뀌면 이전 종목의 변동성 기준도 무효
+
     s.enabledAt = Date.now();
     s.tpHoldPeak = null;
     s.trailPeak = null;
@@ -910,17 +925,32 @@ async function decisionTickInner(): Promise<void> {
     const regime = computeRegime(candles);
     const marketRef = await fetchMarketRef();
 
-    // 변동성(ATR) 동적 목표/손절 갱신 — 사용자 설정을 리스크 경계로 유지:
-    // 목표는 설정값 이상(최대 3배), 손절은 설정값 이하(0.5% 하한)로만 움직인다.
-    if (s.config.useAtrLevels && signal.atr !== undefined && signal.atr > 0 && market.currentPrice > 0) {
-      const atrPct = (signal.atr / market.currentPrice) * 100;
-      const dynT = Math.round(Math.min(Math.max(atrPct * ATR_TP_MULT, s.config.targetPercent), s.config.targetPercent * 3) * 100) / 100;
-      const dynS = Math.round(Math.min(Math.max(atrPct * ATR_STOP_MULT, 0.5), s.config.stopLossPercent) * 100) / 100;
-      if (s.dynTargetPct !== dynT || s.dynStopPct !== dynS) {
-        s.dynTargetPct = dynT;
-        s.dynStopPct = dynS;
-        saveState();
-        pushLog('skip', `ATR 동적 레벨 갱신: 목표 +${dynT}% / 손절 -${dynS}% (ATR ${atrPct.toFixed(2)}%)`);
+    // 반응형 ATR — 장기 ATR14(5분봉)·단기 ATR5(5분봉)·최신 1분봉 ATR(√5 스케일) 중 최댓값.
+    // 급증은 봉 마감 전에도 즉시 반영하고, 진정 국면은 장기 평균이 천천히 따라간다.
+    // (펄스 임계 계산에도 쓰므로 ATR 모드와 무관하게 매 full 틱 갱신)
+    if (market.currentPrice > 0) {
+      const atr14 = signal.atr ?? 0;
+      const atrFast = computeAtr(candles, 5) ?? 0;
+      const oneMin = source.candles.map(toAiCandle);
+      const atr1m = computeAtr(oneMin.slice(-16), 15) ?? 0;
+      const atrEff = Math.max(atr14, atrFast, atr1m * Math.sqrt(5));
+      if (atrEff > 0) {
+        const atrPct = (atrEff / market.currentPrice) * 100;
+        lastAtrPct = atrPct;
+
+        // 변동성(ATR) 동적 목표/손절 갱신 — 손절은 사용자 설정을 최대 손실 한도로 유지.
+        // 목표 하한은 설정값 대신 ATR_TP_MIN_PCT(0.5%) — 저변동 구간에서 더 일찍 익절해
+        // 회전을 빠르게 한다(리스크 비확대 방향).
+        if (s.config.useAtrLevels) {
+          const dynT = Math.round(Math.min(Math.max(atrPct * ATR_TP_MULT, ATR_TP_MIN_PCT), s.config.targetPercent * 3) * 100) / 100;
+          const dynS = Math.round(Math.min(Math.max(atrPct * ATR_STOP_MULT, 0.5), s.config.stopLossPercent) * 100) / 100;
+          if (s.dynTargetPct !== dynT || s.dynStopPct !== dynS) {
+            s.dynTargetPct = dynT;
+            s.dynStopPct = dynS;
+            saveState();
+            pushLog('skip', `ATR 동적 레벨 갱신: 목표 +${dynT}% / 손절 -${dynS}% (반응형 ATR ${atrPct.toFixed(2)}%)`);
+          }
+        }
       }
     }
     const effLevels = effectiveLevels(s);
@@ -1071,7 +1101,7 @@ async function guardTick(): Promise<void> {
   }
 }
 
-/** 20초 가격 펄스 — 마지막 AI 판단가 대비 ±0.3% 이상 변동 시 즉시 전체 판단 실행.
+/** 20초 가격 펄스 — 마지막 AI 판단가 대비 변동성 비례 임계(0.5×ATR%, 0.15~0.6%) 이상 변동 시 즉시 전체 판단 실행.
  *  시세 1건만 조회하는 경량 틱. 기준가가 없으면(첫 판단 전) 쉬고, 최소 간격(20s)을 지킨다. */
 let pulsing = false;
 async function pulseTick(): Promise<void> {
@@ -1090,8 +1120,9 @@ async function pulseTick(): Promise<void> {
     const price = Number(res.result?.[0]?.lastPrice);
     if (!Number.isFinite(price) || price <= 0) return;
     const movedPct = (Math.abs(price - aiLastPrice) / aiLastPrice) * 100;
-    if (movedPct < AI_PRICE_MOVE_PCT) return;
-    pushLog('trigger', `가격 급변 감지(${movedPct.toFixed(2)}% ≥ ${AI_PRICE_MOVE_PCT}%) — 즉시 AI 판단 실행`);
+    const threshold = pulseThresholdPct(); // 변동성 비례(0.5×ATR%, 0.15~0.6% 클램프)
+    if (movedPct < threshold) return;
+    pushLog('trigger', `가격 급변 감지(${movedPct.toFixed(2)}% ≥ ${threshold.toFixed(2)}%) — 즉시 AI 판단 실행`);
     await decisionTick();
   } catch {
     // 시세 조회 실패는 조용히 넘기고 다음 펄스에서 재시도.
