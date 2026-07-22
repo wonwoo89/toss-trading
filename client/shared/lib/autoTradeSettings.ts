@@ -24,6 +24,8 @@ export interface AutoTradeSettings {
   dailyLossLimitUsd: number;
   /** 목표 도달 시 상승 추세면 익절을 보류하고 고점 추적(보전선 이탈 시 매도). */
   holdTpOnTrend: boolean;
+  /** 변동성(ATR) 기반 동적 목표/손절(AI 매매 서버 옵션). */
+  useAtrLevels: boolean;
 }
 
 export const AUTO_TRADE_DEFAULTS: AutoTradeSettings = {
@@ -35,6 +37,7 @@ export const AUTO_TRADE_DEFAULTS: AutoTradeSettings = {
   buyMaxPercent: 5,
   dailyLossLimitUsd: 0,
   holdTpOnTrend: true,
+  useAtrLevels: false,
 };
 
 /**
@@ -88,6 +91,10 @@ export function getAutoTradeSettings(): AutoTradeSettings {
         typeof parsed.holdTpOnTrend === 'boolean'
           ? parsed.holdTpOnTrend
           : AUTO_TRADE_DEFAULTS.holdTpOnTrend,
+      useAtrLevels:
+        typeof parsed.useAtrLevels === 'boolean'
+          ? parsed.useAtrLevels
+          : AUTO_TRADE_DEFAULTS.useAtrLevels,
     };
   } catch {
     return AUTO_TRADE_DEFAULTS;

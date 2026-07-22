@@ -61,6 +61,16 @@ const STALE_UNFILLED_MS = 90_000;
 const STALE_PRICE_AWAY_PCT = 0.2;
 /** 익절 목표가 수수료(편도) 가정 — 왕복 반영해 목표 실수익을 보전. */
 const COMMISSION_RATE = 0.001;
+// ── 변동성(ATR) 동적 목표/손절 — useAtrLevels 켠 경우 ──
+/** 손절 거리 = ATR × 이 배수. 사용자 손절률을 넘지 않는 범위에서 적용(더 타이트해질 수만 있음). */
+const ATR_STOP_MULT = 1.5;
+/** 목표 거리 = ATR × 이 배수. 사용자 목표를 밑돌지 않는 범위(최대 3배)에서 적용. */
+const ATR_TP_MULT = 2.0;
+// ── 서킷 브레이커 ──
+/** 연속 실현 손실 매도가 이 횟수에 도달하면 강제 OFF(재검토 유도). */
+const CONSECUTIVE_LOSS_LIMIT = 3;
+/** 실현 손실 직후 신규 매수 금지 시간(복수 매매 방지 쿨다운). */
+const LOSS_COOLDOWN_MS = 5 * 60 * 1000;
 // ── 데이터 품질 가드 ──
 /** 최근 캔들이 이보다 오래됐으면(분) 시세 지연/거래정지로 보고 신규 판단 보류. */
 const STALE_CANDLE_MAX_MIN = 20;
@@ -77,6 +87,8 @@ export interface LiveTraderConfig {
   buyMaxPercent: number;
   dailyLossLimitUsd: number;
   holdTpOnTrend: boolean;
+  /** 변동성(ATR) 기반 동적 목표/손절 — 목표=max(설정, 2×ATR≤3배), 손절=min(설정, 1.5×ATR). */
+  useAtrLevels: boolean;
 }
 
 export interface LiveLogEntry {
@@ -95,6 +107,13 @@ interface LiveTraderState {
   dailyRealizedUsd: number;
   tpHoldPeak: number | null;
   trailPeak: number | null;
+  /** ATR 동적 목표/손절(%) — full 틱에서 계산·영속, 1분 보호 틱이 재사용. null=미계산. */
+  dynTargetPct: number | null;
+  dynStopPct: number | null;
+  /** 연속 실현 손실 매도 횟수 — CONSECUTIVE_LOSS_LIMIT 도달 시 강제 OFF. */
+  lossStreak: number;
+  /** 마지막 실현 손실 시각 — 손실 직후 신규 매수 쿨다운. */
+  lastLossAt: number | null;
   aiHistory: {
     t: number;
     action: string;
@@ -136,6 +155,7 @@ const DEFAULT_CONFIG: LiveTraderConfig = {
   buyMaxPercent: 5,
   dailyLossLimitUsd: 0,
   holdTpOnTrend: true,
+  useAtrLevels: false,
 };
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -162,6 +182,10 @@ function defaultState(): LiveTraderState {
     dailyRealizedUsd: 0,
     tpHoldPeak: null,
     trailPeak: null,
+    dynTargetPct: null,
+    dynStopPct: null,
+    lossStreak: 0,
+    lastLossAt: null,
     aiHistory: [],
     logs: [],
     logSeq: 0,
@@ -235,6 +259,7 @@ export function sanitizeLiveConfig(raw: unknown): LiveTraderConfig {
     buyMaxPercent: clampNumber(r.buyMaxPercent, 0.1, 5, DEFAULT_CONFIG.buyMaxPercent),
     dailyLossLimitUsd: clampNumber(r.dailyLossLimitUsd, 0, 1_000_000, 0),
     holdTpOnTrend: r.holdTpOnTrend !== false,
+    useAtrLevels: r.useAtrLevels === true,
   };
 }
 
@@ -257,6 +282,10 @@ export function saveLiveConfig(raw: unknown): LiveTraderConfig {
     s.enabledAt = Date.now();
     s.tpHoldPeak = null;
     s.trailPeak = null;
+    s.dynTargetPct = null;
+    s.dynStopPct = null;
+    s.lossStreak = 0;
+    s.lastLossAt = null;
     s.aiHistory = [];
     s.logs = [];
     s.logSeq = 0;
@@ -481,16 +510,29 @@ async function sellAll(
   lastExecAt = Date.now();
   pushLog('exec', `${label}: ${qty}주 @ ${fractional ? '시장가' : `$${body.price}`}`, 'SELL');
 
-  // 실현 손익 근사(트리거가 기준) → 일일 한도 판정.
+  // 실현 손익 근사(트리거가 기준) → 일일 한도·연속 손실 서킷 브레이커 판정.
   if (account.averagePrice > 0) {
     const realized = (market.currentPrice - account.averagePrice) * qty;
     const total = addRealized(realized);
+    if (realized < 0) {
+      s.lossStreak += 1;
+      s.lastLossAt = Date.now(); // 손실 직후 신규 매수 쿨다운 기준
+    } else if (realized > 0) {
+      s.lossStreak = 0;
+    }
+    saveState();
     const limit = s.config.dailyLossLimitUsd;
     if (limit > 0 && total <= -limit) {
       s.config.enabled = false;
       s.enabledAt = null;
       saveState();
       pushLog('block', `일일 손실 한도 도달($${total.toFixed(2)} ≤ -$${limit}) — 서버 AI 매매 강제 OFF`);
+    } else if (s.lossStreak >= CONSECUTIVE_LOSS_LIMIT && s.config.enabled) {
+      // 서킷 브레이커: 연속 손실 — 전략이 시장과 어긋난 신호. 강제 OFF 로 재검토 유도.
+      s.config.enabled = false;
+      s.enabledAt = null;
+      saveState();
+      pushLog('block', `서킷 브레이커: 연속 손실 ${s.lossStreak}회 — 서버 AI 매매 강제 OFF(설정 재검토 권장)`);
     }
   }
   // 전량 매도 시에만 포지션 종료 가정 → 에피소드 추적 상태 해제.
@@ -501,6 +543,16 @@ async function sellAll(
     saveState();
   }
   return true;
+}
+
+/** 유효 목표/손절(%) — ATR 모드면 full 틱이 계산해 둔 동적 레벨(없으면 설정값). */
+function effectiveLevels(s: LiveTraderState): { targetPct: number; stopPct: number } {
+  const cfg = s.config;
+  if (!cfg.useAtrLevels) return { targetPct: cfg.targetPercent, stopPct: cfg.stopLossPercent };
+  return {
+    targetPct: s.dynTargetPct ?? cfg.targetPercent,
+    stopPct: s.dynStopPct ?? cfg.stopLossPercent,
+  };
 }
 
 // ── 보호 로직(실주문) — 페이퍼 가드와 동일 규칙 ──────────────────────
@@ -526,8 +578,9 @@ async function runProtectiveGuards(
   const price = market.currentPrice;
   const plPct = ((price - avg) / avg) * 100;
   const r = COMMISSION_RATE;
-  const tpPrice = Math.ceil(((avg * (1 + cfg.targetPercent / 100 + r)) / (1 - r)) * 100 - 1e-9) / 100;
-  const slPrice = avg * (1 - cfg.stopLossPercent / 100);
+  const eff = effectiveLevels(s); // ATR 모드면 동적 목표/손절
+  const tpPrice = Math.ceil(((avg * (1 + eff.targetPct / 100 + r)) / (1 - r)) * 100 - 1e-9) / 100;
+  const slPrice = avg * (1 - eff.stopPct / 100);
 
   const trailPeak = Math.max(s.trailPeak ?? Math.max(avg, price), price);
   if (trailPeak !== s.trailPeak) {
@@ -566,7 +619,7 @@ async function runProtectiveGuards(
       // (수량이 부족해 절반 매도가 안 되면 — 예: 소수점 불가 시간대 1주 — 기존처럼 전량 홀드)
       const partialSold = await sellAll(
         ctx,
-        `부분 익절(1/2 확보·추세 연장): 목표 +${cfg.targetPercent}% 도달, 상승 ${trend.confirmedBars}봉`,
+        `부분 익절(1/2 확보·추세 연장): 목표 +${eff.targetPct.toFixed(2)}% 도달, 상승 ${trend.confirmedBars}봉`,
         0.5
       );
       s.tpHoldPeak = price;
@@ -578,7 +631,7 @@ async function runProtectiveGuards(
       );
       return true; // 이번 틱은 홀드 진입으로 처리(AI 생략)
     }
-    return sellAll(ctx, `익절 매도(자동): 목표 +${cfg.targetPercent}% 도달`);
+    return sellAll(ctx, `익절 매도(자동): 목표 +${eff.targetPct.toFixed(2)}% 도달`);
   }
 
   // 3) 트레일링(설정 시).
@@ -703,6 +756,12 @@ async function executeAiBuy(
     pushLog('block', `차단(일일 손실 한도 도달): AI 매수`, 'BUY');
     return;
   }
+  // 손실 직후 쿨다운 — 복수 매매(연속 재진입) 방지.
+  if (s.lastLossAt !== null && Date.now() - s.lastLossAt < LOSS_COOLDOWN_MS) {
+    const waitMin = Math.ceil((LOSS_COOLDOWN_MS - (Date.now() - s.lastLossAt)) / 60000);
+    pushLog('block', `차단(손실 직후 쿨다운 ${waitMin}분 남음): AI 매수 — ${reason.slice(0, 60)}`, 'BUY');
+    return;
+  }
   if (Date.now() - lastExecAt < COOLDOWN_MS) {
     pushLog('block', `차단(쿨다운): AI 매수`, 'BUY');
     return;
@@ -808,6 +867,22 @@ async function decisionTickInner(): Promise<void> {
 
     const signal = computeSignal(candles);
     const trend = computeTrend(candles);
+
+    // 변동성(ATR) 동적 목표/손절 갱신 — 사용자 설정을 리스크 경계로 유지:
+    // 목표는 설정값 이상(최대 3배), 손절은 설정값 이하(0.5% 하한)로만 움직인다.
+    if (s.config.useAtrLevels && signal.atr !== undefined && signal.atr > 0 && market.currentPrice > 0) {
+      const atrPct = (signal.atr / market.currentPrice) * 100;
+      const dynT = Math.round(Math.min(Math.max(atrPct * ATR_TP_MULT, s.config.targetPercent), s.config.targetPercent * 3) * 100) / 100;
+      const dynS = Math.round(Math.min(Math.max(atrPct * ATR_STOP_MULT, 0.5), s.config.stopLossPercent) * 100) / 100;
+      if (s.dynTargetPct !== dynT || s.dynStopPct !== dynS) {
+        s.dynTargetPct = dynT;
+        s.dynStopPct = dynS;
+        saveState();
+        pushLog('skip', `ATR 동적 레벨 갱신: 목표 +${dynT}% / 손절 -${dynS}% (ATR ${atrPct.toFixed(2)}%)`);
+      }
+    }
+    const effLevels = effectiveLevels(s);
+
     const bidTotal = market.bids.reduce((sum, b) => sum + b.q, 0);
     const askTotal = market.asks.reduce((sum, a) => sum + a.q, 0);
     const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전
@@ -836,8 +911,8 @@ async function decisionTickInner(): Promise<void> {
           ? Math.floor(account.buyingPower / market.currentPrice)
           : undefined,
       sellableQuantity: sellableForAi,
-      targetProfitPct: s.config.targetPercent,
-      stopLossPct: s.config.stopLossPercent,
+      targetProfitPct: effLevels.targetPct,
+      stopLossPct: effLevels.stopPct,
       signal: { level: signal.level, score: signal.score, rsi: signal.rsi, sma20: signal.sma20, sma50: signal.sma50, atr: signal.atr },
       trend: { state: trend.state, confirmedBars: trend.confirmedBars },
       orderbook: {
