@@ -18,10 +18,10 @@ import {
   getBgLiveSummaries,
   markBgLivePrice,
   reconcileBgOrders,
-  reconcileLedgerWithAccount,
   resyncBgLiveToAccount,
   runBgLiveGuards,
   sellAllBgLive,
+  syncPositionFromAccount,
   type BgLiveSummary,
 } from './bg-live.js';
 import { aggregateCandles, getRequiredSourceCount, type AggregatedCandle } from './candle-aggregate.js';
@@ -413,13 +413,13 @@ async function evaluateSymbolLive(
     });
   };
 
-  // 0) 미체결 대조 — 체결 확정/오래된 미체결 취소(부분 체결분 유지·잔량만 롤백).
+  // 0) 실계좌 포지션 동기화(단일 진실) — 수량·평단·가용예산을 실계좌 기준으로 맞춘다.
+  const syncNote = await syncPositionFromAccount(symbol, symCfg.poolUsd);
+  if (syncNote) liveLog('HOLD', `[실거래] ${syncNote}`, 'live-reconcile');
+  // 0-b) 미체결 대조 — 체결 확정/오래된 미체결 취소(API·추적만, 포지션은 위 동기화가 담당).
   for (const note of await reconcileBgOrders(symbol, currentPrice)) {
     liveLog('HOLD', note, 'live-order');
   }
-  // 0-b) 장부↔실계좌 정합 — 부분 체결/외부 매도로 장부가 실제보다 많으면 실제값으로 보정.
-  const ledgerNote = await reconcileLedgerWithAccount(symbol);
-  if (ledgerNote) liveLog('HOLD', `[실거래] ${ledgerNote}`, 'live-reconcile');
 
   // 1) 보호 가드(실매도) — 발화 시 이번 틱 AI 생략.
   const guard = await runBgLiveGuards(symCfg, currentPrice, candles, session, 'full');
@@ -778,14 +778,14 @@ async function runGuardTick(): Promise<void> {
       if (price === undefined) continue;
 
       if (symCfg.live) {
-        // 실거래: 미체결 대조/취소 + 장부 정합 + 하락 보호(실매도). 로그는 pushLog 로 남긴다.
+        // 실거래: 실계좌 동기화 + 미체결 취소 + 하락 보호(실매도). 로그는 pushLog 로 남긴다.
         markBgLivePrice(symCfg.symbol, price);
+        const syncNote = await syncPositionFromAccount(symCfg.symbol, symCfg.poolUsd);
         const notes = await reconcileBgOrders(symCfg.symbol, price);
-        const ledgerNote = await reconcileLedgerWithAccount(symCfg.symbol);
         const guard = await runBgLiveGuards(symCfg, price, [], session, 'protect');
         const entries: { action: AiAction; reason: string; model: string }[] = [
+          ...(syncNote ? [{ action: 'HOLD' as AiAction, reason: `[실거래] ${syncNote}`, model: 'live-reconcile' }] : []),
           ...notes.map((n) => ({ action: 'HOLD' as AiAction, reason: n, model: 'live-order' })),
-          ...(ledgerNote ? [{ action: 'HOLD' as AiAction, reason: `[실거래] ${ledgerNote}`, model: 'live-reconcile' }] : []),
           ...(guard
             ? [{ action: (guard.sold ? 'SELL' : 'HOLD') as AiAction, reason: `[실거래] ${guard.reason}`, model: 'live-guard' }]
             : []),

@@ -173,7 +173,9 @@ export function getBgLive(symbol: string): BgLivePosition | undefined {
 
 function summarize(pos: BgLivePosition): BgLiveSummary {
   const markPrice = pos.lastPrice > 0 ? pos.lastPrice : pos.averagePrice;
-  const equityUsd = pos.cash + pos.quantity * markPrice;
+  // cash = 풀 예산 − 투자원가(동기화), 포지션가치 = 수량×현재가, 실현손익 누계 포함.
+  // → 손익률 = (미실현 + 실현) / 풀. 실계좌 보유 기준이라 장부 드리프트가 없다.
+  const equityUsd = pos.cash + pos.quantity * markPrice + pos.realizedUsd;
   return {
     symbol: pos.symbol,
     poolUsd: pos.poolUsd,
@@ -329,36 +331,40 @@ async function fetchSellableQty(symbol: string): Promise<number | null> {
 }
 
 /**
- * 장부 수량을 실계좌 보유와 대조(안전망) — 부분 체결·외부 매도·수동 매매로 장부가 실제보다
- * 많아진 경우 실제값으로 낮춰 과매도를 막는다. 실제가 더 많은 경우(수동/타 경로 보유)는
- * 장부를 올리지 않는다(그 초과분은 이 풀 몫이 아니므로). 풀이 계좌 전체 보유와 일치하면
- * 평단도 실제값으로 맞춰 손절/익절 판단이 실거래와 어긋나지 않게 한다.
+ * 포지션을 실계좌 보유로 완전 동기화(양방향) — 매 틱 판단 전에 호출.
+ * 자체 추적 대신 실계좌를 단일 진실로 삼아 장부 드리프트를 근본 차단한다.
+ * (한 종목은 한 풀에만 배정되므로 계좌 보유 = 그 풀의 보유로 간주)
+ *  - 수량·평단: 실계좌 값 그대로 채택(많든 적든).
+ *  - 현금(가용 예산): 풀 예산 − 투자원가(수량×평단). 실현손익은 예산을 부풀리지 않고
+ *    표시 손익률에만 반영(과다 매수 방지, 공유 계좌 안전).
+ *  - 보유 0 이면 추세홀드/트레일 추적 해제.
+ * 계좌 조회 실패 시 장부를 그대로 두고 null(임의 변경으로 실보유 방치 방지).
  */
-export async function reconcileLedgerWithAccount(symbol: string): Promise<string | null> {
+export async function syncPositionFromAccount(
+  symbol: string,
+  poolUsd: number
+): Promise<string | null> {
   const pos = getBgLive(symbol);
   if (!pos) return null;
   const actual = await fetchActualHolding(symbol);
   if (!actual) return null;
 
-  let note: string | null = null;
-  if (pos.quantity > actual.quantity + 1e-6) {
-    const before = pos.quantity;
-    pos.quantity = floorQty(actual.quantity);
-    if (pos.quantity <= 0) {
-      pos.quantity = 0;
-      pos.averagePrice = 0;
-      pos.tpHoldPeak = null;
-      pos.trailPeak = null;
-    }
-    note = `장부 정합: 보유 ${before}주 → 실계좌 ${actual.quantity}주로 보정(과매도 방지)`;
-  }
-  // 풀이 계좌 전체 보유와 (거의) 일치하면 실제 평단을 채택 — 손절/익절 판단 정확도.
-  if (pos.quantity > 0 && actual.averagePrice > 0 && Math.abs(pos.quantity - actual.quantity) < 1e-6) {
-    pos.averagePrice = actual.averagePrice;
+  const prevQty = pos.quantity;
+  const newQty = floorQty(actual.quantity);
+  pos.poolUsd = poolUsd;
+  pos.quantity = newQty;
+  pos.averagePrice = newQty > 0 ? actual.averagePrice : 0;
+  pos.cash = Math.max(0, poolUsd - newQty * pos.averagePrice);
+  if (newQty <= 0) {
+    pos.tpHoldPeak = null;
+    pos.trailPeak = null;
   }
   pos.updatedAt = Date.now();
   save();
-  return note;
+  if (Math.abs(prevQty - newQty) > 1e-6) {
+    return `실계좌 동기화: 보유 ${prevQty}주 → ${newQty}주 (평단 $${pos.averagePrice.toFixed(2)})`;
+  }
+  return null;
 }
 
 function marketableBuyPrice(price: number, bestAsk?: number): number {
@@ -402,29 +408,25 @@ function noteExec(symbol: string): void {
 // ── 미체결 취소/체결 확정 ────────────────────────────────────────
 
 /**
- * 엔진이 낸 미체결 주문을 실계좌와 대조한다.
- *  - 계좌 열린 주문에 없으면 → 전량 체결(또는 외부 취소)로 간주, 기록 제거(장부는 접수 시 반영됨).
- *  - 90초 경과 + 가격 0.2% 이상 불리하게 이탈 → 취소 요청 후 '미체결 잔량만' 롤백(체결분 유지).
- *    부분 체결분(execution.filledQuantity)은 실제 보유이므로 장부에 남긴다.
+ * 엔진이 낸 미체결 주문을 실계좌와 대조한다(장부 포지션은 syncPositionFromAccount 가 담당하므로
+ * 여기서는 취소·추적만 하고 수량/현금은 건드리지 않는다).
+ *  - 계좌 열린 주문에 없으면 → 체결/외부취소로 간주해 추적에서 제거.
+ *  - 90초 경과 + 가격 0.2% 이상 불리하게 이탈 → 취소 요청 후 추적에서 제거(다음 판단에서 재시도).
  * 반환: 로그로 남길 문구 목록.
  */
 export async function reconcileBgOrders(symbol: string, currentPrice: number): Promise<string[]> {
   const pos = getBgLive(symbol);
   if (!pos || pos.openOrders.length === 0) return [];
   const notes: string[] = [];
-  const accountOpen = new Map<string, { filled: number }>();
+  const accountOpenIds = new Set<string>();
   try {
     const accountSeq = await resolveAccountSeq();
-    const res = await tossRequest<{
-      result: { orders?: { orderId: string; execution?: { filledQuantity?: string } }[] };
-    }>({
+    const res = await tossRequest<{ result: { orders?: { orderId: string }[] } }>({
       path: '/api/v1/orders',
       accountSeq,
       query: { status: 'OPEN', symbol },
     });
-    for (const o of res.result?.orders ?? []) {
-      accountOpen.set(o.orderId, { filled: Number(o.execution?.filledQuantity ?? 0) || 0 });
-    }
+    for (const o of res.result?.orders ?? []) accountOpenIds.add(o.orderId);
   } catch {
     return []; // 조회 실패 — 다음 틱에서 재시도
   }
@@ -432,8 +434,7 @@ export async function reconcileBgOrders(symbol: string, currentPrice: number): P
   const now = Date.now();
   const remaining: BgLiveOrder[] = [];
   for (const order of pos.openOrders) {
-    if (!accountOpen.has(order.orderId)) {
-      // 계좌 열린 주문에 없음 → 전량 체결(또는 외부 취소)로 간주. 접수 시 반영한 장부를 확정.
+    if (!accountOpenIds.has(order.orderId)) {
       notes.push(`체결 확인: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price}`);
       continue;
     }
@@ -456,34 +457,8 @@ export async function reconcileBgOrders(symbol: string, currentPrice: number): P
         body: {},
         retryOnRateLimit: false,
       });
-      // 미체결 잔량만 롤백 — 부분 체결분(filled)은 실제 보유이므로 장부에 남긴다.
-      const filled = Math.min(order.quantity, Math.max(0, accountOpen.get(order.orderId)?.filled ?? 0));
-      const unfilled = floorQty(order.quantity - filled);
-      if (unfilled > 0) {
-        if (order.side === 'BUY') {
-          // 접수 시 order.quantity 전량을 order.price 로 평단에 반영·현금 차감했으므로, 미체결분만 제거.
-          pos.cash += unfilled * order.price;
-          const nextQty = floorQty(pos.quantity - unfilled);
-          const remAvgTotal = pos.averagePrice * pos.quantity - order.price * unfilled;
-          pos.quantity = Math.max(0, nextQty);
-          pos.averagePrice = pos.quantity > 0 ? Math.max(0, remAvgTotal / pos.quantity) : 0;
-          if (pos.quantity <= 0) pos.averagePrice = 0;
-        } else {
-          // 접수 시 매도 전량 반영(수량 차감·대금 가산·실현 계상)했으므로 미체결분 되돌림.
-          const avgAtSell = order.avgAtOrder ?? pos.averagePrice ?? order.price;
-          const proceeds = unfilled * order.price;
-          pos.cash = Math.max(0, pos.cash - proceeds);
-          const prevQty = pos.quantity;
-          pos.quantity = floorQty(pos.quantity + unfilled);
-          if (prevQty <= 0 && pos.averagePrice <= 0) pos.averagePrice = avgAtSell;
-          const realizedDelta = proceeds - avgAtSell * unfilled;
-          pos.realizedUsd -= realizedDelta;
-          addRealized(-realizedDelta);
-        }
-      }
-      const filledNote = filled > 0 ? ` (부분 체결 ${filled}주 유지)` : '';
       notes.push(
-        `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} 잔량 ${unfilled}주 @ $${order.price} — 가격 이탈(현재 $${currentPrice.toFixed(2)}), 예약 롤백${filledNote}`
+        `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price} — 가격 이탈(현재 $${currentPrice.toFixed(2)})`
       );
     } catch {
       remaining.push(order); // 취소 실패(이미 체결됐을 수 있음) — 다음 틱 재대조
@@ -514,6 +489,10 @@ export async function sellAllBgLive(
   const symbol = symCfg.symbol;
   const pos = getBgLive(symbol);
   if (!pos || pos.quantity <= 0) return { ok: false, text: `${label} 생략(풀 보유 없음)` };
+  // 미체결 매도가 이미 있으면 중복 매도 금지(포지션은 다음 틱 실계좌 동기화로 반영됨).
+  if (pos.openOrders.some((o) => o.side === 'SELL')) {
+    return { ok: false, text: `${label} 생략 — 미체결 매도 주문 존재` };
+  }
   const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전 소수점 접수 시간대
   if (!canFractional && pos.quantity < 1) {
     return { ok: false, text: `${label} 생략(보유 ${pos.quantity}주 < 1주 — 소수점 잔량, 소수점 주문 불가 시간대)` };
