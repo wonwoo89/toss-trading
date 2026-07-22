@@ -69,6 +69,9 @@ const ATR_TP_MULT = 2.0;
 /** ATR 모드 목표 하한(%) — 왕복 수수료(0.2%)를 빼고도 수익이 남는 최소선.
  *  목표가 설정값 아래로 내려가는 건 '더 일찍 익절'이라 리스크를 늘리지 않는다. */
 const ATR_TP_MIN_PCT = 0.5;
+/** 동적 레벨 데드밴드(%p) — 목표/손절이 마지막 채택값 대비 이 이상 움직일 때만 갱신.
+ *  미세 변동(예: 목표 1.16→1.09%)마다 레벨·로그가 출렁이는 것을 막는다(최초 계산은 즉시 채택). */
+const DYN_LEVEL_DEADBAND_PCT = 0.15;
 /** 최신 반응형 ATR%(현재가 대비) — 펄스 임계 계산용. full 틱마다 갱신, 미확보 시 null. */
 let lastAtrPct: number | null = null;
 
@@ -944,7 +947,14 @@ async function decisionTickInner(): Promise<void> {
         if (s.config.useAtrLevels) {
           const dynT = Math.round(Math.min(Math.max(atrPct * ATR_TP_MULT, ATR_TP_MIN_PCT), s.config.targetPercent * 3) * 100) / 100;
           const dynS = Math.round(Math.min(Math.max(atrPct * ATR_STOP_MULT, 0.5), s.config.stopLossPercent) * 100) / 100;
-          if (s.dynTargetPct !== dynT || s.dynStopPct !== dynS) {
+          // 데드밴드: 마지막 채택값 대비 0.15%p 이상 움직인 경우에만 갱신 — 미세 출렁임에
+          // 목표/손절이 매 틱 흔들리지 않게 한다. 서서히 누적된 드리프트는 임계를 넘는
+          // 순간 채택되므로 방향성 변화는 놓치지 않는다.
+          const levelDelta =
+            s.dynTargetPct === null || s.dynStopPct === null
+              ? Number.POSITIVE_INFINITY
+              : Math.max(Math.abs(dynT - s.dynTargetPct), Math.abs(dynS - s.dynStopPct));
+          if (levelDelta >= DYN_LEVEL_DEADBAND_PCT) {
             s.dynTargetPct = dynT;
             s.dynStopPct = dynS;
             saveState();
