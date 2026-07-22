@@ -148,6 +148,8 @@ export interface LiveTraderStatus {
     profitLossPct?: number;
   } | null;
   aiConfigured: boolean;
+  /** 에피소드(켠 이후) 매매 성과 — 매도 기준. */
+  stats?: { sells: number; wins: number; losses: number };
   logs: LiveLogEntry[];
 }
 
