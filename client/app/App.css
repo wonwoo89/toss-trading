@@ -4607,6 +4607,12 @@ input[type='checkbox']:focus-visible {
   text-overflow: unset;
   display: block;
 }
+/* 전체보기 모달 — 시간·레벨 뱃지도 본문(16px)과 동일 크기로 통일
+   (아래 .server-ai-live-log .server-ai-log__time 규칙보다 특정성을 높여 우선 적용) */
+.server-ai-live-logs--full .server-ai-live-log .server-ai-log__time,
+.server-ai-live-logs--full .server-ai-live-log .server-ai-live-log__level {
+  font-size: 16px;
+}
 .server-ai-live-log {
   display: flex;
   align-items: baseline;
