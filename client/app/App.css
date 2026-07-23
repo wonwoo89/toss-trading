@@ -4754,20 +4754,14 @@ input[type='checkbox']:focus-visible {
   flex-shrink: 0;
 }
 
-/* 모바일: 헤더 한 줄에 다 몰리지 않게 2행으로 정리 —
-   1행 = 종목명·실거래 뱃지·수익률, 2행 = AI 추천·로그·활성·삭제(우측 정렬) */
-@media (max-width: 640px) {
-  .server-ai-symbol__head {
-    flex-wrap: wrap;
-    gap: 0.35rem 0.75rem;
-  }
-  .server-ai-symbol__title {
-    flex: 1 1 100%;
-  }
-  .server-ai-symbol__controls {
-    width: 100%;
-    justify-content: flex-end;
-  }
+/* 인풋 아래 우측 액션(AI 추천·로그·삭제) — 모바일·데스크톱 공통.
+   헤더 우상단에는 활성화 토글만 남긴다. */
+.server-ai-symbol__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 /* 종목별 수치 인풋 — 자동매매 폼과 동일하게 한 줄 흐름 + 자연 줄바꿈 */

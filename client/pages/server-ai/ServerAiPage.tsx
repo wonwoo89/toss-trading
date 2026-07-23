@@ -1014,36 +1014,13 @@ export function ServerAiPage({
                       );
                     })()}
                   </div>
+                  {/* 우상단은 활성화 토글만 — 나머지 버튼은 인풋 아래 우측(__actions) */}
                   <div className="server-ai-symbol__controls">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      disabled={recommending.has(s.symbol)}
-                      onClick={() => void applyAiRecommendation(s.symbol)}
-                      title="최근 캔들로 백테스트 최적화를 돌려 AI 추천 목표/손절을 이 종목에 적용"
-                    >
-                      {recommending.has(s.symbol) ? '추천 중…' : 'AI 추천'}
-                    </Button>
-                    {isMobile && (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setLogFilter(s.symbol);
-                          setLogModalOpen(true);
-                        }}
-                      >
-                        로그
-                      </Button>
-                    )}
                     <Switch
                       checked={s.active}
                       onChange={(checked) => updateSymbol(index, { active: checked })}
                       aria-label={`${s.symbol} 자동매매 활성`}
                     />
-                    <Button size="sm" variant="ghost" onClick={() => removeSymbol(index)}>
-                      삭제
-                    </Button>
                   </div>
                 </div>
                 {(() => {
@@ -1144,6 +1121,32 @@ export function ServerAiPage({
                       aria-label={`${s.symbol} 실거래(배정 풀 실제 주문)`}
                     />
                   </label>
+                </div>
+                <div className="server-ai-symbol__actions">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={recommending.has(s.symbol)}
+                    onClick={() => void applyAiRecommendation(s.symbol)}
+                    title="최근 캔들로 백테스트 최적화를 돌려 AI 추천 목표/손절을 이 종목에 적용"
+                  >
+                    {recommending.has(s.symbol) ? '추천 중…' : 'AI 추천'}
+                  </Button>
+                  {isMobile && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setLogFilter(s.symbol);
+                        setLogModalOpen(true);
+                      }}
+                    >
+                      로그
+                    </Button>
+                  )}
+                  <Button size="sm" variant="ghost" onClick={() => removeSymbol(index)}>
+                    삭제
+                  </Button>
                 </div>
               </li>
             ))}
