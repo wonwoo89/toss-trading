@@ -78,6 +78,8 @@ interface MarketPanelProps {
   /** 자동매매 미체결 취소(가격 이탈 시) — StockPage 의 cancelOrder 직결. */
   /** 자동매매 주문 제출 중 여부. */
   autoSubmitting?: boolean;
+  /** 자동매매 '로그 보기' 대체 동작(모바일 AI 탭 전환) — 없으면 /server-ai 이동. */
+  onViewAiLogs?: () => void;
   /** 세미오토/오토 활성 여부 변경 알림 — 주문폼의 수동 주문 잠금에 사용. */
   onAutoExecModeChange?: (active: boolean) => void;
 }
@@ -113,6 +115,7 @@ export function MarketPanel({
   realtimePollingForced = false,
   onRealtimePollingForcedChange,
   onAutoExecute,
+  onViewAiLogs,
   autoSubmitting = false,
   onAutoExecModeChange,
 }: MarketPanelProps) {
@@ -255,6 +258,7 @@ export function MarketPanel({
             onAutoExecute={onAutoExecute}
             onExecModeChange={onAutoExecModeChange}
             isMobile={!isDesktop}
+            onViewLogs={onViewAiLogs}
             candles={candles}
             candleInterval={candleInterval}
             bids={bids}
