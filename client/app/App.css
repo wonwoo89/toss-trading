@@ -4505,6 +4505,25 @@ input[type='checkbox']:focus-visible {
   color: var(--text-secondary);
 }
 
+/* 자동매매 종목 티커 링크 — 클릭 시 해당 종목 차트로 이동(전량 매도 후 차트 재조회 편의) */
+.server-ai-symbol-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: var(--text-secondary);
+  text-underline-offset: 3px;
+}
+
+.server-ai-symbol-link:hover {
+  text-decoration-style: solid;
+  text-decoration-color: var(--accent, #3182f6);
+}
+
 /* 카드 제목 옆 '?' 설명 툴팁 — hover/focus 시 표시(모바일은 탭=focus) */
 .server-ai-help {
   position: relative;

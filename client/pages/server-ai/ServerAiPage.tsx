@@ -292,7 +292,20 @@ function LiveTraderSection({
           <dl className="server-ai-status">
             <div>
               <dt>종목</dt>
-              <dd>{cfg?.symbol}</dd>
+              <dd>
+                {cfg?.symbol ? (
+                  <button
+                    type="button"
+                    className="server-ai-symbol-link"
+                    onClick={() => navigate(`/stock/${cfg.symbol}`)}
+                    title={`${cfg.symbol} 차트 보기`}
+                  >
+                    {cfg.symbol}
+                  </button>
+                ) : (
+                  '—'
+                )}
+              </dd>
             </div>
             <div>
               <dt>미국장 세션</dt>
@@ -806,6 +819,10 @@ export function ServerAiPage({
     return map;
   }, [status]);
 
+  // 티커 클릭 → 해당 종목 차트로 이동(전량 매도 후에도 차트 재조회 편의).
+  const navigateStock = useNavigate();
+  const navigateToStock = (symbol: string) => navigateStock(`/stock/${symbol}`);
+
   // 종목별 미니 차트의 평단가 — 실거래는 풀 장부, 페이퍼는 가상 장부 기준(보유 시에만).
   const sparkAvgFor = (symbol: string): number | undefined => {
     const cfg = draft.symbols.find((s) => s.symbol === symbol);
@@ -962,7 +979,14 @@ export function ServerAiPage({
               <li key={s.symbol} className="server-ai-symbol">
                 <div className="server-ai-symbol__head">
                   <div className="server-ai-symbol__title">
-                    <Typography size={14} className="server-ai-symbol__name">{s.symbol}</Typography>
+                    <button
+                      type="button"
+                      className="server-ai-symbol-link"
+                      onClick={() => navigateToStock(s.symbol)}
+                      title={`${s.symbol} 차트 보기`}
+                    >
+                      <Typography size={14} className="server-ai-symbol__name">{s.symbol}</Typography>
+                    </button>
                     {s.live && <span className="server-ai-symbol__live-badge">실거래</span>}
                     {(() => {
                       const summary = s.live ? liveBySymbol.get(s.symbol) : paperBySymbol.get(s.symbol);
