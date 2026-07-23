@@ -1118,8 +1118,24 @@ async function decisionTickInner(): Promise<void> {
 
 /** 1분 보호 틱 — AI 없이 실보유 보호(손절/보전선/트레일링)만. */
 let guardTicking = false;
+// ── 04시(KST) 일일 전체 셧다운 — 소수점 주문 불가 시간대 진입 시 1차 안전 정지.
+//    재시작은 사용자가 수동으로 판단한다. 하루 1회만 발화(수동 재시작을 다시 끄지 않음).
+let lastDailyShutdownDay: string | null = null;
+function checkDailyShutdown(): void {
+  const s = loadState();
+  if (!s.config.enabled) return;
+  const kst = new Date(Date.now() + 9 * 3600 * 1000);
+  if (kst.getUTCHours() !== 4) return;
+  const day = kst.toISOString().slice(0, 10);
+  if (lastDailyShutdownDay === day) return;
+  lastDailyShutdownDay = day;
+  saveLiveConfig({ ...s.config, enabled: false });
+  pushLog('block', '04시(KST) 일일 셧다운 — 소수점 주문 불가 시간대 진입, 단일종목 자동매매 OFF(재시작은 수동)');
+}
+
 async function guardTick(): Promise<void> {
   if (guardTicking) return;
+  checkDailyShutdown();
   const s = loadState();
   if (!s.config.enabled || !s.config.symbol) return;
   const session = await getUsMarketSession();
