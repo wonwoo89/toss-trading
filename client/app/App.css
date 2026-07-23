@@ -4754,14 +4754,19 @@ input[type='checkbox']:focus-visible {
   flex-shrink: 0;
 }
 
-/* 인풋 아래 우측 액션(AI 추천·로그·삭제) — 모바일·데스크톱 공통.
+/* 인풋 아래 한 줄 — 좌: 실거래 토글, 우: AI 추천·로그·삭제. 모바일·데스크톱 공통.
    헤더 우상단에는 활성화 토글만 남긴다. */
 .server-ai-symbol__actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  gap: 0.5rem;
+  justify-content: space-between;
+  gap: 0.75rem;
   margin-top: 0.5rem;
+}
+.server-ai-symbol__action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 /* 종목별 수치 인풋 — 자동매매 폼과 동일하게 한 줄 흐름 + 자연 줄바꿈 */
@@ -4776,7 +4781,7 @@ input[type='checkbox']:focus-visible {
 }
 
 /* 데스크톱(3열 좌측 폭 440px): 인풋을 유동폭으로 균등 분배해 목표/손절/트레일링/
-   실거래 풀/실거래 토글이 한 줄에 들어가게 한다(고정 92px 4개는 줄바꿈됨). */
+   실거래 풀이 한 줄에 들어가게 한다(고정 92px 4개는 줄바꿈됨). */
 @media (min-width: 1101px) {
   .server-ai-symbol__fields {
     flex-wrap: nowrap;
@@ -4789,9 +4794,6 @@ input[type='checkbox']:focus-visible {
   /* 실거래 풀(4번째) — 최대 6자리($100,000)까지 잘리지 않게 더 넓게 배분 */
   .server-ai-symbol__fields .ui-textfield:nth-child(4) {
     flex-grow: 1.7;
-  }
-  .server-ai-symbol__fields .server-ai-symbol__live-toggle {
-    flex: 0 0 auto;
   }
 }
 
