@@ -224,15 +224,56 @@ function LiveTraderSection({
   const enabled = cfg?.enabled === true && Boolean(cfg?.symbol);
   const pos = live?.position ?? null;
 
+  // 켜기/끄기 — 켜기는 실제 주문이 나가므로 명시적 확인. 종목은 마지막 실행 종목을 사용
+  // (종목 변경/신규 시작은 투자 화면의 자동매매 패널에서).
+  const { showToast } = useToast();
+  const [toggling, setToggling] = useState(false);
+  const toggleEnabled = async (next: boolean) => {
+    if (!live || toggling) return;
+    if (next && !live.config.symbol) {
+      showToast('켤 종목이 없습니다 — 투자 화면에서 AI 매매를 시작해 주세요.', 'error');
+      return;
+    }
+    if (
+      next &&
+      !window.confirm(
+        `${live.config.symbol} 단일 종목 AI 매매를 켭니다.\n서버가 확인 없이 실제 매수/매도 주문을 냅니다. 계속할까요?`
+      )
+    ) {
+      return;
+    }
+    setToggling(true);
+    try {
+      const res = unwrap(await api.saveLiveTraderConfig({ ...live.config, enabled: next }));
+      setLive((cur) => (cur ? { ...cur, config: res.config } : cur));
+      showToast(
+        next ? `단일 종목 AI 매매 시작 — ${res.config.symbol}` : '단일 종목 AI 매매를 껐습니다.',
+        'success'
+      );
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : '설정 저장 실패', 'error');
+    } finally {
+      setToggling(false);
+    }
+  };
+
   return (
     <section className="panel server-ai-card" aria-label="단일 종목 AI 매매">
       <div className="server-ai-card__head">
         <Typography size={16} as="h2">
           단일 종목 집중 AI 매매 <span className="hint">(실주문)</span>
         </Typography>
-        <Typography size={14} className={enabled ? 'server-ai-kill__on' : 'hint'}>
-          {enabled ? `실행 중 · ${cfg?.symbol}` : '꺼짐'}
-        </Typography>
+        <div className="server-ai-kill">
+          <Typography size={14} className={enabled ? 'server-ai-kill__on' : 'hint'}>
+            {enabled ? `실행 중 · ${cfg?.symbol}` : cfg?.symbol ? `꺼짐 · ${cfg.symbol}` : '꺼짐'}
+          </Typography>
+          <Switch
+            checked={enabled}
+            onChange={(checked) => void toggleEnabled(checked)}
+            disabled={toggling || !live || (!enabled && !cfg?.symbol)}
+            aria-label="단일 종목 AI 매매 켜기/끄기"
+          />
+        </div>
       </div>
 
       {error && (
