@@ -3898,13 +3898,20 @@ input[type='checkbox']:focus-visible {
 
 /* ═══════════ 모바일 신규 레이아웃 v2 (하단 탭) + 탭바 ═══════════ */
 
+/* 탭바 하단 오프셋 — 안전영역(홈 인디케이터) 위 여백이 과해 보여 인셋 안쪽으로 6px
+   파고들게 배치. 인셋이 없는 기기에서는 최소 8px 만 띄운다.
+   콘텐츠 하단 여백·주문 버튼 sticky 등 탭바 위치에 맞물리는 규칙이 함께 참조한다. */
+:root {
+  --mobile-tab-bar-bottom: max(calc(env(safe-area-inset-bottom) - 6px), 8px);
+}
+
 /* 하단 탭바 — 데스크톱(DesktopNav)과 동일한 플로팅 스타일(블러·그림자·라운드)이되,
-   좌우는 full width(플로팅 간격 10px 만 남김). PWA 홈 인디케이터 위로 띄운다. */
+   좌우는 full width(플로팅 간격 10px 만 남김). */
 .mobile-tab-bar {
   position: fixed;
   left: 10px;
   right: 10px;
-  bottom: calc(10px + env(safe-area-inset-bottom));
+  bottom: var(--mobile-tab-bar-bottom);
   z-index: 310;
   display: flex;
   gap: 2px;
@@ -3955,9 +3962,9 @@ input[type='checkbox']:focus-visible {
   /* ── v2: 하단 탭 구조 ──
      탭별로 영역을 표시/숨김만 한다(컴포넌트는 유지 → 폴링·자동매매·차트 상태 보존). */
 
-  /* 플로팅 탭바(약 61px + 하단 10px 띄움 + 안전영역)에 콘텐츠가 가리지 않게 하단 여백 확보 */
+  /* 플로팅 탭바(약 61px + 하단 오프셋)에 콘텐츠가 가리지 않게 하단 여백 확보 */
   .trading-layout.layout-v2 {
-    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+    padding-bottom: calc(74px + var(--mobile-tab-bar-bottom));
   }
 
   /* below 래퍼 해체 → 지표(info)를 독립 영역으로 탭에 배정.
@@ -4039,15 +4046,15 @@ input[type='checkbox']:focus-visible {
     display: flex;
     justify-content: flex-end;
   }
+  /* 공통 ui-btn 위에 오버레이 가독성 보정만: 차트 위에 뜨므로 반투명 배경 + 블러 */
   .order-view-toggle__btn {
-    padding: 0.3rem 0.65rem;
-    border-radius: 999px;
-    border: 1px solid var(--border-default);
     background: color-mix(in srgb, var(--bg-base) 82%, transparent);
     backdrop-filter: blur(6px);
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--text-secondary);
+    -webkit-backdrop-filter: blur(6px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+  }
+  .order-view-toggle__btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--bg-base) 92%, transparent);
   }
 
   .trading-layout.layout-v2--tab-order .chart-panel {
@@ -4080,7 +4087,7 @@ input[type='checkbox']:focus-visible {
      즉시 주문 가능. 불투명 배경 + 좌우 블리드로 뒤 콘텐츠가 버튼 사이로 비치지 않게. */
   .trading-layout.layout-v2--tab-order .order-form .order-manual-actions {
     position: sticky;
-    bottom: calc(72px + env(safe-area-inset-bottom)); /* = 플로팅 탭바(61px)+하단 띄움(10px)+inset */
+    bottom: calc(62px + var(--mobile-tab-bar-bottom)); /* = 플로팅 탭바(61px)+1px, 탭바 위에 밀착 */
     z-index: 5;
     background: var(--bg-base);
     margin: 0 -16px;
@@ -4088,7 +4095,7 @@ input[type='checkbox']:focus-visible {
   }
   /* 주문 탭은 하단 여백을 탭바 점유 높이에 정확히 맞춰, 스크롤 최하단에서도 버튼이 탭바 위에 밀착 */
   .trading-layout.layout-v2--tab-order.layout-v2 {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    padding-bottom: calc(62px + var(--mobile-tab-bar-bottom));
   }
 
   /* 호가 탭: 티커칩 노출 + 영역별 카드 구분 + 가독성(폰트 확대) */
@@ -4105,9 +4112,9 @@ input[type='checkbox']:focus-visible {
     flex-direction: column;
     padding: 0;
   }
-  /* 탭바 여백도 주문 탭과 동일하게(84px 기본 → 72px) 축소해 푸터가 탭바 위에 붙게 */
+  /* 탭바 여백도 주문 탭과 동일하게(74px 기본 → 62px) 축소해 푸터가 탭바 위에 붙게 */
   .trading-layout.layout-v2--tab-book.layout-v2 {
-    padding-bottom: calc(72px + env(safe-area-inset-bottom));
+    padding-bottom: calc(62px + var(--mobile-tab-bar-bottom));
   }
   .trading-layout.layout-v2--tab-book .order-column .order-form {
     display: none;
