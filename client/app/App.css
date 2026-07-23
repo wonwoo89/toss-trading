@@ -4872,6 +4872,26 @@ input[type='checkbox']:focus-visible {
   width: 92px;
 }
 
+/* 데스크톱(3열 좌측 폭 440px): 인풋을 유동폭으로 균등 분배해 목표/손절/트레일링/
+   실거래 풀/실거래 토글이 한 줄에 들어가게 한다(고정 92px 4개는 줄바꿈됨). */
+@media (min-width: 1101px) {
+  .server-ai-symbol__fields {
+    flex-wrap: nowrap;
+  }
+  .server-ai-symbol__fields .ui-textfield {
+    width: auto;
+    flex: 1 1 0;
+    min-width: 0;
+  }
+  /* 실거래 풀(4번째) — 최대 6자리($100,000)까지 잘리지 않게 더 넓게 배분 */
+  .server-ai-symbol__fields .ui-textfield:nth-child(4) {
+    flex-grow: 1.7;
+  }
+  .server-ai-symbol__fields .server-ai-symbol__live-toggle {
+    flex: 0 0 auto;
+  }
+}
+
 /* 모바일: 4개 인풋(목표/손절/트레일링/1회 매수)을 4등분 그리드로 — 항상 한 줄 유지 */
 @media (max-width: 640px) {
   .server-ai-symbol__fields {
