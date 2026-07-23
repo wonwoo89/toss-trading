@@ -265,6 +265,11 @@ export function StockPage() {
                   embedded
                   openLiveLog={aiLogRequest}
                   onLiveLogConsumed={() => setAiLogRequest(false)}
+                  onNavigateToSymbol={(sym) => {
+                    // 같은 라우트 안의 임베드라 navigate 만으로는 화면이 안 바뀜 → 차트 탭 전환까지
+                    navigate(`/stock/${sym}`);
+                    setMobileTab('chart');
+                  }}
                 />
               )}
             </section>
