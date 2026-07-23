@@ -792,7 +792,7 @@ async function executeAiBuy(
   const cfg = s.config;
   const { account, market, session } = ctx;
   if (!account.buyingPower || account.buyingPower <= 0) {
-    pushLog('block', `AI 매수 보류 — 주문가능 없음: ${reason}`, 'BUY');
+    pushLog('block', 'AI 매수 의견 미실행 — 주문가능 금액 없음', 'BUY');
     return;
   }
   // 데이터 품질 가드: 스프레드가 넓으면(유동성 부족·슬리피지 위험) 신규 매수 억제.
@@ -801,7 +801,7 @@ async function executeAiBuy(
   if (bestBid !== undefined && bestAsk !== undefined && bestBid > 0) {
     const spreadPct = ((bestAsk - bestBid) / bestBid) * 100;
     if (spreadPct > MAX_SPREAD_PCT) {
-      pushLog('block', `AI 매수 보류 — 스프레드 ${spreadPct.toFixed(2)}% > ${MAX_SPREAD_PCT}%(유동성 부족): ${reason}`, 'BUY');
+      pushLog('block', `AI 매수 의견 미실행 — 스프레드 ${spreadPct.toFixed(2)}% > ${MAX_SPREAD_PCT}%(유동성 부족)`, 'BUY');
       return;
     }
   }
@@ -840,7 +840,7 @@ async function executeAiBuy(
     body = { symbol: cfg.symbol, side: 'BUY', orderType: 'LIMIT', quantity: 1, price: exec, clientOrderId: `live-${Date.now()}` };
     label = `AI 매수 1주(비중 ${effectivePct}%→최소 수량) @ $${exec}`;
   } else {
-    pushLog('block', `AI 매수 보류 — 배정 $${budget}로 1주($${price.toFixed(2)}) 미만: ${reason}`, 'BUY');
+    pushLog('block', `AI 매수 의견 미실행 — 1회 매수 배정 $${budget} < 1주 $${price.toFixed(2)} (소수점 주문 불가 시간대·1주 폴백도 상한 초과)`, 'BUY');
     return;
   }
 

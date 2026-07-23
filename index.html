@@ -17,8 +17,10 @@
     </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- viewport-fit=cover: env(safe-area-inset-*) 가 실제 값을 갖게 함(노치/홈 인디케이터 영역 확보) -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- viewport-fit=cover: env(safe-area-inset-*) 가 실제 값을 갖게 함(노치/홈 인디케이터 영역 확보).
+         maximum-scale/user-scalable: iOS 에서 실수로 핀치줌되면 fixed/sticky(헤더·사이드바·하단 내비)가
+         전부 페이지와 함께 스크롤되는 것처럼 보이므로 PWA 에서는 줌을 잠근다. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#0a0a0a" />
     <!-- iOS 홈 화면 추가 시 standalone 앱처럼 (주소창/탭바 없이) -->
     <meta name="apple-mobile-web-app-capable" content="yes" />

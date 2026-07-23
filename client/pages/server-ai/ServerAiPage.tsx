@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   api,
   type AutoEngineStatus,
@@ -151,6 +152,17 @@ function LiveTraderSection() {
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   // '전체보기' — 좁은 로그 영역 대신 큰 모달에서 전체 로그를 상세(전문)로 본다.
   const [showAllLogs, setShowAllLogs] = useState(false);
+
+  // 투자 화면의 '로그 보기 →' 진입: 도착 즉시 전체 로그 모달을 연다(상태는 1회성 소비).
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if ((location.state as { openLiveLog?: boolean } | null)?.openLiveLog) {
+      setShowAllLogs(true);
+      navigate(location.pathname, { replace: true, state: null });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!showAllLogs) return;
