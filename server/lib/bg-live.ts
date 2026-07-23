@@ -47,8 +47,32 @@ const CONSECUTIVE_LOSS_LIMIT = 3;
 /** 손실 직후 신규 매수 쿨다운(복수 매매 방지) — 단일 종목 트레이더와 동일.
  *  현재가가 손실 매도 체결가 위로 회복하면 조기 해제. */
 const LOSS_COOLDOWN_MS = 3 * 60 * 1000;
-/** 익절 목표가 계산용 편도 수수료 가정(단일 종목 트레이더와 동일). */
+/** 익절 목표가 계산용 편도 수수료 가정(단일 종목 트레이더와 동일). 실계좌 수수료율
+ *  조회 실패 시의 폴백으로도 쓴다. */
 const COMMISSION_RATE = 0.001;
+
+// ── 실계좌 결제 수수료율(US) — 실현손익을 실계좌 수익률과 정합시키기 위해 사용.
+//    /api/v1/commissions 에서 조회(1시간 캐시), 실패·이상값이면 기본 0.1% 폴백.
+let commissionRateCache: { rate: number; at: number } | null = null;
+async function getCommissionRate(): Promise<number> {
+  if (commissionRateCache && Date.now() - commissionRateCache.at < 3600_000) {
+    return commissionRateCache.rate;
+  }
+  let rate = COMMISSION_RATE;
+  try {
+    const accountSeq = await resolveAccountSeq();
+    const res = await tossRequest<{
+      result?: { marketCountry?: string; commissionRate?: string }[];
+    }>({ path: '/api/v1/commissions', accountSeq });
+    const us = (res.result ?? []).find((c) => c.marketCountry === 'US');
+    const parsed = us ? Number(us.commissionRate) : NaN;
+    if (Number.isFinite(parsed) && parsed >= 0 && parsed < 0.05) rate = parsed;
+  } catch {
+    // 조회 실패 — 기본값 유지
+  }
+  commissionRateCache = { rate, at: Date.now() };
+  return rate;
+}
 const MIN_BUY_BUDGET_USD = 1;
 
 export interface BgLiveOrder {
@@ -59,6 +83,8 @@ export interface BgLiveOrder {
   placedAt: number;
   /** 매도 주문 접수 시점의 평단 — 부분 체결 롤백 시 실현손익·평단 복원에 사용. */
   avgAtOrder?: number;
+  /** 접수 시 장부에 선반영한 실현손익(수수료 차감 순액) — 취소 확정 시 이만큼 되돌린다. */
+  bookedRealizedUsd?: number;
 }
 
 interface BgLivePosition {
@@ -445,6 +471,13 @@ function noteExec(symbol: string): void {
  *    (단일 종목 트레이더와 동일 — 특히 보호 매도가 미체결로 방치되지 않게).
  * 반환: 로그로 남길 문구 목록.
  */
+/** 매도 취소 확정 시 접수 때 선반영했던 실현손익(순액)을 되돌린다.
+ *  수량·현금·평단은 다음 실계좌 동기화(syncPositionFromAccount)가 복원한다. */
+function rollbackSellBooking(pos: BgLivePosition, order: BgLiveOrder): void {
+  if (order.side !== 'SELL' || order.bookedRealizedUsd === undefined) return;
+  pos.realizedUsd -= order.bookedRealizedUsd;
+}
+
 export async function reconcileBgOrders(
   symbol: string,
   currentPrice: number,
@@ -499,6 +532,7 @@ export async function reconcileBgOrders(
     }
 
     if (ranAway) {
+      rollbackSellBooking(pos, order);
       notes.push(
         `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price} — 가격 이탈(현재 $${currentPrice.toFixed(2)}), 재판단`
       );
@@ -524,6 +558,7 @@ export async function reconcileBgOrders(
         `재호가: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 $${order.price} → $${newPrice} (90초 미체결, 체결 우선가로 갱신)`
       );
     } else {
+      rollbackSellBooking(pos, order);
       notes.push(
         `재호가 실패(${order.side} ${order.quantity}주): ${replaced.error ?? '주문 실패'} — 취소만 반영, 다음 판단에서 재시도`
       );
@@ -605,8 +640,12 @@ export async function sellAllBgLive(
   noteExec(symbol);
 
   // 접수 시 장부 반영(체결 가정) — 미체결 취소 시 롤백된다.
+  // 실현손익은 왕복 결제 수수료(매수분+매도분)를 차감한 순액 — 실계좌 수익률과 정합.
   const proceeds = qty * execPrice;
-  const realizedDelta = proceeds - avgAtSell * qty;
+  const costBasis = avgAtSell * qty;
+  const commissionRate = await getCommissionRate();
+  const roundTripFee = (proceeds + costBasis) * commissionRate;
+  const realizedDelta = proceeds - costBasis - roundTripFee;
   pos.realizedUsd += realizedDelta;
   pos.cash += proceeds;
   pos.quantity = floorQty(pos.quantity - qty);
@@ -617,7 +656,15 @@ export async function sellAllBgLive(
     pos.trailPeak = null;
   }
   if (result.orderId && !fractional) {
-    pos.openOrders.push({ orderId: result.orderId, side: 'SELL', quantity: qty, price: execPrice, placedAt: Date.now(), avgAtOrder: avgAtSell });
+    pos.openOrders.push({
+      orderId: result.orderId,
+      side: 'SELL',
+      quantity: qty,
+      price: execPrice,
+      placedAt: Date.now(),
+      avgAtOrder: avgAtSell,
+      bookedRealizedUsd: realizedDelta,
+    });
   }
   pos.lastPrice = market.price;
   pos.updatedAt = Date.now();

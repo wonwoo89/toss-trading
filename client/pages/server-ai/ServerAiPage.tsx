@@ -456,7 +456,7 @@ function LiveTraderSection({
                     <span className={`server-ai-live-log__level is-${log.level}`}>
                       {LIVE_LEVEL_LABELS[log.level] ?? log.level}
                     </span>
-                    <Typography size={12} as="span" className="server-ai-live-log__text">
+                    <Typography size={16} as="span" className="server-ai-live-log__text">
                       {log.text}
                     </Typography>
                   </li>
