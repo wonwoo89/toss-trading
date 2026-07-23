@@ -6,7 +6,6 @@ import { AppProvider, useAppContext } from './providers/AppContext';
 import { ThemeProvider } from './providers/ThemeContext';
 import { ToastProvider } from './providers/ToastContext';
 import { StockPage } from '../pages/trading/StockPage';
-import { BacktestPage } from '../pages/backtest/BacktestPage';
 import { ServerAiPage } from '../pages/server-ai/ServerAiPage';
 import './App.css';
 
@@ -24,8 +23,9 @@ function AppShell() {
         <Route path="/" element={<StockPage />} />
         <Route path="/portfolio" element={<StockPage />} />
         <Route path="/stock/:symbol" element={<StockPage />} />
-        <Route path="/backtest" element={<BacktestPage />} />
         <Route path="/server-ai" element={<ServerAiPage />} />
+        {/* 알 수 없는 경로(제거된 /backtest 북마크 등)는 투자 화면으로 */}
+        <Route path="*" element={<StockPage />} />
       </Routes>
 
       {/* 데스크톱 전용 플로팅 하단 내비게이션(모바일은 CSS 로 숨김 — MobileTabBar 사용) */}

@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { useTheme } from '../app/providers/ThemeContext';
 import { useWakeLock } from '../shared/hooks/useWakeLock';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
@@ -14,7 +13,7 @@ const THEME_OPTIONS: { value: ThemePreference; label: string }[] = [
 
 /**
  * 모바일(하단 탭) 레이아웃의 설정 탭. 헤더 제거로 갈 곳을 잃은 컨트롤들을 모아 표시:
- * 테마(세그먼티드) · 화면 꺼짐 방지(스위치) · 백테스트 진입.
+ * 테마(세그먼티드) · 화면 꺼짐 방지(스위치).
  */
 export function MobileSettingsPanel() {
   const { preference, setPreference } = useTheme();
@@ -41,12 +40,6 @@ export function MobileSettingsPanel() {
           />
         </div>
       )}
-      <div className="mobile-settings-row">
-        <Typography size={14} className="mobile-settings-row__label">신호 백테스트</Typography>
-        <Link className="mobile-settings-row__link" to="/backtest">
-          열기
-        </Link>
-      </div>
     </section>
   );
 }

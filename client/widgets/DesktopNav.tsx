@@ -13,7 +13,7 @@ const ICON_PROPS = {
   'aria-hidden': true,
 } as const;
 
-type NavId = 'trade' | 'server-ai' | 'backtest';
+type NavId = 'trade' | 'server-ai';
 
 const ITEMS: { id: NavId; label: string; path: string; icon: React.ReactNode }[] = [
   {
@@ -37,28 +37,16 @@ const ITEMS: { id: NavId; label: string; path: string; icon: React.ReactNode }[]
       </svg>
     ),
   },
-  {
-    id: 'backtest',
-    label: '백테스트',
-    path: '/backtest',
-    icon: (
-      <svg {...ICON_PROPS}>
-        <path d="M4 5v6h6M4.5 11A8 8 0 1 1 6 16" />
-        <path d="M12 8v4l3 2" />
-      </svg>
-    ),
-  },
 ];
 
 function activeIdFromPath(pathname: string): NavId {
   if (pathname.startsWith('/server-ai')) return 'server-ai';
-  if (pathname.startsWith('/backtest')) return 'backtest';
   return 'trade'; // '/', '/portfolio', '/stock/*'
 }
 
 /**
  * 데스크톱 전용 플로팅 하단 내비게이션 — 화면 하단 중앙의 필(pill).
- * 투자(트레이딩) / 백그라운드 AI / 백테스트 세 화면을 전환한다.
+ * 투자(트레이딩) / 백그라운드 AI 두 화면을 전환한다.
  * 모바일(≤1100px)은 기존 하단 탭바(MobileTabBar)를 쓰므로 CSS 로 숨긴다.
  */
 export function DesktopNav() {
