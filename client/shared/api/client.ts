@@ -186,6 +186,8 @@ export interface BgLiveSummary {
 export interface AutoTradeConfig {
   enabled: boolean;
   dailyLossLimitUsd: number;
+  /** 변동성(ATR) 동적 목표/손절 — 5분 판단 틱 기준으로 종목별 목표/손절 자동 조정. */
+  atrLevels: boolean;
   symbols: AutoSymbolConfig[];
 }
 

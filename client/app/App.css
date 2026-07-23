@@ -4944,8 +4944,18 @@ input[type='checkbox']:focus-visible {
   }
 }
 
+.server-ai-loss-limit {
+  display: flex;
+  align-items: flex-end;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
 .server-ai-loss-limit .ui-textfield {
   max-width: 260px;
+}
+/* ATR 토글 — 인풋과 나란히, 라벨·스위치 세로 정렬(단일종목 옵션과 동일 룩) */
+.server-ai-loss-limit .auto-trade__option {
+  padding-bottom: 4px;
 }
 
 /* 판단 로그 */

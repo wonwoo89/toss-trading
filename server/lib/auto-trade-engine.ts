@@ -25,7 +25,7 @@ import {
   type BgLiveSummary,
 } from './bg-live.js';
 import { aggregateCandles, getRequiredSourceCount, type AggregatedCandle } from './candle-aggregate.js';
-import { computeRegime, computeSignal, computeTrend } from './candle-signals.js';
+import { computeAtr, computeRegime, computeSignal, computeTrend } from './candle-signals.js';
 import { fetchSourceCandles } from './fetch-source-candles.js';
 import { fetchMarketRef } from './live-trader.js';
 import {
@@ -72,6 +72,28 @@ const CANDLE_TARGET = 60; // AI에 넘길 최근 5분봉 개수
 const MAX_LOGS = 300;
 /** 추세 홀드 중 고점 대비 허용 하락(%) — 종목 트레일링 설정이 0(끔)일 때의 기본값. */
 const TP_HOLD_TRAIL_PCT = 0.5;
+
+// ── 변동성(ATR) 동적 목표/손절(5분 틱 기준) — config.atrLevels 켠 경우 ──
+// 단일 종목 트레이더와 동일 튜닝값. 백그라운드는 캔들을 5분 full 틱에서만 받으므로
+// 레벨 갱신도 5분 단위 — 1분 보호 틱·펄스는 마지막 채택 레벨을 재사용한다.
+/** 손절 거리 = ATR × 이 배수. 각 종목 설정 손절률을 넘지 않음(더 타이트해질 수만 있음). */
+const ATR_STOP_MULT = 1.5;
+/** 목표 거리 = ATR × 이 배수. */
+const ATR_TP_MULT = 2.0;
+/** ATR 모드 목표 하한(%) — 왕복 수수료를 빼고도 수익이 남는 최소선. */
+const ATR_TP_MIN_PCT = 0.5;
+/** 레벨 재채택 데드밴드(%p) — 이 미만의 잔변동은 무시해 갱신 로그 스팸을 막는다. */
+const DYN_LEVEL_DEADBAND_PCT = 0.15;
+/** 종목별 채택된 동적 레벨 — full 틱이 계산, 보호 틱이 재사용. 재시작 시 초기화. */
+const dynLevels = new Map<string, { targetPct: number; stopPct: number }>();
+
+/** ATR 모드면 full 틱이 채택해 둔 동적 목표/손절로 덮어쓴 설정 사본을 반환. */
+function withAtrLevels(symCfg: AutoSymbolConfig, config: AutoTradeConfig): AutoSymbolConfig {
+  if (!config.atrLevels) return symCfg;
+  const dyn = dynLevels.get(symCfg.symbol);
+  if (!dyn) return symCfg;
+  return { ...symCfg, targetPercent: dyn.targetPct, stopLossPercent: dyn.stopPct };
+}
 
 // ── 드라이런(페이퍼) 공격성 파라미터 — 가상 $1,000 샌드박스 전용 ─────────────
 // 실계좌(live-trader)의 1회 매수 상한(5%)은 절대 건드리지 않는다. 여기 값은 오직
@@ -696,9 +718,46 @@ async function evaluateSymbol(
   const marketRef = await fetchMarketRef();
   const candleAgeMin = (Date.now() / 1000 - candles[candles.length - 1].t) / 60;
 
+  // 변동성(ATR) 동적 목표/손절 갱신(5분 틱 기준) — 장기 ATR14·단기 ATR5 중 큰 값.
+  // 데드밴드(0.15%p) 이상 변할 때만 재채택해 로그 스팸을 막는다.
+  if (config.atrLevels && currentPrice > 0) {
+    const atr14 = signal.atr ?? 0;
+    const atrFast = computeAtr(candles, 5) ?? 0;
+    const atrEff = Math.max(atr14, atrFast);
+    if (atrEff > 0) {
+      const atrPct = (atrEff / currentPrice) * 100;
+      const dynT =
+        Math.round(Math.min(Math.max(atrPct * ATR_TP_MULT, ATR_TP_MIN_PCT), symCfg.targetPercent * 3) * 100) / 100;
+      const dynS =
+        Math.round(Math.min(Math.max(atrPct * ATR_STOP_MULT, 0.5), symCfg.stopLossPercent) * 100) / 100;
+      const prev = dynLevels.get(symbol);
+      if (
+        !prev ||
+        Math.abs(prev.targetPct - dynT) >= DYN_LEVEL_DEADBAND_PCT ||
+        Math.abs(prev.stopPct - dynS) >= DYN_LEVEL_DEADBAND_PCT
+      ) {
+        dynLevels.set(symbol, { targetPct: dynT, stopPct: dynS });
+        pushLog({
+          t: Date.now(),
+          symbol,
+          session,
+          action: 'HOLD',
+          sizePct: 0,
+          confidence: 1,
+          reason: `ATR 동적 레벨 갱신: 목표 +${dynT}% / 손절 -${dynS}% (5분봉 ATR ${atrPct.toFixed(2)}%)`,
+          fallback: false,
+          currentPrice,
+          model: 'atr',
+        });
+      }
+    }
+  }
+  // 이하 가드·AI 컨텍스트는 ATR 모드면 동적 레벨이 덮어쓴 설정 사본을 쓴다.
+  const effCfg = withAtrLevels(symCfg, config);
+
   // ── 실거래(3단계) 분기 — 배정 풀 장부 기준으로 실제 주문 ──
   if (symCfg.live) {
-    await evaluateSymbolLive(symCfg, config, session, {
+    await evaluateSymbolLive(effCfg, config, session, {
       candles,
       currentPrice,
       currency,
@@ -721,7 +780,7 @@ async function evaluateSymbol(
 
   // 기계적 보호 로직(손절/익절+추세홀드/트레일링) — AI 판단에 앞서 코드가 강제한다.
   const guardPos = getPaperSummary(symbol);
-  const guard = runPaperGuards(symCfg, currentPrice, candles);
+  const guard = runPaperGuards(effCfg, currentPrice, candles);
   if (guard?.handled) {
     logGuardOutcome(symbol, session, currentPrice, guardPos, guard);
     return; // 이번 틱은 보호 로직이 처리 — AI 호출 생략(다음 틱부터 재개)
@@ -771,8 +830,8 @@ async function evaluateSymbol(
     maxBuyQuantity:
       paperCash > 0 ? Math.floor((paperCash / currentPrice) * 1e4) / 1e4 : undefined,
     sellableQuantity: paperQty > 0 ? paperQty : undefined,
-    targetProfitPct: symCfg.targetPercent,
-    stopLossPct: symCfg.stopLossPercent,
+    targetProfitPct: effCfg.targetPercent,
+    stopLossPct: effCfg.stopLossPercent,
     signal: { level: signal.level, score: signal.score, rsi: signal.rsi, sma20: signal.sma20, sma50: signal.sma50, atr: signal.atr },
     regime: { adx: regime.adx, state: regime.state },
     marketRef,
@@ -954,7 +1013,8 @@ async function runGuardTick(): Promise<void> {
         markBgLivePrice(symCfg.symbol, price);
         const syncNote = await syncPositionFromAccount(symCfg.symbol, symCfg.poolUsd);
         const notes = await reconcileBgOrders(symCfg.symbol, price);
-        const guard = await runBgLiveGuards(symCfg, price, [], session, 'protect');
+        // ATR 모드면 5분 틱이 채택해 둔 동적 레벨로 보호 판정.
+        const guard = await runBgLiveGuards(withAtrLevels(symCfg, config), price, [], session, 'protect');
         const entries: { action: AiAction; reason: string; model: string }[] = [
           ...(syncNote ? [{ action: 'HOLD' as AiAction, reason: `[실거래] ${syncNote}`, model: 'live-reconcile' }] : []),
           ...notes.map((n) => ({ action: 'HOLD' as AiAction, reason: n, model: 'live-order' })),
@@ -996,7 +1056,7 @@ async function runGuardTick(): Promise<void> {
 
       markPaperPrice(symCfg.symbol, price); // 수익률 표시도 1분 단위로 갱신
       const guardPos = getPaperSummary(symCfg.symbol);
-      const guard = runPaperGuards(symCfg, price, [], 'protect');
+      const guard = runPaperGuards(withAtrLevels(symCfg, config), price, [], 'protect');
       if (guard?.handled) {
         logGuardOutcome(symCfg.symbol, session, price, guardPos, guard);
       }

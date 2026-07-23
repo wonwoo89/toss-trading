@@ -47,12 +47,16 @@ export interface AutoTradeConfig {
   enabled: boolean;
   /** 일일 실현 손실 한도(USD, 전 종목 합산). 0=끔. 초과 시 엔진이 전역 정지. */
   dailyLossLimitUsd: number;
+  /** 변동성(ATR) 동적 목표/손절 — 5분 판단 틱마다 ATR 기준으로 종목별 목표/손절을 조정.
+      손절은 각 종목 설정을 최대 한도로 유지(더 타이트해질 수만 있음). */
+  atrLevels: boolean;
   symbols: AutoSymbolConfig[];
 }
 
 export const AUTO_TRADE_DEFAULT: AutoTradeConfig = {
   enabled: false,
   dailyLossLimitUsd: 0,
+  atrLevels: false,
   symbols: [],
 };
 
@@ -101,6 +105,7 @@ export function sanitizeConfig(raw: unknown): AutoTradeConfig {
   return {
     enabled: r.enabled === true,
     dailyLossLimitUsd: clampNumber(r.dailyLossLimitUsd, 0, 1_000_000, 0),
+    atrLevels: r.atrLevels === true,
     symbols,
   };
 }

@@ -53,7 +53,7 @@ function unwrap<T>(res: { result: T }): T {
   return res.result;
 }
 
-const EMPTY_CONFIG: AutoTradeConfig = { enabled: false, dailyLossLimitUsd: 0, symbols: [] };
+const EMPTY_CONFIG: AutoTradeConfig = { enabled: false, dailyLossLimitUsd: 0, atrLevels: false, symbols: [] };
 
 /** 판단 사유가 이 길이를 넘으면 기본 축약(1줄) + '상세' 토글을 보여준다. */
 const REASON_CLAMP_LEN = 60;
@@ -1159,6 +1159,17 @@ export function ServerAiPage({
             max={1_000_000}
             onChange={(v) => setDraft((c) => ({ ...c, dailyLossLimitUsd: v }))}
           />
+          <div
+            className="auto-trade__option"
+            title="변동성(ATR) 동적 목표/손절 — 5분 판단 틱마다 종목별 ATR 로 목표(2×ATR, 설정×3 이내)·손절(1.5×ATR, 설정 이하)을 자동 조정합니다. 손절은 각 종목 설정보다 타이트해질 수만 있습니다."
+          >
+            <Typography size={12} className="auto-trade__option-label">ATR 자동</Typography>
+            <Switch
+              checked={Boolean(draft.atrLevels)}
+              onChange={(checked) => setDraft((c) => ({ ...c, atrLevels: checked }))}
+              aria-label="변동성(ATR) 동적 목표/손절 (5분 판단 틱 기준)"
+            />
+          </div>
         </div>
       </section>
 
