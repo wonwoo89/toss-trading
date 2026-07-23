@@ -547,12 +547,17 @@ export function ServerAiPage({
   embedded = false,
   openLiveLog = false,
   onLiveLogConsumed,
+  openBgLogSymbol = null,
+  onBgLogConsumed,
   onNavigateToSymbol,
 }: {
   embedded?: boolean;
   /** 임베드(모바일 AI 탭)에서 단일종목 전체 로그 모달을 열라는 1회성 요청. */
   openLiveLog?: boolean;
   onLiveLogConsumed?: () => void;
+  /** 임베드에서 다중매매 판단 로그를 이 종목 필터로 열라는 1회성 요청(모바일 모달). */
+  openBgLogSymbol?: string | null;
+  onBgLogConsumed?: () => void;
   /** 티커 클릭 시 차트 이동 핸들러 — 임베드(모바일 AI 탭)는 같은 라우트 안이라
       navigate 만으로는 화면이 안 바뀌므로 부모(StockPage)가 탭 전환까지 처리한다. */
   onNavigateToSymbol?: (symbol: string) => void;
@@ -585,6 +590,25 @@ export function ServerAiPage({
   const [logFilter, setLogFilter] = useState<string>('ALL');
   // 모바일 판단 로그 모달 — 데스크톱 로그 패널 전체(필터 칩 포함)를 모달로 띄운다.
   const [logModalOpen, setLogModalOpen] = useState(false);
+
+  // 임베드(모바일 AI 탭): 차트의 '로그 보기'(백그라운드 모드) → 해당 종목 필터로 모달 오픈(1회성).
+  useEffect(() => {
+    if (!openBgLogSymbol) return;
+    setLogFilter(openBgLogSymbol);
+    setLogModalOpen(true);
+    onBgLogConsumed?.();
+  }, [openBgLogSymbol, onBgLogConsumed]);
+
+  // 데스크톱 딥링크: /server-ai 라우터 state 로 종목이 오면 로그 패널 필터를 그 종목으로(1회성 소비).
+  const bgLogLocation = useLocation();
+  const bgLogNavigate = useNavigate();
+  useEffect(() => {
+    const sym = (bgLogLocation.state as { bgLogSymbol?: string } | null)?.bgLogSymbol;
+    if (!sym) return;
+    setLogFilter(sym);
+    bgLogNavigate(bgLogLocation.pathname, { replace: true, state: null });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 모달 열림 중 Esc 닫기 + 배경 스크롤 잠금.
   useEffect(() => {

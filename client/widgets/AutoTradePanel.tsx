@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { NumberField } from './NumberField';
@@ -62,8 +62,9 @@ interface AutoTradePanelProps {
   onExecModeChange?: (active: boolean) => void;
   /** 모바일(좁은 폭) 여부 — 화면 꺼짐/백그라운드 시 멈춤 안내를 노출하기 위함. */
   isMobile?: boolean;
-  /** '로그 보기' 대체 동작(모바일 탭 전환용) — 없으면 /server-ai 로 이동. */
-  onViewLogs?: () => void;
+  /** '로그 보기' 대체 동작(모바일 탭 전환용) — 없으면 /server-ai 로 이동.
+      target: 'single'=단일매매 전체 로그, 'bg'=다중매매 로그(현재 종목 필터). */
+  onViewLogs?: (target: 'single' | 'bg') => void;
   // AI(LLM) 판단용 추가 입력. 봉 마감·의미있는 변동 시 서버로 스냅샷을 보내 BUY/SELL/HOLD 를 받는다.
   candles?: ChartCandle[];
   candleInterval?: string;
@@ -213,6 +214,41 @@ export function AutoTradePanel({
 
   const [logs, setLogs] = useState<LogEntry[]>(loadAutoTradeLogs);
 
+  // ── 백그라운드(다종목 서버 엔진) 등록 상태 — 세그먼티드 '(n/5)' 표기와 모드 동기화용 ──
+  const [bgLimits, setBgLimits] = useState<{ count: number; max: number }>({ count: 0, max: 5 });
+  const [bgActive, setBgActive] = useState(false);
+  const bgSyncedRef = useRef(false);
+  const refreshBgConfig = useCallback(async () => {
+    try {
+      const res = (await api.getAutoConfig()).result;
+      const entry = res.config.symbols.find((s) => s.symbol === symbol.toUpperCase());
+      setBgLimits({ count: res.config.symbols.length, max: res.limits.maxSymbols });
+      const isOn = Boolean(res.config.enabled !== false && entry?.active);
+      setBgActive(isOn);
+      return { config: res.config, entry, isOn };
+    } catch {
+      return null;
+    }
+  }, [symbol]);
+  useEffect(() => {
+    bgSyncedRef.current = false;
+    void (async () => {
+      const res = await refreshBgConfig();
+      // 첫 로드: 이 종목이 백그라운드에서 활성 실행 중이면 모드를 '백그라운드'로 복원.
+      if (!bgSyncedRef.current && res?.isOn) {
+        bgSyncedRef.current = true;
+        setMode((prev) => (prev === 'auto' ? prev : 'bg'));
+      }
+    })();
+    const timer = setInterval(() => void refreshBgConfig(), 30_000);
+    return () => clearInterval(timer);
+  }, [refreshBgConfig]);
+  // AI 매매 탭(다른 기기 포함)에서 이 종목이 비활성화되면 모드 표시도 내린다.
+  useEffect(() => {
+    if (mode === 'bg' && !bgActive) setMode('off');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bgActive]);
+
   // AI(LLM) 판단: 봉 마감·의미있는 변동 시 서버에 스냅샷을 보내 BUY/SELL/HOLD 를 받아 실행한다.
   // 안전: 손절/쿨다운/탭가시성/킬스위치 등 가드는 그대로 적용되고, AI 는 그 안에서 '방향'만 정한다.
   const [aiDecision, setAiDecision] = useState<AiDecision | null>(null);
@@ -337,9 +373,88 @@ export function AutoTradePanel({
     };
   }, [tipPos]);
 
+  // 백그라운드 등록/활성 — 이 종목을 다종목 서버 엔진 설정에 넣는다(기본 페이퍼).
+  const enterBgMode = async (): Promise<boolean> => {
+    const res = await refreshBgConfig();
+    if (!res) {
+      pushLog('block', 'BUY', '백그라운드 설정 조회 실패 — 잠시 후 다시 시도하세요');
+      return false;
+    }
+    const { config, entry } = res;
+    if (!entry && config.symbols.length >= bgLimits.max) {
+      pushLog('block', 'BUY', `백그라운드 등록 불가 — 종목 한도(${bgLimits.max}개) 초과. AI 매매 탭에서 정리 후 다시 시도하세요`);
+      return false;
+    }
+    const ok = window.confirm(
+      entry
+        ? `${symbol} 백그라운드 매매를 다시 활성화합니다(기존 설정 유지). 계속할까요?`
+        : `${symbol} 을(를) 백그라운드 다종목 매매에 등록합니다.\n기본은 페이퍼(가상 $1,000) 모드이며, 실거래 전환·풀 설정은 AI 매매 탭에서 할 수 있습니다. 계속할까요?`
+    );
+    if (!ok) return false;
+    const nextSymbols = entry
+      ? config.symbols.map((s) => (s.symbol === entry.symbol ? { ...s, active: true } : s))
+      : [
+          ...config.symbols,
+          {
+            symbol: symbol.toUpperCase(),
+            active: true,
+            live: false,
+            poolUsd: 500,
+            targetPercent,
+            stopLossPercent,
+            trailingStopPercent,
+            buyMaxPercent: 5,
+          },
+        ];
+    try {
+      await api.saveAutoConfig({ ...config, enabled: true, symbols: nextSymbols });
+      await refreshBgConfig();
+      pushLog('trigger', 'BUY', `백그라운드 매매 ${entry ? '재활성' : '등록'} — ${symbol} (관리: AI 매매 탭)`);
+      return true;
+    } catch (e) {
+      pushLog('block', 'BUY', `백그라운드 등록 실패: ${e instanceof Error ? e.message : '오류'}`);
+      return false;
+    }
+  };
+
+  // 백그라운드 해제 — 종목은 남기고 active 만 끈다(설정 보존, 삭제는 AI 매매 탭에서).
+  const leaveBgMode = async (): Promise<void> => {
+    const res = await refreshBgConfig();
+    if (!res?.entry) return;
+    try {
+      await api.saveAutoConfig({
+        ...res.config,
+        symbols: res.config.symbols.map((s) =>
+          s.symbol === res.entry!.symbol ? { ...s, active: false } : s
+        ),
+      });
+      await refreshBgConfig();
+      pushLog('trigger', 'SELL', `백그라운드 매매 비활성 — ${symbol} (설정은 AI 매매 탭에 유지)`);
+    } catch (e) {
+      pushLog('block', 'SELL', `백그라운드 비활성 실패: ${e instanceof Error ? e.message : '오류'}`);
+    }
+  };
+
   // AI 매매 모드 켜기는 실수 방지를 위해 명시적 확인을 받는다.
   const selectMode = (next: AutoTradeMode) => {
     if (next === mode) return;
+    if (next === 'bg') {
+      void (async () => {
+        const ok = await enterBgMode();
+        if (!ok) return;
+        // AI 매매(단일 서버)에서 넘어오는 경우 기존 실행 정지.
+        if (mode === 'auto') {
+          void api.saveLiveTraderConfig(buildLiveConfigRef.current(false)).catch(() => undefined);
+          setLiveStatus(null);
+        }
+        setMode('bg');
+      })();
+      return;
+    }
+    if (mode === 'bg') {
+      // 백그라운드 → 다른 모드: 이 종목 백그라운드 비활성 후 일반 플로우 계속.
+      void leaveBgMode();
+    }
     if (next === 'auto') {
       const ok =
         typeof window !== 'undefined' &&
@@ -568,7 +683,8 @@ export function AutoTradePanel({
       : undefined;
   const slReached = slPrice !== undefined && currentPrice !== undefined && currentPrice <= slPrice;
 
-  const active = mode !== 'off';
+  // '백그라운드' 모드는 서버 다종목 엔진이 전담 — 로컬 감시/AI 호출은 전부 쉰다(off 와 동일).
+  const active = mode === 'dryrun' || mode === 'auto';
   // 로컬 트리거(익절/손절/트레일링/AI 호출)는 드라이런에서만 돈다 — AI 매매는 서버 실행.
   const localActive = mode === 'dryrun';
   const dailyLossReached = dailyLossLimitUsd > 0 && dailyRealizedUsd <= -dailyLossLimitUsd;
@@ -842,7 +958,7 @@ export function AutoTradePanel({
 
   // AI 결정 실행: BUY/SELL 을 기존 모드 정책(드라이런=기록, 오토=즉시)·가드로 라우팅.
   const executeAiDecision = (decision: AiDecision, historyId: string) => {
-    if (mode === 'off') return;
+    if (mode === 'off' || mode === 'bg') return;
     if (decision.action === 'HOLD' || decision.fallback) {
       if (mode === 'dryrun') {
         pushLog('skip', 'BUY', `AI 관망: ${decision.reason || '근거 없음'}`);
@@ -1097,6 +1213,7 @@ export function AutoTradePanel({
             { value: 'off', label: 'OFF' },
             { value: 'dryrun', label: '드라이런' },
             { value: 'auto', label: 'AI 매매', activeClassName: 'is-danger' },
+            { value: 'bg', label: `백그라운드 (${bgLimits.count}/${bgLimits.max})` },
           ]}
         />
       </div>
@@ -1194,7 +1311,9 @@ export function AutoTradePanel({
         </Typography>
       )}
 
-      <div className="auto-trade__ai">
+      {/* AI 판단 라인 — 로컬 판단이 도는 드라이런/AI 매매에서만 노출(백그라운드·OFF 는 숨김) */}
+      {active && (
+        <div className="auto-trade__ai">
           <Typography size={12} className="auto-trade__ai-head">
             🤖 AI {aiLoading ? '판단 중…' : aiDecision ? '' : '대기'}
           </Typography>
@@ -1208,7 +1327,15 @@ export function AutoTradePanel({
             </Typography>
           )}
           {/* 판단 이력·상세 로그는 AI 매매 페이지에서 — 차트 영역은 최신 판단 한 줄만 유지 */}
-      </div>
+        </div>
+      )}
+
+      {mode === 'bg' && (
+        <Typography as="p" size={12} className="auto-trade__server-status">
+          🗂 백그라운드 엔진이 서버에서 5분봉마다 판단·주문합니다. 실거래 전환·풀 설정·삭제는 AI 매매
+          탭에서 관리하세요.
+        </Typography>
+      )}
 
       {isMobile && active && (
         <Typography as="p" size={12} className="auto-trade__mobile-hint">
@@ -1221,16 +1348,25 @@ export function AutoTradePanel({
         <Typography as="p" size={12} className="auto-trade__paused">⏸ 탭이 가려져 자동 실행 일시정지 중 — 이 탭을 다시 보면 재개됩니다.</Typography>
       )}
 
-      {/* 판단/트리거/실행 로그는 AI 매매 페이지에서 확인 — 차트 영역에선 이동 버튼만 제공 */}
-      <div className="auto-trade__logs-link">
-        <Button size="sm" variant="ghost" onClick={() =>
-            isMobile && onViewLogs
-              ? onViewLogs()
-              : navigate('/server-ai', { state: { openLiveLog: true } })
-          }>
-          로그 보기 →
-        </Button>
-      </div>
+      {/* 판단/트리거/실행 로그는 AI 매매 페이지에서 확인 — 자동매매 실행 중일 때만 노출.
+          백그라운드 모드는 다중매매 로그(해당 종목 필터)로, 그 외는 단일매매 전체 로그로 포커스. */}
+      {mode !== 'off' && (
+        <div className="auto-trade__logs-link">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => {
+              const target = mode === 'bg' ? 'bg' : 'single';
+              if (isMobile && onViewLogs) return onViewLogs(target);
+              navigate('/server-ai', {
+                state: target === 'bg' ? { bgLogSymbol: symbol.toUpperCase() } : { openLiveLog: true },
+              });
+            }}
+          >
+            로그 보기 →
+          </Button>
+        </div>
+      )}
 
       {tipPos &&
         createPortal(

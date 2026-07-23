@@ -7,7 +7,7 @@
  *  - 판단/실행 로그: 최근 항목을 영속해 새로고침 후에도 감사 기록이 남는다.
  */
 
-export type AutoTradeMode = 'off' | 'dryrun' | 'auto';
+export type AutoTradeMode = 'off' | 'dryrun' | 'auto' | 'bg';
 
 export interface AutoTradeSettings {
   mode: AutoTradeMode;
@@ -54,6 +54,7 @@ const MAX_PERSISTED_LOG = 40;
 
 function isMode(value: unknown): value is AutoTradeMode {
   // 구버전 저장값 'semi'(세미오토, 제거됨)는 무효 처리 → 기본값 off 로 복원된다.
+  // 'bg'(백그라운드)는 저장하지 않는다 — 서버 설정이 진실이라 로드 시 동기화로 복원.
   return value === 'off' || value === 'dryrun' || value === 'auto';
 }
 

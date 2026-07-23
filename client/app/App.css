@@ -2258,6 +2258,20 @@ body.is-row-resizing {
   gap: 0.4rem;
 }
 
+/* AI 자동매매 실행 중 ★ — 티커명 좌상단에 겹쳐 붙는 소형 뱃지 */
+.stock-label--starred {
+  position: relative;
+}
+.stock-label__star {
+  position: absolute;
+  top: -0.45em;
+  left: -0.62em;
+  font-size: 0.62em;
+  line-height: 1;
+  color: var(--accent, #3182f6);
+  pointer-events: none;
+}
+
 .stock-label--heading {
   margin: 0;
 }
