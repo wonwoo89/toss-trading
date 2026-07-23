@@ -146,12 +146,26 @@ const LIVE_LEVEL_LABELS: Record<LiveLogEntry['level'], string> = {
 /** 라이브 로그 축약 기준 — 이 길이를 넘으면 1줄 말줄임 + '상세' 토글. */
 const LIVE_TEXT_CLAMP_LEN = 42;
 
-function LiveTraderSection() {
+function LiveTraderSection({
+  openLogRequest = false,
+  onOpenLogConsumed,
+}: {
+  openLogRequest?: boolean;
+  onOpenLogConsumed?: () => void;
+} = {}) {
   const [live, setLive] = useState<LiveTraderStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   // '전체보기' — 좁은 로그 영역 대신 큰 모달에서 전체 로그를 상세(전문)로 본다.
   const [showAllLogs, setShowAllLogs] = useState(false);
+
+  // 임베드(모바일 AI 탭)에서의 열기 요청 — 소비 즉시 부모 상태를 리셋해 재오픈을 막는다.
+  useEffect(() => {
+    if (openLogRequest) {
+      setShowAllLogs(true);
+      onOpenLogConsumed?.();
+    }
+  }, [openLogRequest, onOpenLogConsumed]);
 
   // 투자 화면의 '로그 보기 →' 진입: 도착 즉시 전체 로그 모달을 연다(상태는 1회성 소비).
   const location = useLocation();
@@ -469,7 +483,16 @@ function LogSparkline({ entries, avgPrice }: { entries: AutoLogEntry[]; avgPrice
  * 관리·모니터링을 한 화면에서 보여준다.
  * embedded=true 면 모바일 하단 탭('AI 매매') 안에 임베드 — 제목/뒤로가기 헤더를 생략한다.
  */
-export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) {
+export function ServerAiPage({
+  embedded = false,
+  openLiveLog = false,
+  onLiveLogConsumed,
+}: {
+  embedded?: boolean;
+  /** 임베드(모바일 AI 탭)에서 단일종목 전체 로그 모달을 열라는 1회성 요청. */
+  openLiveLog?: boolean;
+  onLiveLogConsumed?: () => void;
+} = {}) {
   const { showToast } = useToast();
 
   // 서버에 저장된 설정(=마지막 저장본)과 편집 중 초안을 분리 — 킬스위치는 저장본 기준 즉시 반영.
@@ -1075,7 +1098,7 @@ export function ServerAiPage({ embedded = false }: { embedded?: boolean } = {}) 
       <hr className="server-ai-divider" aria-hidden="true" />
 
       {/* 단일 종목 집중(서버 실주문) — 현재 실행 중인 종목의 진행 상황·결과 */}
-      <LiveTraderSection />
+      <LiveTraderSection openLogRequest={openLiveLog} onOpenLogConsumed={onLiveLogConsumed} />
         </div>
 
       {/* 판단 로그(종합) — 데스크톱 3열 배치의 가운데 열(종목 필터 칩).

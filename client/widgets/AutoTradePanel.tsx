@@ -62,6 +62,8 @@ interface AutoTradePanelProps {
   onExecModeChange?: (active: boolean) => void;
   /** 모바일(좁은 폭) 여부 — 화면 꺼짐/백그라운드 시 멈춤 안내를 노출하기 위함. */
   isMobile?: boolean;
+  /** '로그 보기' 대체 동작(모바일 탭 전환용) — 없으면 /server-ai 로 이동. */
+  onViewLogs?: () => void;
   // AI(LLM) 판단용 추가 입력. 봉 마감·의미있는 변동 시 서버로 스냅샷을 보내 BUY/SELL/HOLD 를 받는다.
   candles?: ChartCandle[];
   candleInterval?: string;
@@ -155,6 +157,7 @@ export function AutoTradePanel({
   onAutoExecute,
   onExecModeChange,
   isMobile = false,
+  onViewLogs,
   candles = [],
   candleInterval = '1m',
   bids = [],
@@ -1136,7 +1139,7 @@ export function AutoTradePanel({
           onChange={setBuyMaxPercent}
         />
         <NumberField
-          className="auto-trade__field"
+          className="auto-trade__field auto-trade__field--daily"
           label="일손실"
           unit="$"
           title="자동매매 실현 손실이 오늘 이 금액을 넘으면 강제 OFF. 0 = 끔."
@@ -1231,7 +1234,11 @@ export function AutoTradePanel({
 
       {/* 판단/트리거/실행 로그는 AI 매매 페이지에서 확인 — 차트 영역에선 이동 버튼만 제공 */}
       <div className="auto-trade__logs-link">
-        <Button size="sm" variant="ghost" onClick={() => navigate('/server-ai', { state: { openLiveLog: true } })}>
+        <Button size="sm" variant="ghost" onClick={() =>
+            isMobile && onViewLogs
+              ? onViewLogs()
+              : navigate('/server-ai', { state: { openLiveLog: true } })
+          }>
           로그 보기 →
         </Button>
       </div>

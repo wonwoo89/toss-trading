@@ -43,6 +43,8 @@ export function StockPage() {
 
   // 모바일 레이아웃은 하단 탭(구 v2)으로 고정 — 이전 레이아웃 제거.
   const [mobileTab, setMobileTab] = useState<MobileTab>('chart');
+  // 자동매매 '로그 보기'(모바일 v2): AI 탭으로 전환하면서 임베디드 전체 로그 모달을 1회 연다.
+  const [aiLogRequest, setAiLogRequest] = useState(false);
   // 검색은 탭이 아니라 티커칩 바 좌측 돋보기 → 전체화면 오버레이.
   const [searchOpen, setSearchOpen] = useState(false);
   const searchOpenRef = useRef(false);
@@ -233,6 +235,14 @@ export function StockPage() {
                 symbol={symbol}
                 onAutoExecute={executeAutoOrder}
                 autoSubmitting={autoSubmitting}
+                onViewAiLogs={
+                  v2Active
+                    ? () => {
+                        setMobileTab('ai');
+                        setAiLogRequest(true);
+                      }
+                    : undefined
+                }
                 onAutoExecModeChange={setAutoTradeActive}
               />
             </>
@@ -246,7 +256,13 @@ export function StockPage() {
             </div>
             {/* AI 매매 탭: 단일 종목(라이브)+백그라운드(페이퍼) 관리(임베드) — 탭 활성 시에만 마운트해 폴링 절약 */}
             <section className="mobile-serverai-panel" aria-label="AI 매매">
-              {mobileTab === 'ai' && <ServerAiPage embedded />}
+              {mobileTab === 'ai' && (
+                <ServerAiPage
+                  embedded
+                  openLiveLog={aiLogRequest}
+                  onLiveLogConsumed={() => setAiLogRequest(false)}
+                />
+              )}
             </section>
             {/* 설정 탭: 테마·화면꺼짐방지·레이아웃 전환·백테스트 */}
             <MobileSettingsPanel />
