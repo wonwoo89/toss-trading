@@ -22,10 +22,27 @@ const MAX_EVENTS = 100;
 let seq = 0;
 const events: OrderEvent[] = [];
 
+// SSE 실시간 구독자 — 이벤트 발생 즉시 푸시. 연결 종료 시 해제.
+type OrderEventListener = (event: OrderEvent) => void;
+const listeners = new Set<OrderEventListener>();
+
+export function subscribeOrderEvents(listener: OrderEventListener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
 export function pushOrderEvent(event: Omit<OrderEvent, 'id' | 't'>): void {
   seq += 1;
-  events.push({ ...event, id: seq, t: Date.now() });
+  const full: OrderEvent = { ...event, id: seq, t: Date.now() };
+  events.push(full);
   if (events.length > MAX_EVENTS) events.splice(0, events.length - MAX_EVENTS);
+  for (const listener of listeners) {
+    try {
+      listener(full);
+    } catch {
+      // 개별 구독자 오류가 다른 구독자/주문 흐름을 막지 않게 무시
+    }
+  }
 }
 
 /** after 이후의 이벤트 + 최신 커서. after=0(첫 폴링)은 커서만 받고 과거는 재생하지 않는다. */
