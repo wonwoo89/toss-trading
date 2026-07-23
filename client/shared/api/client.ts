@@ -380,10 +380,25 @@ export const api = {
         holding: HoldingsItemRaw | null;
       }>
     >(`/account/snapshot?symbol=${symbol}`, { accountSeq }),
-  getOrders: (options?: { status?: string; symbol?: string }, accountSeq?: string) => {
+  getOrders: (
+    options?: {
+      status?: string;
+      symbol?: string;
+      /** 기간 필터(KST, 주문 생성 시각 기준) — 누적(CLOSED) 내역 조회용. YYYY-MM-DD */
+      from?: string;
+      to?: string;
+      limit?: number;
+      cursor?: string;
+    },
+    accountSeq?: string
+  ) => {
     const params = new URLSearchParams();
     if (options?.status) params.set('status', options.status);
     if (options?.symbol) params.set('symbol', options.symbol.toUpperCase());
+    if (options?.from) params.set('from', options.from);
+    if (options?.to) params.set('to', options.to);
+    if (options?.limit) params.set('limit', String(options.limit));
+    if (options?.cursor) params.set('cursor', options.cursor);
     const query = params.toString() ? `?${params}` : '';
     return request<ApiEnvelope<OrdersPageRaw>>(`/orders${query}`, { accountSeq });
   },
