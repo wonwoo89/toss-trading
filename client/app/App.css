@@ -1604,6 +1604,18 @@ body.is-row-resizing {
     grid-column: 1;
     grid-row: 1;
   }
+  /* 1행(차트 셀) 내부: 50dvh 고정 차트가 셀을 다 먹어 자동매매·마켓정보가 밀려나던 문제 —
+     차트는 남는 공간을 유연하게 쓰고, 아래 정보 영역은 셀의 최대 45%에서 내부 스크롤로 항상 보이게. */
+  .trading-layout:not(.trading-layout--portfolio-only) .chart-panel {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 300px;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .market-panel__below {
+    flex: 0 0 auto;
+    max-height: 35%;
+    overflow-y: auto;
+  }
   .trading-layout:not(.trading-layout--portfolio-only) .portfolio-sidebar {
     grid-column: 2;
     grid-row: 1 / span 2;
