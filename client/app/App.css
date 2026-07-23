@@ -1591,15 +1591,41 @@ body.is-row-resizing {
     flex: 0 1 auto;
     overflow-y: auto;
   }
-  /* 주문 컬럼: [주문폼] 위 + [호가] 아래 스택.
-     기본: 주문폼은 자연 높이(짧은 화면에선 내부 스크롤로 축소), 호가가 남는 공간을 채우고 내부 스크롤.
-     사용자가 핸들을 드래그하면(.order-column--split) --orderbook-ratio(호가 비율)로 분할. */
+  /* ── 데스크톱 레이아웃 개편: 3열 → 2×2 그리드 ──
+     아이패드 프로 세로 등 중간 폭에서 차트가 너무 좁아지는 문제로,
+     차트가 좌측(기존 차트+주문 2열 폭)을 전부 쓰고 그 아래 [호가|주문폼] 5:5,
+     우측 포트폴리오는 기존과 동일하게 세로 전체를 차지한다. */
+  .trading-layout:not(.trading-layout--portfolio-only) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--portfolio-sidebar-width);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 45%);
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .trading-layout__main {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .portfolio-sidebar {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    width: auto;
+  }
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
-    gap: 0.5rem;
+    grid-column: 1;
+    grid-row: 2;
+    width: auto;
+    max-width: none;
+    /* 기존 height:100% 는 margin 을 무시하고 트랙을 넘치므로 stretch 에 맡긴다 */
+    height: auto;
+    flex-direction: row;
+    gap: 1rem;
+    /* 하단 중앙 플로팅 내비(DesktopNav)가 주문폼 버튼을 가리지 않게 여유 확보 */
+    margin-bottom: 64px;
   }
   .trading-layout:not(.trading-layout--portfolio-only) .order-column .orderbook-section {
-    flex: 1 1 auto;
-    min-height: 120px;
+    order: -1; /* DOM은 주문폼이 먼저 — 시각은 호가(좌) | 주문폼(우) */
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
     overflow-y: auto;
     /* 다른 섹션(.panel)과 동일한 카드 박스 */
     background: var(--bg-panel);
@@ -1609,46 +1635,15 @@ body.is-row-resizing {
     backdrop-filter: blur(8px);
   }
   .trading-layout:not(.trading-layout--portfolio-only) .order-column .order-form {
-    flex: 0 1 auto;
-    min-height: 200px;
-    height: auto;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
     overflow-y: auto;
   }
-  /* 드래그로 비율이 지정된 상태 — flex-grow 비율로 높이 배분(둘 다 내부 스크롤) */
-  .trading-layout:not(.trading-layout--portfolio-only)
-    .order-column--split
-    .orderbook-section {
-    flex: var(--orderbook-ratio, 0.4) 1 0px;
-  }
-  .trading-layout:not(.trading-layout--portfolio-only) .order-column--split .order-form {
-    flex: calc(1 - var(--orderbook-ratio, 0.4)) 1 0px;
-  }
-  /* 리사이즈 핸들 — 카드 사이 좁은 띠, hover 시 그립 강조 */
+  /* 세로 분할 리사이즈 핸들 — 가로 5:5 고정 배치가 되어 불필요 */
   .order-split-handle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 0 0 14px;
-    margin: -4px 0;
-    cursor: row-resize;
-    touch-action: none;
-    border-radius: 7px;
-  }
-  .order-split-handle::before {
-    content: '';
-    width: 44px;
-    height: 4px;
-    border-radius: 2px;
-    background: var(--border-subtle);
-    transition: background 0.15s ease, width 0.15s ease;
-  }
-  .order-split-handle:hover::before,
-  .order-split-handle:focus-visible::before {
-    background: var(--accent);
-    width: 64px;
-  }
-  .order-split-handle:focus-visible {
-    outline: none;
+    display: none;
   }
 }
 
