@@ -85,8 +85,9 @@ function pulseThresholdPct(): number {
 // ── 서킷 브레이커 ──
 /** 연속 실현 손실 매도가 이 횟수에 도달하면 강제 OFF(재검토 유도). */
 const CONSECUTIVE_LOSS_LIMIT = 3;
-/** 실현 손실 직후 신규 매수 금지 시간(복수 매매 방지 쿨다운). */
-const LOSS_COOLDOWN_MS = 5 * 60 * 1000;
+/** 실현 손실 직후 신규 매수 금지 시간(복수 매매 방지 쿨다운).
+ *  단, 현재가가 손실 매도 체결가 위로 회복하면(하락 나이프가 아니라 반등) 조기 해제. */
+const LOSS_COOLDOWN_MS = 3 * 60 * 1000;
 // ── 데이터 품질 가드 ──
 /** 최근 캔들이 이보다 오래됐으면(분) 시세 지연/거래정지로 보고 신규 판단 보류. */
 const STALE_CANDLE_MAX_MIN = 20;
@@ -133,6 +134,8 @@ interface LiveTraderState {
   stats: { sells: number; wins: number; losses: number };
   /** 마지막 실현 손실 시각 — 손실 직후 신규 매수 쿨다운. */
   lastLossAt: number | null;
+  /** 마지막 손실 매도 체결가 — 이 가격 위로 회복하면 쿨다운 조기 해제. */
+  lastLossPrice?: number | null;
   aiHistory: {
     t: number;
     action: string;
@@ -207,6 +210,7 @@ function defaultState(): LiveTraderState {
     dynStopPct: null,
     lossStreak: 0,
     lastLossAt: null,
+    lastLossPrice: null,
     stats: { sells: 0, wins: 0, losses: 0 },
     aiHistory: [],
     logs: [],
@@ -318,6 +322,7 @@ export function saveLiveConfig(raw: unknown): LiveTraderConfig {
     s.dynStopPct = null;
     s.lossStreak = 0;
     s.lastLossAt = null;
+    s.lastLossPrice = null;
     s.stats = { sells: 0, wins: 0, losses: 0 };
     s.aiHistory = [];
     s.logs = [];
@@ -551,6 +556,7 @@ async function sellAll(
       s.stats.losses += 1;
       s.lossStreak += 1;
       s.lastLossAt = Date.now(); // 손실 직후 신규 매수 쿨다운 기준
+      s.lastLossPrice = market.currentPrice; // 이 가격 위로 회복하면 쿨다운 조기 해제
     } else if (realized > 0) {
       s.stats.wins += 1;
       s.lossStreak = 0;
@@ -813,11 +819,17 @@ async function executeAiBuy(
     pushLog('block', `차단(일일 손실 한도 도달): AI 매수`, 'BUY');
     return;
   }
-  // 손실 직후 쿨다운 — 복수 매매(연속 재진입) 방지.
+  // 손실 직후 쿨다운 — 복수 매매(연속 재진입) 방지. 단, 현재가가 손실 매도 체결가 위로
+  // 회복했으면 하락 나이프가 아니라 반등이므로 조기 해제한다.
   if (s.lastLossAt !== null && Date.now() - s.lastLossAt < LOSS_COOLDOWN_MS) {
-    const waitMin = Math.ceil((LOSS_COOLDOWN_MS - (Date.now() - s.lastLossAt)) / 60000);
-    pushLog('block', `차단(손실 직후 쿨다운 ${waitMin}분 남음): AI 매수 — ${reason.slice(0, 60)}`, 'BUY');
-    return;
+    const recovered =
+      s.lastLossPrice != null && s.lastLossPrice > 0 && market.currentPrice > s.lastLossPrice;
+    if (!recovered) {
+      const waitMin = Math.ceil((LOSS_COOLDOWN_MS - (Date.now() - s.lastLossAt)) / 60000);
+      pushLog('block', `차단(손실 직후 쿨다운 ${waitMin}분 남음, 손절가 $${s.lastLossPrice?.toFixed(2) ?? '-'} 미회복): AI 매수`, 'BUY');
+      return;
+    }
+    pushLog('skip', `손실 쿨다운 조기 해제 — 현재가 $${market.currentPrice.toFixed(2)} > 손실 매도가 $${s.lastLossPrice!.toFixed(2)}(반등 확인)`, 'BUY');
   }
   if (Date.now() - lastExecAt < COOLDOWN_MS) {
     pushLog('block', `차단(쿨다운): AI 매수`, 'BUY');

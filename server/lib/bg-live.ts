@@ -44,8 +44,9 @@ const COOLDOWN_MS = 30_000;
 const TP_HOLD_TRAIL_PCT = 0.5;
 /** 서킷 브레이커 — 연속 실현 손실이 이 횟수에 도달하면 해당 종목 실거래를 자동 정지. */
 const CONSECUTIVE_LOSS_LIMIT = 3;
-/** 손실 직후 신규 매수 쿨다운(복수 매매 방지) — 단일 종목 트레이더와 동일. */
-const LOSS_COOLDOWN_MS = 5 * 60 * 1000;
+/** 손실 직후 신규 매수 쿨다운(복수 매매 방지) — 단일 종목 트레이더와 동일.
+ *  현재가가 손실 매도 체결가 위로 회복하면 조기 해제. */
+const LOSS_COOLDOWN_MS = 3 * 60 * 1000;
 /** 익절 목표가 계산용 편도 수수료 가정(단일 종목 트레이더와 동일). */
 const COMMISSION_RATE = 0.001;
 const MIN_BUY_BUDGET_USD = 1;
@@ -78,6 +79,8 @@ interface BgLivePosition {
   lossStreak?: number;
   /** 마지막 실현 손실 시각 — 손실 직후 매수 쿨다운 기준. */
   lastLossAt?: number | null;
+  /** 마지막 손실 매도 체결가 — 이 가격 위로 회복하면 쿨다운 조기 해제. */
+  lastLossPrice?: number | null;
   /** 매매 성과 통계(실현 매도 기준). */
   stats?: { sells: number; wins: number; losses: number };
   updatedAt: number;
@@ -627,6 +630,7 @@ export async function sellAllBgLive(
     stats.losses += 1;
     pos.lossStreak = (pos.lossStreak ?? 0) + 1;
     pos.lastLossAt = Date.now();
+    pos.lastLossPrice = execPrice; // 이 가격 위로 회복하면 쿨다운 조기 해제
     if (pos.lossStreak >= CONSECUTIVE_LOSS_LIMIT) {
       const config = getAutoTradeConfig();
       const target = config.symbols.find((c) => c.symbol === symbol && c.live && c.active);
@@ -666,10 +670,14 @@ export async function executeBgLiveBuy(
   if (pos.cash < MIN_BUY_BUDGET_USD) {
     return { ok: false, text: `AI 매수 의견 미실행 — 풀 현금 부족($${pos.cash.toFixed(2)})` };
   }
-  // 손실 직후 쿨다운 — 복수 매매(연속 재진입) 방지(단일 종목 트레이더와 동일).
+  // 손실 직후 쿨다운 — 복수 매매(연속 재진입) 방지. 손실 매도가 위로 회복 시 조기 해제.
   if (pos.lastLossAt != null && Date.now() - pos.lastLossAt < LOSS_COOLDOWN_MS) {
-    const waitMin = Math.ceil((LOSS_COOLDOWN_MS - (Date.now() - pos.lastLossAt)) / 60000);
-    return { ok: false, text: `차단(손실 직후 쿨다운 ${waitMin}분 남음): AI 매수 — ${reason.slice(0, 60)}` };
+    const recovered =
+      pos.lastLossPrice != null && pos.lastLossPrice > 0 && market.price > pos.lastLossPrice;
+    if (!recovered) {
+      const waitMin = Math.ceil((LOSS_COOLDOWN_MS - (Date.now() - pos.lastLossAt)) / 60000);
+      return { ok: false, text: `차단(손실 직후 쿨다운 ${waitMin}분 남음, 손절가 $${pos.lastLossPrice?.toFixed(2) ?? '-'} 미회복): AI 매수` };
+    }
   }
   if (inCooldown(symbol)) return { ok: false, text: '차단(쿨다운): AI 매수' };
 
