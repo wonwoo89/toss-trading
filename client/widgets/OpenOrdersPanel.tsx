@@ -7,6 +7,8 @@ import {
   sortOrdersByDate,
 } from '../shared/lib/formatOrders';
 import { Typography } from '../shared/ui/Typography';
+import { Button } from '../shared/ui/Button';
+import { OrderHistoryModal } from './OrderHistoryModal';
 import type { Order } from '../shared/types';
 
 interface OpenOrdersPanelProps {
@@ -21,6 +23,7 @@ export function OpenOrdersPanel({
   hideSymbol = false,
 }: OpenOrdersPanelProps) {
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const handleCancel = async (orderId: string) => {
     setCancellingOrderId(orderId);
@@ -37,7 +40,11 @@ export function OpenOrdersPanel({
     <section className="panel open-orders-panel">
       <div className="panel-title open-orders-panel__title">
         <Typography size={16} as="h2">미체결 주문</Typography>
+        <Button size="sm" variant="ghost" onClick={() => setHistoryOpen(true)}>
+          주문 내역
+        </Button>
       </div>
+      {historyOpen && <OrderHistoryModal onClose={() => setHistoryOpen(false)} />}
 
       <div className="panel-body open-orders-panel__body">
         {openOrders.length === 0 ? (

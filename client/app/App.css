@@ -513,6 +513,27 @@ textarea {
 
 .open-orders-panel__title {
   margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+/* ── 누적 주문내역 모달 — backtest-modal 프레임 재사용 + 기간 칩/리스트/더보기 ── */
+.order-history-modal__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+}
+.order-history-modal__list {
+  min-height: 0;
+  overflow-y: auto;
+}
+.order-history-modal__foot {
+  display: flex;
+  justify-content: center;
+  padding-top: 0.7rem;
 }
 
 
@@ -4335,10 +4356,11 @@ input[type='checkbox']:focus-visible {
     align-items: flex-start;
     gap: 1.25rem;
   }
-  /* 종목 설정 열 — 단일 컬럼(760px)보다 좁게. 좁은 데스크톱에서는 로그 열 확보를 위해 수축 허용 */
+  /* 종목 설정 열 — 단일 컬럼(760px)보다 좁게. 좁은 데스크톱에서는 로그 열 확보를 위해 수축 허용.
+     '활성 종목' 등 상태 dl 타이틀이 줄바꿈되지 않는 폭(29rem)으로 소폭 확대. */
   .server-ai-layout .server-ai-columns__main {
-    flex: 0 1 27.5rem;
-    min-width: 21rem;
+    flex: 0 1 29rem;
+    min-width: 22.5rem;
   }
   /* 판단 로그 열 — 사이드바처럼 헤더 아래~화면 하단까지 고정(sticky)하고 내부 스크롤.
      페이지 스크롤은 좌측(설정+단일종목) 열만 담당한다. */
@@ -4514,6 +4536,8 @@ input[type='checkbox']:focus-visible {
 
 .server-ai-status dt {
   color: var(--text-secondary);
+  /* 값(dd)이 길어도 '활성 종목' 등 타이틀은 줄바꿈하지 않는다 */
+  white-space: nowrap;
 }
 
 .server-ai-status dd {

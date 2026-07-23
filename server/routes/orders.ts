@@ -21,6 +21,9 @@ ordersRouter.get('/', async (req, res, next) => {
         symbol: req.query.symbol ? String(req.query.symbol).toUpperCase() : undefined,
         limit: req.query.limit ? Number(req.query.limit) : undefined,
         cursor: req.query.cursor ? String(req.query.cursor) : undefined,
+        // 누적(CLOSED) 주문내역 기간 필터 — 주문 생성 시각(orderedAt, KST) 기준
+        from: req.query.from ? String(req.query.from) : undefined,
+        to: req.query.to ? String(req.query.to) : undefined,
       },
     });
     res.json(data);
