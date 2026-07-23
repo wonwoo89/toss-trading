@@ -502,7 +502,10 @@ async function sellAll(
 ): Promise<boolean> {
   const s = loadState();
   const { account, market, session } = ctx;
-  const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전 소수점 접수 시간대
+  // 소수점 가능 여부 — 틱 시작 시점 세션과 '지금' 세션(캐시 30분, 재조회 비용 0)이 모두
+  // 정규장일 때만. 여러 종목/AI 지연으로 틱이 길어져 세션이 넘어가는 경계 케이스를 막는다.
+  const sessionNow = await getUsMarketSession();
+  const canFractional = fractionalAllowed(session) && fractionalAllowed(sessionNow);
   // 소수점 주문 불가 시간대 + 보유 1주 미만(소수점 잔량) — 소수점 매도가 불가해 생략.
   // 정수 1주 이상은 정수부 매도가 가능하므로 막지 않는다.
   if (!canFractional && account.holdingQty < 1) {
@@ -537,7 +540,7 @@ async function sellAll(
     return false;
   }
   lastExecAt = Date.now();
-  pushLog('exec', `${label}: ${qty}주 @ ${fractional ? '시장가' : `$${body.price}`}`, 'SELL');
+  pushLog('exec', `${label}: ${qty}주 @ ${fractional ? `시장가(소수점·세션 ${sessionNow})` : `$${body.price}`}`, 'SELL');
 
   // 실현 손익 근사(트리거가 기준) → 일일 한도·연속 손실 서킷 브레이커 판정.
   if (account.averagePrice > 0) {
@@ -824,7 +827,9 @@ async function executeAiBuy(
   const budget = Math.floor(account.buyingPower * (effectivePct / 100) * 100) / 100;
   const price = market.currentPrice;
   const qty = Math.floor(budget / price);
-  const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전
+  // 실행 시점 세션 재확인(이중 게이트) — 정규장 밖 소수점 시도를 원천 차단.
+  const sessionNow = await getUsMarketSession();
+  const canFractional = fractionalAllowed(session) && fractionalAllowed(sessionNow);
 
   let body: Record<string, unknown>;
   let label: string;
@@ -834,7 +839,7 @@ async function executeAiBuy(
     label = `AI 매수 ${qty}주(비중 ${effectivePct}%) @ $${exec}`;
   } else if (canFractional && budget >= 1) {
     body = { symbol: cfg.symbol, side: 'BUY', orderType: 'MARKET', orderAmount: budget, clientOrderId: `live-${Date.now()}` };
-    label = `AI 소수점 매수 $${budget}(비중 ${effectivePct}%) 시장가`;
+    label = `AI 소수점 매수 $${budget}(비중 ${effectivePct}%) 시장가(세션 ${sessionNow})`;
   } else if (price <= account.buyingPower * (cfg.buyMaxPercent / 100)) {
     const exec = floorTick(marketableBuyPrice(price, market.asks));
     body = { symbol: cfg.symbol, side: 'BUY', orderType: 'LIMIT', quantity: 1, price: exec, clientOrderId: `live-${Date.now()}` };

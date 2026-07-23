@@ -9,7 +9,7 @@ import {
 import { computeTrend } from './candle-signals.js';
 import { getDefaultAccountSeq, tossRequest } from './toss-client.js';
 import type { AiDecisionCandle } from './ai-decision.js';
-import { isFractionalOrderTime, type UsMarketSessionKind } from './us-market-session.js';
+import { getUsMarketSession, isFractionalOrderTime, type UsMarketSessionKind } from './us-market-session.js';
 
 /** 소수점 주문 가능 여부 — 정규장 세션 + KST 04시 이전 소수점 접수 시간대일 때만. */
 function fractionalAllowed(session: UsMarketSessionKind): boolean {
@@ -556,7 +556,9 @@ export async function sellAllBgLive(
   if (pos.openOrders.some((o) => o.side === 'SELL')) {
     return { ok: false, text: `${label} 생략 — 미체결 매도 주문 존재` };
   }
-  const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전 소수점 접수 시간대
+  // 틱 시작 세션 + 실행 시점 세션(캐시 재확인) 이중 게이트 — 정규장 밖 소수점 시도 차단.
+  const sessionNow = await getUsMarketSession();
+  const canFractional = fractionalAllowed(session) && fractionalAllowed(sessionNow);
   if (!canFractional && pos.quantity < 1) {
     return { ok: false, text: `${label} 생략(보유 ${pos.quantity}주 < 1주 — 소수점 잔량, 소수점 주문 불가 시간대)` };
   }
@@ -645,7 +647,7 @@ export async function sellAllBgLive(
   const { forcedOff } = addRealized(realizedDelta);
   return {
     ok: true,
-    text: `${label}: ${qty}주 @ ${fractional ? '시장가' : `$${execPrice}`} (실현 ${realizedDelta >= 0 ? '+' : ''}$${realizedDelta.toFixed(2)})${cappedNote}`,
+    text: `${label}: ${qty}주 @ ${fractional ? `시장가(소수점·세션 ${sessionNow})` : `$${execPrice}`} (실현 ${realizedDelta >= 0 ? '+' : ''}$${realizedDelta.toFixed(2)})${cappedNote}`,
     forcedOff,
     circuitOff,
   };
@@ -675,7 +677,8 @@ export async function executeBgLiveBuy(
   const budget = Math.min(pos.cash, Math.floor(pos.cash * (effectivePct / 100) * 100) / 100);
   const price = market.price;
   const qty = Math.floor(budget / price);
-  const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전
+  const sessionNow = await getUsMarketSession();
+  const canFractional = fractionalAllowed(session) && fractionalAllowed(sessionNow); // 이중 게이트
 
   let body: Record<string, unknown>;
   let fillQty: number;
@@ -692,7 +695,7 @@ export async function executeBgLiveBuy(
     fillPrice = price;
     fillQty = floorQty(budget / price);
     body = { symbol, side: 'BUY', orderType: 'MARKET', orderAmount: budget, clientOrderId: `bg-${Date.now()}` };
-    label = `실 소수점 매수 $${budget}(비중 ${effectivePct}%) 시장가`;
+    label = `실 소수점 매수 $${budget}(비중 ${effectivePct}%) 시장가(세션 ${sessionNow})`;
   } else if (price <= pos.cash * (symCfg.buyMaxPercent / 100) || price <= pos.cash) {
     // 소수점 불가 시간대 1주 폴백 — 풀 현금 이내에서만.
     if (price > pos.cash) {
