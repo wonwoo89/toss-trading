@@ -15,6 +15,7 @@ import { MobileSettingsPanel } from '../../widgets/MobileSettingsPanel';
 import { ServerAiPage } from '../server-ai/ServerAiPage';
 import { MobileTabBar, type MobileTab } from '../../widgets/MobileTabBar';
 import { SymbolSearch } from '../../widgets/SymbolSearch';
+import { Button } from '../../shared/ui/Button';
 import { RecentSearchChips } from '../../widgets/RecentSearchChips';
 import { getLastSelectedSymbol, setLastSelectedSymbol } from '../../shared/lib/lastSymbolPreference';
 import {
@@ -299,13 +300,13 @@ export function StockPage() {
             {/* 모바일 주문 탭: 스티키 영역(차트↔호가) 전환 버튼 — 스크롤 중에도 우상단 고정 */}
             {v2Active && mobileTab === 'order' && (
               <div className="order-view-toggle">
-                <button
-                  type="button"
+                <Button
+                  size="sm"
                   className="order-view-toggle__btn"
                   onClick={() => setOrderBookView((v) => !v)}
                 >
                   {orderBookView ? '차트 보기' : '호가 보기'}
-                </button>
+                </Button>
               </div>
             )}
             <OrderForm
