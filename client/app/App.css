@@ -1591,10 +1591,13 @@ body.is-row-resizing {
     flex: 0 1 auto;
     overflow-y: auto;
   }
-  /* ── 데스크톱 레이아웃 개편: 3열 → 2×2 그리드 ──
-     아이패드 프로 세로 등 중간 폭에서 차트가 너무 좁아지는 문제로,
-     차트가 좌측(기존 차트+주문 2열 폭)을 전부 쓰고 그 아래 [호가|주문폼] 5:5,
-     우측 포트폴리오는 기존과 동일하게 세로 전체를 차지한다. */
+}
+
+/* ── 중간 폭(1101~1280px, 아이패드 프로 세로 등): 3열이 차트를 너무 좁게 만들어 2×2 그리드 ──
+   차트가 좌측(기존 차트+주문 2열 폭)을 전부 쓰고 그 아래 [호가|주문폼] 5:5,
+   우측 포트폴리오는 기존과 동일하게 세로 전체를 차지한다.
+   ≥1281px(아이패드 가로·데스크톱)는 아래 블록에서 기존 3열을 유지한다. */
+@media (min-width: 1101px) and (max-width: 1280px) {
   .trading-layout:not(.trading-layout--portfolio-only) {
     display: grid;
     grid-template-columns: minmax(0, 1fr) var(--portfolio-sidebar-width);
@@ -1656,6 +1659,68 @@ body.is-row-resizing {
   /* 세로 분할 리사이즈 핸들 — 가로 5:5 고정 배치가 되어 불필요 */
   .order-split-handle {
     display: none;
+  }
+}
+
+/* ── 넓은 화면(≥1281px): 기존 3열(차트|주문 컬럼|포트폴리오) 유지 ──
+   주문 컬럼은 [주문폼] 위 + [호가] 아래 스택. 기본은 주문폼 자연 높이, 호가가 남는
+   공간을 채우고 내부 스크롤. 핸들 드래그(.order-column--split) 시 --orderbook-ratio 로 분할. */
+@media (min-width: 1281px) {
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column {
+    gap: 0.5rem;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column .orderbook-section {
+    flex: 1 1 auto;
+    min-height: 120px;
+    overflow-y: auto;
+    /* 다른 섹션(.panel)과 동일한 카드 박스 */
+    background: var(--bg-panel);
+    border: 1px solid var(--border-subtle);
+    border-radius: 18px;
+    padding: 1rem;
+    backdrop-filter: blur(8px);
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column .order-form {
+    flex: 0 1 auto;
+    min-height: 200px;
+    height: auto;
+    overflow-y: auto;
+  }
+  /* 드래그로 비율이 지정된 상태 — flex-grow 비율로 높이 배분(둘 다 내부 스크롤) */
+  .trading-layout:not(.trading-layout--portfolio-only)
+    .order-column--split
+    .orderbook-section {
+    flex: var(--orderbook-ratio, 0.4) 1 0px;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .order-column--split .order-form {
+    flex: calc(1 - var(--orderbook-ratio, 0.4)) 1 0px;
+  }
+  /* 리사이즈 핸들 — 카드 사이 좁은 띠, hover 시 그립 강조 */
+  .order-split-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 14px;
+    margin: -4px 0;
+    cursor: row-resize;
+    touch-action: none;
+    border-radius: 7px;
+  }
+  .order-split-handle::before {
+    content: '';
+    width: 44px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-subtle);
+    transition: background 0.15s ease, width 0.15s ease;
+  }
+  .order-split-handle:hover::before,
+  .order-split-handle:focus-visible::before {
+    background: var(--accent);
+    width: 64px;
+  }
+  .order-split-handle:focus-visible {
+    outline: none;
   }
 }
 
