@@ -495,6 +495,20 @@ async function evaluateSymbolLive(
     return;
   }
 
+  // 1-b2) 매수 불가 사전 필터 — 무포지션 + 소수점 불가 시간대 + 풀 현금 < 1주면
+  //       실행 가능한 매수가 없으므로 AI 호출을 생략한다(의견→차단 반복 방지).
+  if (pool.quantity <= 0 && currentPrice > 0 && !canFractional && pool.cash < currentPrice) {
+    if (Date.now() - (lastSkipLogAt.get(symbol) ?? 0) > 30 * 60 * 1000) {
+      lastSkipLogAt.set(symbol, Date.now());
+      liveLog(
+        'HOLD',
+        `[실거래] AI 판단 생략(매수 불가 상태): 풀 현금 $${pool.cash.toFixed(2)} < 1주 $${currentPrice.toFixed(2)} · 소수점 주문 불가 시간대`,
+        'skip'
+      );
+    }
+    return;
+  }
+
   // 1-c) 티어드 사전 필터(실거래 전용) — 무포지션 + 신호 완전 중립 + 미세 변동이면
   //      AI 호출 생략(비용·노이즈 절감). 기준가는 갱신하지 않아 다음 유의미 변동에서 즉시 판단.
   //      (페이퍼는 드라이런 표본 확보가 목적이라 필터를 적용하지 않는다)
