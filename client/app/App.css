@@ -3948,7 +3948,8 @@ input[type='checkbox']:focus-visible {
 
 /* 데스크톱: 탭바·레이아웃 토글 숨김 (모바일 전용 기능) */
 @media (min-width: 1101px) {
-  .mobile-tab-bar {
+  .mobile-tab-bar,
+  .order-view-toggle {
     display: none;
   }
 }
