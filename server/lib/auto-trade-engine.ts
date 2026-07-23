@@ -853,6 +853,10 @@ async function runTick(): Promise<void> {
   status.enabled = config.enabled;
   status.aiConfigured = isAiConfigured();
   status.lastTickAt = Date.now();
+  // 판단이 길어지는 동안 nextTickAt 이 지난 예약 시각(=방금 시작한 시각)으로 남아
+  // '다음 판단'이 '마지막 확인'과 같게 보이던 문제 — 시작 즉시 다음 봉 기준 예상치로 갱신.
+  // (틱 종료 후 scheduleNext 가 정확한 값으로 다시 계산한다)
+  if (status.running) status.nextTickAt = status.lastTickAt + nextTickDelay(status.lastTickAt);
 
   const activeSymbols = config.enabled ? config.symbols.filter((s) => s.active) : [];
   status.activeSymbols = activeSymbols.map((s) => s.symbol);
