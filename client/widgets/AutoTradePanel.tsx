@@ -193,7 +193,8 @@ export function AutoTradePanel({
   const [trailingStopPercent, setTrailingStopPercent] = useState(
     initialSettings.trailingStopPercent
   );
-  const [buyMaxPercent, setBuyMaxPercent] = useState(initialSettings.buyMaxPercent);
+  // 1회 매수 상한 — 서버 안전 상한(5%) 고정. 실거래 보호를 위해 인풋을 제거하고 상수로 둔다.
+  const buyMaxPercent = 5;
   const [dailyLossLimitUsd, setDailyLossLimitUsd] = useState(initialSettings.dailyLossLimitUsd);
   // 추세 홀드 — 목표 도달 시 상승 추세면 익절을 보류하고 고점 추적(보전선 이탈 시 매도).
   const [holdTpOnTrend, setHoldTpOnTrend] = useState(initialSettings.holdTpOnTrend);
@@ -446,7 +447,6 @@ export function AutoTradePanel({
           setTargetPercent(st.config.targetPercent);
           setStopLossPercent(st.config.stopLossPercent);
           setTrailingStopPercent(st.config.trailingStopPercent);
-          setBuyMaxPercent(st.config.buyMaxPercent);
           setDailyLossLimitUsd(st.config.dailyLossLimitUsd);
           setHoldTpOnTrend(st.config.holdTpOnTrend);
           setUseAtrLevels(st.config.useAtrLevels);
@@ -1118,7 +1118,6 @@ export function AutoTradePanel({
           value={stopLossPercent}
           onChange={setStopLossPercent}
         />
-
         <NumberField
           className="auto-trade__field"
           label="트레일링"
@@ -1127,16 +1126,6 @@ export function AutoTradePanel({
           min={0}
           value={trailingStopPercent}
           onChange={setTrailingStopPercent}
-        />
-        <NumberField
-          className="auto-trade__field"
-          label="1회 매수"
-          unit="%"
-          title="AI 매수 1회 금액 상한 = 주문가능금액의 이 비율. AI 제안 비중은 이 값으로 캡됩니다."
-          min={1}
-          max={100}
-          value={buyMaxPercent}
-          onChange={setBuyMaxPercent}
         />
         <NumberField
           className="auto-trade__field auto-trade__field--daily"

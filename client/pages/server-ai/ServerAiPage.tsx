@@ -302,7 +302,6 @@ function LiveTraderSection({
           <Typography size={12} as="p" className="hint server-ai-live-config">
             목표 +{cfg?.targetPercent}% · 손절 -{cfg?.stopLossPercent}%
             {cfg && cfg.trailingStopPercent > 0 ? ` · 트레일링 ${cfg.trailingStopPercent}%` : ''}
-            {' · '}1회 매수 {cfg?.buyMaxPercent}%
             {cfg && cfg.dailyLossLimitUsd > 0 ? ` · 일손실 한도 $${cfg.dailyLossLimitUsd}` : ''}
             {cfg?.holdTpOnTrend ? ' · 추세 홀드 ON' : ''}
           </Typography>
@@ -1051,14 +1050,6 @@ export function ServerAiPage({
                     min={0}
                     max={100}
                     onChange={(v) => updateSymbol(index, { trailingStopPercent: v })}
-                  />
-                  <NumberField
-                    label="1회 매수"
-                    unit="%"
-                    value={s.buyMaxPercent}
-                    min={0.1}
-                    max={limits.maxBuyPercent}
-                    onChange={(v) => updateSymbol(index, { buyMaxPercent: v })}
                   />
                   <NumberField
                     label="실거래 풀"
