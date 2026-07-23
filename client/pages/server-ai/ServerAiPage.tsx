@@ -149,9 +149,12 @@ const LIVE_TEXT_CLAMP_LEN = 42;
 function LiveTraderSection({
   openLogRequest = false,
   onOpenLogConsumed,
+  onNavigateToSymbol,
 }: {
   openLogRequest?: boolean;
   onOpenLogConsumed?: () => void;
+  /** 티커 클릭 시 차트 이동 — 임베드(모바일)에서는 탭 전환까지 필요해 부모가 주입한다. */
+  onNavigateToSymbol?: (symbol: string) => void;
 } = {}) {
   const [live, setLive] = useState<LiveTraderStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -297,7 +300,11 @@ function LiveTraderSection({
                   <button
                     type="button"
                     className="server-ai-symbol-link"
-                    onClick={() => navigate(`/stock/${cfg.symbol}`)}
+                    onClick={() =>
+                      onNavigateToSymbol
+                        ? onNavigateToSymbol(cfg.symbol)
+                        : navigate(`/stock/${cfg.symbol}`)
+                    }
                     title={`${cfg.symbol} 차트 보기`}
                   >
                     {cfg.symbol}
@@ -540,11 +547,15 @@ export function ServerAiPage({
   embedded = false,
   openLiveLog = false,
   onLiveLogConsumed,
+  onNavigateToSymbol,
 }: {
   embedded?: boolean;
   /** 임베드(모바일 AI 탭)에서 단일종목 전체 로그 모달을 열라는 1회성 요청. */
   openLiveLog?: boolean;
   onLiveLogConsumed?: () => void;
+  /** 티커 클릭 시 차트 이동 핸들러 — 임베드(모바일 AI 탭)는 같은 라우트 안이라
+      navigate 만으로는 화면이 안 바뀌므로 부모(StockPage)가 탭 전환까지 처리한다. */
+  onNavigateToSymbol?: (symbol: string) => void;
 } = {}) {
   const { showToast } = useToast();
 
@@ -821,7 +832,8 @@ export function ServerAiPage({
 
   // 티커 클릭 → 해당 종목 차트로 이동(전량 매도 후에도 차트 재조회 편의).
   const navigateStock = useNavigate();
-  const navigateToStock = (symbol: string) => navigateStock(`/stock/${symbol}`);
+  const navigateToStock = (symbol: string) =>
+    onNavigateToSymbol ? onNavigateToSymbol(symbol) : navigateStock(`/stock/${symbol}`);
 
   // 종목별 미니 차트의 평단가 — 실거래는 풀 장부, 페이퍼는 가상 장부 기준(보유 시에만).
   const sparkAvgFor = (symbol: string): number | undefined => {
@@ -1154,7 +1166,11 @@ export function ServerAiPage({
       <hr className="server-ai-divider" aria-hidden="true" />
 
       {/* 단일 종목 집중(서버 실주문) — 현재 실행 중인 종목의 진행 상황·결과 */}
-      <LiveTraderSection openLogRequest={openLiveLog} onOpenLogConsumed={onLiveLogConsumed} />
+      <LiveTraderSection
+        openLogRequest={openLiveLog}
+        onOpenLogConsumed={onLiveLogConsumed}
+        onNavigateToSymbol={onNavigateToSymbol}
+      />
         </div>
 
       {/* 판단 로그(종합) — 데스크톱 3열 배치의 가운데 열(종목 필터 칩).
