@@ -43,6 +43,8 @@ export function StockPage() {
 
   // 모바일 레이아웃은 하단 탭(구 v2)으로 고정 — 이전 레이아웃 제거.
   const [mobileTab, setMobileTab] = useState<MobileTab>('chart');
+  // 주문 탭 '호가 보기' — 차트 대신 호가를 스티키 영역에 표시(주문폼과 함께 사용).
+  const [orderBookView, setOrderBookView] = useState(false);
   // 자동매매 '로그 보기'(모바일 v2): AI 탭으로 전환하면서 임베디드 전체 로그 모달을 1회 연다.
   const [aiLogRequest, setAiLogRequest] = useState(false);
   // 검색은 탭이 아니라 티커칩 바 좌측 돋보기 → 전체화면 오버레이.
@@ -214,6 +216,7 @@ export function StockPage() {
     'trading-layout',
     hasSymbol ? '' : 'trading-layout--portfolio-only',
     v2Active ? `layout-v2 layout-v2--tab-${mobileTab}` : '',
+    v2Active && mobileTab === 'order' && orderBookView ? 'layout-v2--order-book' : '',
   ]
     .filter(Boolean)
     .join(' ');
@@ -293,6 +296,18 @@ export function StockPage() {
                 : undefined
             }
           >
+            {/* 모바일 주문 탭: 스티키 영역(차트↔호가) 전환 버튼 — 스크롤 중에도 우상단 고정 */}
+            {v2Active && mobileTab === 'order' && (
+              <div className="order-view-toggle">
+                <button
+                  type="button"
+                  className="order-view-toggle__btn"
+                  onClick={() => setOrderBookView((v) => !v)}
+                >
+                  {orderBookView ? '차트 보기' : '호가 보기'}
+                </button>
+              </div>
+            )}
             <OrderForm
               key={symbol}
               {...orderFormProps}
