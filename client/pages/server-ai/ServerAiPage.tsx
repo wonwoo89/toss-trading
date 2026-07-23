@@ -1016,11 +1016,14 @@ export function ServerAiPage({
                   </div>
                   {/* 우상단은 활성화 토글만 — 나머지 버튼은 인풋 아래 우측(__actions) */}
                   <div className="server-ai-symbol__controls">
-                    <Switch
-                      checked={s.active}
-                      onChange={(checked) => updateSymbol(index, { active: checked })}
-                      aria-label={`${s.symbol} 자동매매 활성`}
-                    />
+                    <div className="auto-trade__option">
+                      <Typography size={12} className="auto-trade__option-label">활성</Typography>
+                      <Switch
+                        checked={s.active}
+                        onChange={(checked) => updateSymbol(index, { active: checked })}
+                        aria-label={`${s.symbol} 자동매매 활성`}
+                      />
+                    </div>
                   </div>
                 </div>
                 {(() => {
@@ -1116,14 +1119,14 @@ export function ServerAiPage({
                 </div>
                 {/* 인풋 아래 한 줄 — 좌: 실거래 토글, 우: AI 추천·로그·삭제 (모바일·데스크톱 동일) */}
                 <div className="server-ai-symbol__actions">
-                  <label className="server-ai-symbol__live-toggle">
-                    <Typography size={10} className="ui-textfield__label">실거래</Typography>
+                  <div className="auto-trade__option">
+                    <Typography size={12} className="auto-trade__option-label">실거래</Typography>
                     <Switch
                       checked={s.live}
                       onChange={(checked) => toggleLive(index, checked)}
                       aria-label={`${s.symbol} 실거래(배정 풀 실제 주문)`}
                     />
-                  </label>
+                  </div>
                   <div className="server-ai-symbol__action-buttons">
                     <Button
                       size="sm"
