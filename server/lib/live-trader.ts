@@ -95,6 +95,7 @@ const STALE_CANDLE_MAX_MIN = 20;
 const MAX_SPREAD_PCT = 1.0;
 let lastQualityLogAt = 0;
 let lastSkipLogAt = 0;
+let lastUnbuyableLogAt = 0;
 
 export interface LiveTraderConfig {
   enabled: boolean;
@@ -977,6 +978,22 @@ async function decisionTickInner(): Promise<void> {
       }
     }
     const effLevels = effectiveLevels(s);
+
+    // 매수 불가 사전 필터 — 무포지션 + 소수점 불가 시간대 + 1회 매수 배정 예산 < 1주면
+    // 어떤 BUY 의견도 실행할 수 없으므로 AI 호출 자체를 생략한다(의견→차단 반복 방지).
+    if (account.holdingQty <= 0 && market.currentPrice > 0) {
+      const budgetMax = (account.buyingPower ?? 0) * (s.config.buyMaxPercent / 100);
+      if (!fractionalAllowed(session) && budgetMax < market.currentPrice) {
+        if (Date.now() - lastUnbuyableLogAt > 30 * 60 * 1000) {
+          lastUnbuyableLogAt = Date.now();
+          pushLog(
+            'skip',
+            `AI 판단 생략(매수 불가 상태): 1회 매수 배정 $${budgetMax.toFixed(2)} < 1주 $${market.currentPrice.toFixed(2)} · 소수점 주문 불가 시간대 — 정규장(KST 04시 이전) 또는 예산 확보 전까지 대기`
+          );
+        }
+        return;
+      }
+    }
 
     // 티어드 사전 필터 — 무포지션 + 신호 완전 중립 + 미세 변동이면 AI 호출 생략(비용·노이즈 절감).
     // 공격적 매수 정책과의 충돌 최소화: 추세 up / score>0.5 / RSI 이탈 / 유의미 변동이면 스킵하지 않음.
