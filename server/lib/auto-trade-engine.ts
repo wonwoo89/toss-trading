@@ -1,6 +1,7 @@
 import {
   AUTO_CANDLE_INTERVAL,
   getAutoTradeConfig,
+  saveAutoTradeConfig,
   type AutoSymbolConfig,
   type AutoTradeConfig,
 } from './auto-trade-config.js';
@@ -973,8 +974,36 @@ const GUARD_TICK_INTERVAL_MS = 60 * 1000;
 let guardTimer: ReturnType<typeof setInterval> | null = null;
 let guardTicking = false;
 
+// ── 04시(KST) 일일 전체 셧다운 — 소수점 주문 불가 시간대 진입 시 1차 안전 정지.
+//    재시작은 사용자가 수동으로 판단한다. 하루 1회만 발화(수동 재시작을 다시 끄지 않음).
+let lastDailyShutdownDay: string | null = null;
+function checkDailyShutdown(): void {
+  const config = getAutoTradeConfig();
+  if (!config.enabled) return;
+  const kst = new Date(Date.now() + 9 * 3600 * 1000);
+  if (kst.getUTCHours() !== 4) return;
+  const day = kst.toISOString().slice(0, 10);
+  if (lastDailyShutdownDay === day) return;
+  lastDailyShutdownDay = day;
+  saveAutoTradeConfig({ ...config, enabled: false });
+  status.enabled = false;
+  pushLog({
+    t: Date.now(),
+    symbol: 'SYSTEM',
+    session: 'regular',
+    action: 'HOLD',
+    sizePct: 0,
+    confidence: 1,
+    reason: '04시(KST) 일일 셧다운 — 소수점 주문 불가 시간대 진입, 백그라운드 엔진 전역 OFF(재시작은 수동)',
+    fallback: false,
+    currentPrice: 0,
+    model: 'system',
+  });
+}
+
 async function runGuardTick(): Promise<void> {
   if (guardTicking) return;
+  checkDailyShutdown();
   const config = getAutoTradeConfig();
   if (!config.enabled) return;
   const withPosition = config.symbols.filter((s) => {
