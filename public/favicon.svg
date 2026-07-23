@@ -1,30 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none">
+  <!-- AI 스파크 — 붉은 상승 추세선 + AI 스파클(✦). 딥네이비 라운드 배경. -->
   <defs>
-    <!-- 방향별 파스텔: 상승=붉은톤, 꺾임=보라, 하락=파란톤 (좌→우 x 위치로 매핑) -->
-    <linearGradient id="trend" x1="4" y1="0" x2="45" y2="0" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#f2a7b1"/>
-      <stop offset=".34" stop-color="#b095f0"/>
-      <stop offset=".5" stop-color="#a4c4f2"/>
-      <stop offset=".65" stop-color="#b095f0"/>
-      <stop offset="1" stop-color="#f2a7b1"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="48" y2="48" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#141d31"/>
+      <stop offset="1" stop-color="#0a0b10"/>
     </linearGradient>
-    <!-- 세로 페이드: 위는 진하게, 아래로 옅게 -->
-    <linearGradient id="fade" x1="0" y1="6" x2="0" y2="46" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#fff"/>
-      <stop offset=".45" stop-color="#fff"/>
-      <stop offset="1" stop-color="#4a4a4a"/>
+    <linearGradient id="line" x1="8" y1="36" x2="36" y2="14" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d84158"/>
+      <stop offset="1" stop-color="#ff8095"/>
     </linearGradient>
-    <mask id="fadeMask">
-      <rect width="48" height="48" fill="url(#fade)"/>
-    </mask>
   </defs>
-  <g mask="url(#fadeMask)">
-    <!-- 영역의 좌/우 끝을 라인 둥근 캡의 바깥 끝(라인 끝점 ± 선두께/2 = 2.25)까지 확장 →
-         둥근 캡이 곧 영역 끝의 둥근 마무리가 되어 딱 맞아떨어짐 -->
-    <path d="M1.75 45 L1.75 38 L4 38 C8 37 13 24 18 23 C22 22 25 30 30 30 C36 30 40 12 45 7 L47.25 7 L47.25 45 Z"
-          fill="url(#trend)"/>
-    <!-- 차트 라인 (끊김 없는 단일 path, 둥근 캡) -->
-    <path d="M4 38 C8 37 13 24 18 23 C22 22 25 30 30 30 C36 30 40 12 45 7"
-          fill="none" stroke="url(#trend)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </g>
+  <rect width="48" height="48" rx="10.8" fill="url(#bg)"/>
+  <path d="M8 35 L16 26.5 L23 30.5 L33 19" fill="none" stroke="url(#line)" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M36.5 7.5 C37.3 11.2 38.3 12.2 42 13 C38.3 13.8 37.3 14.8 36.5 18.5 C35.7 14.8 34.7 13.8 31 13 C34.7 12.2 35.7 11.2 36.5 7.5 Z" fill="#ffffff"/>
+  <path d="M42.4 17.8 C42.8 19.6 43.3 20.1 45.1 20.5 C43.3 20.9 42.8 21.4 42.4 23.2 C42 21.4 41.5 20.9 39.7 20.5 C41.5 20.1 42 19.6 42.4 17.8 Z" fill="#9dc2ff"/>
 </svg>
