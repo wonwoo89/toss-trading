@@ -9,7 +9,7 @@ import {
 import { computeTrend } from './candle-signals.js';
 import { getDefaultAccountSeq, tossRequest } from './toss-client.js';
 import type { AiDecisionCandle } from './ai-decision.js';
-import { isFractionalOrderTime, type UsMarketSessionKind } from './us-market-session.js';
+import { getUsMarketSession, isFractionalOrderTime, type UsMarketSessionKind } from './us-market-session.js';
 
 /** 소수점 주문 가능 여부 — 정규장 세션 + KST 04시 이전 소수점 접수 시간대일 때만. */
 function fractionalAllowed(session: UsMarketSessionKind): boolean {
@@ -44,8 +44,9 @@ const COOLDOWN_MS = 30_000;
 const TP_HOLD_TRAIL_PCT = 0.5;
 /** 서킷 브레이커 — 연속 실현 손실이 이 횟수에 도달하면 해당 종목 실거래를 자동 정지. */
 const CONSECUTIVE_LOSS_LIMIT = 3;
-/** 손실 직후 신규 매수 쿨다운(복수 매매 방지) — 단일 종목 트레이더와 동일. */
-const LOSS_COOLDOWN_MS = 5 * 60 * 1000;
+/** 손실 직후 신규 매수 쿨다운(복수 매매 방지) — 단일 종목 트레이더와 동일.
+ *  현재가가 손실 매도 체결가 위로 회복하면 조기 해제. */
+const LOSS_COOLDOWN_MS = 3 * 60 * 1000;
 /** 익절 목표가 계산용 편도 수수료 가정(단일 종목 트레이더와 동일). */
 const COMMISSION_RATE = 0.001;
 const MIN_BUY_BUDGET_USD = 1;
@@ -78,6 +79,8 @@ interface BgLivePosition {
   lossStreak?: number;
   /** 마지막 실현 손실 시각 — 손실 직후 매수 쿨다운 기준. */
   lastLossAt?: number | null;
+  /** 마지막 손실 매도 체결가 — 이 가격 위로 회복하면 쿨다운 조기 해제. */
+  lastLossPrice?: number | null;
   /** 매매 성과 통계(실현 매도 기준). */
   stats?: { sells: number; wins: number; losses: number };
   updatedAt: number;
@@ -556,7 +559,9 @@ export async function sellAllBgLive(
   if (pos.openOrders.some((o) => o.side === 'SELL')) {
     return { ok: false, text: `${label} 생략 — 미체결 매도 주문 존재` };
   }
-  const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전 소수점 접수 시간대
+  // 틱 시작 세션 + 실행 시점 세션(캐시 재확인) 이중 게이트 — 정규장 밖 소수점 시도 차단.
+  const sessionNow = await getUsMarketSession();
+  const canFractional = fractionalAllowed(session) && fractionalAllowed(sessionNow);
   if (!canFractional && pos.quantity < 1) {
     return { ok: false, text: `${label} 생략(보유 ${pos.quantity}주 < 1주 — 소수점 잔량, 소수점 주문 불가 시간대)` };
   }
@@ -625,6 +630,7 @@ export async function sellAllBgLive(
     stats.losses += 1;
     pos.lossStreak = (pos.lossStreak ?? 0) + 1;
     pos.lastLossAt = Date.now();
+    pos.lastLossPrice = execPrice; // 이 가격 위로 회복하면 쿨다운 조기 해제
     if (pos.lossStreak >= CONSECUTIVE_LOSS_LIMIT) {
       const config = getAutoTradeConfig();
       const target = config.symbols.find((c) => c.symbol === symbol && c.live && c.active);
@@ -645,7 +651,7 @@ export async function sellAllBgLive(
   const { forcedOff } = addRealized(realizedDelta);
   return {
     ok: true,
-    text: `${label}: ${qty}주 @ ${fractional ? '시장가' : `$${execPrice}`} (실현 ${realizedDelta >= 0 ? '+' : ''}$${realizedDelta.toFixed(2)})${cappedNote}`,
+    text: `${label}: ${qty}주 @ ${fractional ? `시장가(소수점·세션 ${sessionNow})` : `$${execPrice}`} (실현 ${realizedDelta >= 0 ? '+' : ''}$${realizedDelta.toFixed(2)})${cappedNote}`,
     forcedOff,
     circuitOff,
   };
@@ -664,10 +670,14 @@ export async function executeBgLiveBuy(
   if (pos.cash < MIN_BUY_BUDGET_USD) {
     return { ok: false, text: `AI 매수 의견 미실행 — 풀 현금 부족($${pos.cash.toFixed(2)})` };
   }
-  // 손실 직후 쿨다운 — 복수 매매(연속 재진입) 방지(단일 종목 트레이더와 동일).
+  // 손실 직후 쿨다운 — 복수 매매(연속 재진입) 방지. 손실 매도가 위로 회복 시 조기 해제.
   if (pos.lastLossAt != null && Date.now() - pos.lastLossAt < LOSS_COOLDOWN_MS) {
-    const waitMin = Math.ceil((LOSS_COOLDOWN_MS - (Date.now() - pos.lastLossAt)) / 60000);
-    return { ok: false, text: `차단(손실 직후 쿨다운 ${waitMin}분 남음): AI 매수 — ${reason.slice(0, 60)}` };
+    const recovered =
+      pos.lastLossPrice != null && pos.lastLossPrice > 0 && market.price > pos.lastLossPrice;
+    if (!recovered) {
+      const waitMin = Math.ceil((LOSS_COOLDOWN_MS - (Date.now() - pos.lastLossAt)) / 60000);
+      return { ok: false, text: `차단(손실 직후 쿨다운 ${waitMin}분 남음, 손절가 $${pos.lastLossPrice?.toFixed(2) ?? '-'} 미회복): AI 매수` };
+    }
   }
   if (inCooldown(symbol)) return { ok: false, text: '차단(쿨다운): AI 매수' };
 
@@ -675,7 +685,8 @@ export async function executeBgLiveBuy(
   const budget = Math.min(pos.cash, Math.floor(pos.cash * (effectivePct / 100) * 100) / 100);
   const price = market.price;
   const qty = Math.floor(budget / price);
-  const canFractional = fractionalAllowed(session); // 정규장 + KST 04시 이전
+  const sessionNow = await getUsMarketSession();
+  const canFractional = fractionalAllowed(session) && fractionalAllowed(sessionNow); // 이중 게이트
 
   let body: Record<string, unknown>;
   let fillQty: number;
@@ -692,7 +703,7 @@ export async function executeBgLiveBuy(
     fillPrice = price;
     fillQty = floorQty(budget / price);
     body = { symbol, side: 'BUY', orderType: 'MARKET', orderAmount: budget, clientOrderId: `bg-${Date.now()}` };
-    label = `실 소수점 매수 $${budget}(비중 ${effectivePct}%) 시장가`;
+    label = `실 소수점 매수 $${budget}(비중 ${effectivePct}%) 시장가(세션 ${sessionNow})`;
   } else if (price <= pos.cash * (symCfg.buyMaxPercent / 100) || price <= pos.cash) {
     // 소수점 불가 시간대 1주 폴백 — 풀 현금 이내에서만.
     if (price > pos.cash) {
