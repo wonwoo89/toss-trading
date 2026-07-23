@@ -4601,12 +4601,15 @@ input[type='checkbox']:focus-visible {
   margin-top: 0.4rem;
 }
 
-/* 전체보기 모달 — 화면에 가깝게 크게(가로 1280px 캡·세로 92vh 고정),
+/* 전체보기 모달 — 데스크톱은 화면에 가깝게 크게(가로 1280px 캡·세로 92vh 고정),
+   모바일(≤1100px)은 backtest-modal 공통 규칙(여백 없는 전체 화면)을 그대로 탄다.
    로그는 축약 없이 전문 표시(스크롤은 모달 body 가 담당) */
-.server-ai-fulllog-modal {
-  max-width: min(1280px, calc(100vw - 2rem));
-  height: 92vh;
-  max-height: 92vh;
+@media (min-width: 1101px) {
+  .server-ai-fulllog-modal {
+    max-width: min(1280px, calc(100vw - 2rem));
+    height: 92vh;
+    max-height: 92vh;
+  }
 }
 
 .server-ai-live-logs--full {
