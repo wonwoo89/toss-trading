@@ -9,6 +9,7 @@ import {
 import { computeTrend } from './candle-signals.js';
 import { getDefaultAccountSeq, tossRequest } from './toss-client.js';
 import type { AiDecisionCandle } from './ai-decision.js';
+import { pushOrderEvent } from './order-events.js';
 import { getUsMarketSession, isFractionalOrderTime, type UsMarketSessionKind } from './us-market-session.js';
 
 /** 소수점 주문 가능 여부 — 정규장 세션 + KST 04시 이전 소수점 접수 시간대일 때만. */
@@ -504,6 +505,13 @@ export async function reconcileBgOrders(
   for (const order of pos.openOrders) {
     if (!accountOpenIds.has(order.orderId)) {
       notes.push(`체결 확인: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price}`);
+      pushOrderEvent({
+        source: 'multi',
+        kind: 'fill',
+        side: order.side,
+        symbol,
+        text: `${order.side === 'BUY' ? '매수' : '매도'} 체결 — ${symbol} ${order.quantity}주 @ $${order.price}`,
+      });
       continue;
     }
     const stale = now - order.placedAt >= STALE_UNFILLED_MS;
@@ -533,6 +541,13 @@ export async function reconcileBgOrders(
 
     if (ranAway) {
       rollbackSellBooking(pos, order);
+      pushOrderEvent({
+        source: 'multi',
+        kind: 'cancel',
+        side: order.side,
+        symbol,
+        text: `주문 취소 — ${symbol} ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price} (가격 이탈)`,
+      });
       notes.push(
         `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price} — 가격 이탈(현재 $${currentPrice.toFixed(2)}), 재판단`
       );
@@ -559,6 +574,13 @@ export async function reconcileBgOrders(
       );
     } else {
       rollbackSellBooking(pos, order);
+      pushOrderEvent({
+        source: 'multi',
+        kind: 'cancel',
+        side: order.side,
+        symbol,
+        text: `주문 취소 — ${symbol} ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity}주 @ $${order.price} (재호가 실패)`,
+      });
       notes.push(
         `재호가 실패(${order.side} ${order.quantity}주): ${replaced.error ?? '주문 실패'} — 취소만 반영, 다음 판단에서 재시도`
       );
@@ -638,6 +660,15 @@ export async function sellAllBgLive(
   const result = await placeOrder(body);
   if (!result.ok) return { ok: false, text: `${label} 주문 실패: ${result.error}` };
   noteExec(symbol);
+  pushOrderEvent({
+    source: 'multi',
+    kind: fractional ? 'fill' : 'order',
+    side: 'SELL',
+    symbol,
+    text: fractional
+      ? `매도 체결(시장가) — ${symbol} ${qty}주`
+      : `매도 주문 접수 — ${symbol} ${qty}주 @ $${execPrice}`,
+  });
 
   // 접수 시 장부 반영(체결 가정) — 미체결 취소 시 롤백된다.
   // 실현손익은 왕복 결제 수수료(매수분+매도분)를 차감한 순액 — 실계좌 수익률과 정합.
@@ -767,6 +798,15 @@ export async function executeBgLiveBuy(
   const result = await placeOrder(body);
   if (!result.ok) return { ok: false, text: `AI 매수 주문 실패: ${result.error}` };
   noteExec(symbol);
+  pushOrderEvent({
+    source: 'multi',
+    kind: isAmountOrder ? 'fill' : 'order',
+    side: 'BUY',
+    symbol,
+    text: isAmountOrder
+      ? `매수 체결(시장가) — ${symbol} $${budget}`
+      : `매수 주문 접수 — ${symbol} ${fillQty}주 @ $${fillPrice}`,
+  });
 
   // 접수 시 장부 반영(체결 가정) — 미체결 취소 시 롤백.
   const cost = isAmountOrder ? budget : fillQty * fillPrice;

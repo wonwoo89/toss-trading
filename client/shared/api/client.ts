@@ -319,6 +319,22 @@ async function request<T>(
 
 export const api = {
   getAccounts: () => request<ApiEnvelope<Account[]>>('/account/accounts'),
+  // 서버 자동매매 주문 알림(접수/취소/체결) 폴링 — after=0 은 커서 초기화(과거 재생 없음).
+  getOrderNotifications: (after: number) =>
+    request<
+      ApiEnvelope<{
+        latest: number;
+        events: {
+          id: number;
+          t: number;
+          source: 'single' | 'multi';
+          kind: 'order' | 'cancel' | 'fill';
+          side: 'BUY' | 'SELL';
+          symbol: string;
+          text: string;
+        }[];
+      }>
+    >(`/notifications?after=${after}`),
   getHoldings: (accountSeq?: string) =>
     request<ApiEnvelope<HoldingsRaw>>('/account/holdings', { accountSeq }),
   getBuyingPower: (accountSeq?: string) =>
