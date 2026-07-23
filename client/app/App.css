@@ -4706,13 +4706,6 @@ input[type='checkbox']:focus-visible {
   flex-shrink: 0;
 }
 /* 실거래 스위치 — 필드 행에서 인풋들과 하단 정렬되는 라벨+스위치 컬럼 */
-.server-ai-symbol__live-toggle {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.3rem;
-}
-
 .server-ai-add .ui-textfield {
   flex: 0 1 220px;
 }
