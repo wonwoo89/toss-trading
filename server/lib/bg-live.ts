@@ -147,7 +147,8 @@ function floorTick(price: number): number {
 }
 
 function floorQty(value: number): number {
-  return Math.floor(value * 1e8) / 1e8;
+  // 토스 주문 API 허용 정밀도(소수점 6자리)에 맞춰 내림 — 장부·주문 수량 공통.
+  return Math.floor(value * 1e6) / 1e6;
 }
 
 let cache: BgLiveStore | null = null;

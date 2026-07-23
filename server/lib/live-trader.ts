@@ -556,7 +556,8 @@ async function sellAll(
     ? account.sellableQty
     : account.holdingQty;
   const scaled = base * Math.min(Math.max(portion, 0), 1);
-  const qty = canFractional ? Math.floor(scaled * 1e8) / 1e8 : Math.floor(scaled);
+  // 토스 주문 API 는 소수점 6자리까지만 허용 — 보유 수량 정밀도가 그보다 높으면 내림(잔량 dust 는 무시).
+  const qty = canFractional ? Math.floor(scaled * 1e6) / 1e6 : Math.floor(scaled);
   if (qty <= 0) {
     if (portion >= 1) pushLog('block', `${label} 생략(매도 가능 수량 없음)`, 'SELL');
     return false; // 부분 매도에서 0 이 되면(소수점 불가 시간대 1주 보유 등) 조용히 생략
