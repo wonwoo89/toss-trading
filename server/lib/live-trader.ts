@@ -11,6 +11,7 @@ import { aggregateCandles, getRequiredSourceCount, type AggregatedCandle } from 
 import { computeAtr, computeRegime, computeSignal, computeTrend } from './candle-signals.js';
 import { fetchSourceCandles } from './fetch-source-candles.js';
 import { getDefaultAccountSeq, tossRequest } from './toss-client.js';
+import { pushOrderEvent } from './order-events.js';
 import {
   getUsMarketSession,
   isFractionalOrderTime,
@@ -406,6 +407,11 @@ function positionProfitLossPct(account: AccountCtx, currentPrice: number): numbe
   return undefined;
 }
 
+function detectAndMapOpenOrders<T extends { orderId: string }>(orders: T[]): T[] {
+  detectFilledOrders(orders);
+  return orders;
+}
+
 async function fetchAccountCtx(symbol: string): Promise<AccountCtx> {
   const accountSeq = await resolveAccountSeq();
   const [bpRes, holdingsRes, ordersRes, sellableRes] = await Promise.all([
@@ -450,7 +456,7 @@ async function fetchAccountCtx(symbol: string): Promise<AccountCtx> {
     averagePrice: item ? Number(item.averagePurchasePrice) : 0,
     profitLossPctAfterCost: Number.isFinite(afterCost) ? afterCost : undefined,
     sellableQty: Number.isFinite(sellable) ? sellable : undefined,
-    openOrders: (ordersRes.result?.orders ?? []).map((o) => ({
+    openOrders: detectAndMapOpenOrders(ordersRes.result?.orders ?? []).map((o) => ({
       orderId: o.orderId,
       side: o.side,
       orderType: o.orderType,
@@ -480,6 +486,34 @@ function marketableSellPrice(price: number, bids: MarketCtx['bids']): number {
 }
 
 let lastExecAt = 0;
+
+// ── 주문 알림용 체결 감지 — 엔진이 접수한 지정가 주문 id 를 기억해 두고,
+//    계좌 미체결 목록에서 사라지면(취소를 우리가 하지 않았다면) 체결로 판단한다.
+const trackedOrders = new Map<
+  string,
+  { side: 'BUY' | 'SELL'; quantity?: number; price?: number; symbol: string; placedAt: number; seen: boolean }
+>();
+
+function detectFilledOrders(openOrders: { orderId: string }[]): void {
+  if (trackedOrders.size === 0) return;
+  const openIds = new Set(openOrders.map((o) => o.orderId));
+  for (const [orderId, info] of trackedOrders) {
+    if (openIds.has(orderId)) {
+      info.seen = true;
+      continue;
+    }
+    // 미체결 목록 반영 지연 오탐 방지 — 한 번이라도 목록에서 봤거나 접수 15초 경과 후에만 체결 판정.
+    if (!info.seen && Date.now() - info.placedAt < 15_000) continue;
+    trackedOrders.delete(orderId);
+    pushOrderEvent({
+      source: 'single',
+      kind: 'fill',
+      side: info.side,
+      symbol: info.symbol,
+      text: `${info.side === 'BUY' ? '매수' : '매도'} 체결 — ${info.symbol} ${info.quantity ?? '-'}주${info.price ? ` @ $${info.price}` : ''}`,
+    });
+  }
+}
 
 async function placeOrder(
   accountSeq: string,
@@ -547,6 +581,12 @@ async function sellAll(
   }
   lastExecAt = Date.now();
   pushLog('exec', `${label}: ${qty}주 @ ${fractional ? `시장가(소수점·세션 ${sessionNow})` : `$${body.price}`}`, 'SELL');
+  if (fractional) {
+    pushOrderEvent({ source: 'single', kind: 'fill', side: 'SELL', symbol: s.config.symbol, text: `매도 체결(시장가) — ${s.config.symbol} ${qty}주` });
+  } else {
+    pushOrderEvent({ source: 'single', kind: 'order', side: 'SELL', symbol: s.config.symbol, text: `매도 주문 접수 — ${s.config.symbol} ${qty}주 @ $${body.price}` });
+    if (result.orderId) trackedOrders.set(result.orderId, { side: 'SELL', quantity: qty, price: Number(body.price), symbol: s.config.symbol, placedAt: Date.now(), seen: false });
+  }
 
   // 실현 손익 근사(트리거가 기준) → 일일 한도·연속 손실 서킷 브레이커 판정.
   if (account.averagePrice > 0) {
@@ -723,6 +763,14 @@ async function cancelStaleOrders(ctx: {
     }
 
     if (ranAway) {
+      trackedOrders.delete(order.orderId);
+      pushOrderEvent({
+        source: 'single',
+        kind: 'cancel',
+        side: order.side,
+        symbol: s.config.symbol,
+        text: `주문 취소 — ${s.config.symbol} ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity ?? '-'}주 @ $${order.price} (가격 이탈)`,
+      });
       pushLog(
         'exec',
         `미체결 취소: ${order.side === 'BUY' ? '매수' : '매도'} ${order.quantity ?? '-'}주 @ $${order.price} — 가격 이탈, 재판단`,
@@ -747,12 +795,24 @@ async function cancelStaleOrders(ctx: {
       clientOrderId: `live-${Date.now()}`,
     });
     if (result.ok) {
-      pushLog(
-        'exec',
-        `재호가: ${order.side === 'BUY' ? '매수' : '매도'} ${qty}주 $${order.price} → $${newPrice} (90초 미체결, 체결 우선가로 갱신)`,
-        order.side
-      );
+      trackedOrders.delete(order.orderId);
+      if (result.orderId) trackedOrders.set(result.orderId, { side: order.side, quantity: qty, price: newPrice, symbol: s.config.symbol, placedAt: Date.now(), seen: false });
+      pushOrderEvent({
+        source: 'single',
+        kind: 'order',
+        side: order.side,
+        symbol: s.config.symbol,
+        text: `재호가 접수 — ${s.config.symbol} ${order.side === 'BUY' ? '매수' : '매도'} ${qty}주 $${order.price} → $${newPrice}`,
+      });
     } else {
+      trackedOrders.delete(order.orderId);
+      pushOrderEvent({
+        source: 'single',
+        kind: 'cancel',
+        side: order.side,
+        symbol: s.config.symbol,
+        text: `주문 취소 — ${s.config.symbol} ${order.side === 'BUY' ? '매수' : '매도'} ${qty}주 @ $${order.price} (재호가 실패)`,
+      });
       pushLog('error', `재호가 실패(${order.side} ${qty}주): ${result.error} — 다음 판단에서 재평가`, order.side);
     }
   }
@@ -869,6 +929,12 @@ async function executeAiBuy(
   }
   lastExecAt = Date.now();
   pushLog('exec', `${label} — ${reason}`, 'BUY');
+  if (body.orderType === 'MARKET') {
+    pushOrderEvent({ source: 'single', kind: 'fill', side: 'BUY', symbol: cfg.symbol, text: `매수 체결(시장가) — ${cfg.symbol} $${body.orderAmount}` });
+  } else {
+    pushOrderEvent({ source: 'single', kind: 'order', side: 'BUY', symbol: cfg.symbol, text: `매수 주문 접수 — ${cfg.symbol} ${body.quantity}주 @ $${body.price}` });
+    if (result.orderId) trackedOrders.set(result.orderId, { side: 'BUY', quantity: Number(body.quantity), price: Number(body.price), symbol: cfg.symbol, placedAt: Date.now(), seen: false });
+  }
   if (s.aiHistory[0]) {
     s.aiHistory[0].executed = true;
     saveState();

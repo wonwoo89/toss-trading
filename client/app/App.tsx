@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { DesktopNav } from '../widgets/DesktopNav';
 import { Header } from '../widgets/Header';
 import { PwaUpdatePrompt } from '../widgets/PwaUpdatePrompt';
+import { OrderEventToasts } from '../widgets/OrderEventToasts';
 import { AppProvider, useAppContext } from './providers/AppContext';
 import { ThemeProvider } from './providers/ThemeContext';
 import { ToastProvider } from './providers/ToastContext';
@@ -15,6 +16,8 @@ function AppShell() {
   return (
     <div className="app">
       <PwaUpdatePrompt />
+      {/* 서버 자동매매 주문 접수/취소/체결 토스트 알림(전 화면 공통) */}
+      <OrderEventToasts />
       <Header />
 
       {bootstrapError && <div className="banner error">{bootstrapError}</div>}
