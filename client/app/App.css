@@ -4010,6 +4010,46 @@ input[type='checkbox']:focus-visible {
   .trading-layout.layout-v2--tab-order .warning-box {
     display: block;
   }
+  /* 주문 탭 '호가 보기' — 차트 대신 호가를 같은 스티키 규격(50dvh·안전영역 고정)으로 표시.
+     호가를 보면서 아래 주문폼으로 체결하고, 호가 클릭 → 지정가 반영도 그대로 동작한다. */
+  /* tab-order 의 display:flex(동일 특정성, 아래 선언)보다 우선하도록 탭 클래스까지 결합 */
+  .trading-layout.layout-v2--tab-order.layout-v2--order-book .chart-panel {
+    display: none;
+  }
+  .trading-layout.layout-v2--order-book .orderbook-section {
+    display: block;
+    order: -1;
+    position: sticky;
+    top: env(safe-area-inset-top);
+    z-index: 200;
+    background: var(--bg-base);
+    height: 50dvh;
+    min-height: 260px;
+    overflow-y: auto;
+    margin-bottom: -8px;
+  }
+
+  /* 스티키 영역(차트/호가) 전환 버튼 — 높이 0 스티키로 영역 우상단에 겹쳐 고정 */
+  .order-view-toggle {
+    order: -2;
+    position: sticky;
+    top: calc(env(safe-area-inset-top) + 8px);
+    z-index: 210;
+    height: 0;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .order-view-toggle__btn {
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid var(--border-default);
+    background: color-mix(in srgb, var(--bg-base) 82%, transparent);
+    backdrop-filter: blur(6px);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
   .trading-layout.layout-v2--tab-order .chart-panel {
     display: flex;
     height: 50dvh;

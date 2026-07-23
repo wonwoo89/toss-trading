@@ -59,15 +59,6 @@ const TABS: { id: MobileTab; label: string; icon: React.ReactNode }[] = [
     ),
   },
   {
-    id: 'book',
-    label: '호가',
-    icon: (
-      <svg {...ICON_PROPS}>
-        <path d="M4 6h10M4 10h7M4 14h10M4 18h7M18 8l3 3-3 3" />
-      </svg>
-    ),
-  },
-  {
     id: 'settings',
     label: '설정',
     icon: (
