@@ -3400,33 +3400,7 @@ input[type='checkbox']:focus-visible {
   }
 }
 
-.backtest-page {
-  max-width: 760px;
-  margin: 0 auto;
-  padding: 0.5rem 0 2rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-}
-
-.backtest-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.backtest-head h1 {
-  margin: 0;
-  font-size: 1.15rem;
-}
-
-/* (우상단 '← 트레이딩으로' 링크는 하단 내비게이션으로 대체되어 제거됨) */
-
-.backtest-intro {
-  margin: 0;
-  line-height: 1.5;
-}
+/* (백테스트 독립 페이지는 제거 — 아래 스타일은 차트 '백테스트' 모달이 사용) */
 
 .backtest-controls {
   display: flex;
@@ -3584,165 +3558,7 @@ input[type='checkbox']:focus-visible {
   color: var(--color-down);
 }
 
-/* ── 다중 종목 백테스트(페이지) ── */
-.backtest-rows__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.8rem;
-  margin-bottom: 0.6rem;
-}
-
-.backtest-rows__head h2 {
-  margin: 0;
-  font-size: 1rem;
-}
-
-.backtest-row-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.backtest-row {
-  border: 1px solid var(--border-subtle);
-  border-radius: 10px;
-  padding: 0.6rem 0.75rem;
-  background: var(--bg-input);
-}
-
-.backtest-row__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.6rem;
-}
-
-.backtest-row__symbol {
-  display: flex;
-  align-items: baseline;
-  gap: 0.4rem;
-  min-width: 0;
-}
-
-.backtest-row__symbol strong {
-  font-size: 0.95rem;
-}
-
-.backtest-row__name {
-  font-size: 0.78rem;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.backtest-row__actions {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-  flex: 0 0 auto;
-}
-
-.backtest-row__btn {
-  height: 1.9rem;
-  padding: 0 0.7rem;
-  border-radius: 7px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font-size: 0.8rem;
-  cursor: pointer;
-}
-
-.backtest-row__btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.backtest-row__btn--remove {
-  padding: 0 0.55rem;
-  color: var(--text-secondary);
-}
-
-.backtest-row__error {
-  margin-top: 0.4rem;
-  font-size: 0.8rem;
-  color: var(--color-down);
-}
-
-.backtest-row__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.9rem;
-  margin-top: 0.45rem;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-}
-
-.backtest-row__stats b {
-  color: var(--text-primary);
-  font-weight: 700;
-}
-
-/* 종목 행의 AI 최적화 추천 라인 — [추천 요약] [적용] */
-.backtest-row__optimize {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  margin-top: 0.4rem;
-  padding: 0.4rem 0.55rem;
-  border-radius: 8px;
-  background: var(--bg-subtle);
-}
-.backtest-row__optimize-pick {
-  margin: 0;
-  min-width: 0;
-  color: var(--text-primary);
-}
-
-/* 상세 모달 내 AI 최적화 표 — 본문 결과 위 섹션 간격 */
-.backtest-optimize--in-modal {
-  margin-bottom: 0.9rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.backtest-add-row {
-  display: flex;
-  gap: 0.4rem;
-  margin-top: 0.7rem;
-}
-
-.backtest-add-row input {
-  flex: 1 1 auto;
-  box-sizing: border-box;
-  height: 2.2rem;
-  padding: 0 0.6rem;
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-input);
-  color: var(--text-primary);
-}
-
-.backtest-add-row__btn {
-  box-sizing: border-box;
-  height: 2.2rem;
-  padding: 0 1rem;
-  border-radius: 8px;
-  border: 1px dashed var(--border-default);
-  background: transparent;
-  color: var(--text-primary);
-  font-weight: 600;
-  cursor: pointer;
-}
-
-/* 패널 컨테이너(페이지·모달 공용) */
+/* 패널 컨테이너(백테스트 모달) */
 .backtest-panel {
   display: flex;
   flex-direction: column;
@@ -4252,12 +4068,6 @@ input[type='checkbox']:focus-visible {
   .mobile-settings-row__label {
     color: var(--text-primary);
   }
-  .mobile-settings-row__link {
-    color: var(--accent, #3182f6);
-    font-weight: 600;
-    text-decoration: none;
-  }
-
   /* 탭이 6개가 되어 라벨 소폭 축소(full width 균등 분배라 좌우 패딩은 불필요) */
   .mobile-tab-bar__tab {
     font-size: 0.63rem;

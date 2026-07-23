@@ -273,7 +273,7 @@ export function StockPage() {
                 />
               )}
             </section>
-            {/* 설정 탭: 테마·화면꺼짐방지·레이아웃 전환·백테스트 */}
+            {/* 설정 탭: 테마·화면꺼짐방지 */}
             <MobileSettingsPanel />
           </>
         )}
