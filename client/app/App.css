@@ -2818,11 +2818,11 @@ input[type='checkbox']:focus-visible {
   flex: 0 0 auto;
   width: 92px;
 }
-/* 모바일: 일손실을 제외한 4개(목표/손절/트레일링/1회 매수)가 한 줄에 들어가게
-   폭을 1/4 로 축소하고, 일손실은 다음 줄 전체 폭으로 배치한다. */
+/* 모바일: 일손실을 제외한 3개(목표/손절/트레일링)가 한 줄에 들어가게
+   폭을 1/3 로 축소하고, 일손실은 다음 줄 전체 폭으로 배치한다. */
 @media (max-width: 640px) {
   .auto-trade__controls .auto-trade__field {
-    width: calc((100% - 1.5rem) / 4);
+    width: calc((100% - 1rem) / 3);
   }
   .auto-trade__controls .auto-trade__field--daily {
     width: 100%;
