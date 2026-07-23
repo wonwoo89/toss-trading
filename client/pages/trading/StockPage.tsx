@@ -46,8 +46,11 @@ export function StockPage() {
   const [mobileTab, setMobileTab] = useState<MobileTab>('chart');
   // 주문 탭 '호가 보기' — 차트 대신 호가를 스티키 영역에 표시(주문폼과 함께 사용).
   const [orderBookView, setOrderBookView] = useState(false);
-  // 자동매매 '로그 보기'(모바일 v2): AI 탭으로 전환하면서 임베디드 전체 로그 모달을 1회 연다.
-  const [aiLogRequest, setAiLogRequest] = useState(false);
+  // 자동매매 '로그 보기'(모바일 v2): AI 탭으로 전환하면서 임베디드 로그를 1회 연다.
+  // single=단일매매 전체 로그 모달, bg=다중매매 판단 로그(해당 종목 필터) 모달.
+  const [aiLogRequest, setAiLogRequest] = useState<
+    null | { kind: 'single' } | { kind: 'bg'; symbol: string }
+  >(null);
   // 검색은 탭이 아니라 티커칩 바 좌측 돋보기 → 전체화면 오버레이.
   const [searchOpen, setSearchOpen] = useState(false);
   const searchOpenRef = useRef(false);
@@ -241,9 +244,13 @@ export function StockPage() {
                 autoSubmitting={autoSubmitting}
                 onViewAiLogs={
                   v2Active
-                    ? () => {
+                    ? (target) => {
                         setMobileTab('ai');
-                        setAiLogRequest(true);
+                        setAiLogRequest(
+                          target === 'bg' && symbol
+                            ? { kind: 'bg', symbol: symbol.toUpperCase() }
+                            : { kind: 'single' }
+                        );
                       }
                     : undefined
                 }
@@ -263,8 +270,10 @@ export function StockPage() {
               {mobileTab === 'ai' && (
                 <ServerAiPage
                   embedded
-                  openLiveLog={aiLogRequest}
-                  onLiveLogConsumed={() => setAiLogRequest(false)}
+                  openLiveLog={aiLogRequest?.kind === 'single'}
+                  onLiveLogConsumed={() => setAiLogRequest(null)}
+                  openBgLogSymbol={aiLogRequest?.kind === 'bg' ? aiLogRequest.symbol : null}
+                  onBgLogConsumed={() => setAiLogRequest(null)}
                   onNavigateToSymbol={(sym) => {
                     // 같은 라우트 안의 임베드라 navigate 만으로는 화면이 안 바뀜 → 차트 탭 전환까지
                     navigate(`/stock/${sym}`);

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { OpenOrdersPanel } from './OpenOrdersPanel';
 import { PortfolioStats } from './PortfolioStats';
 import { StockLabel } from './StockLabel';
+import { useAutomatedSymbols } from '../shared/hooks/useAutomatedSymbols';
 import { Typography } from '../shared/ui/Typography';
 import { formatProfitLoss, formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
 import type { HoldingItem, Order } from '../shared/types';
@@ -39,6 +40,8 @@ export function PortfolioSidebar({
   holdingsRefreshing,
   onCancelOrder,
 }: PortfolioSidebarProps) {
+  // AI 자동매매(단일/다중) 실행 중 종목 — 티커 좌상단 ★ 표시용(30초 폴링).
+  const automatedSymbols = useAutomatedSymbols();
   const navigate = useNavigate();
   const [showHidden, setShowHidden] = useState(false);
 
@@ -158,7 +161,7 @@ export function PortfolioSidebar({
                               {hotkey}
                             </Typography>
                           )}
-                          <StockLabel symbol={item.symbol} />
+                          <StockLabel symbol={item.symbol} starred={automatedSymbols.has(item.symbol.toUpperCase())} />
                         </span>
                         <Typography
                           size={14}
@@ -226,7 +229,7 @@ export function PortfolioSidebar({
                           onClick={() => goToStock(item.symbol)}
                         >
                           <div className="portfolio-holding-item__main">
-                            <StockLabel symbol={item.symbol} />
+                            <StockLabel symbol={item.symbol} starred={automatedSymbols.has(item.symbol.toUpperCase())} />
                             <Typography size={14} className="portfolio-holding-item__value">
                               {formatUsd(item.marketValue)}
                             </Typography>
