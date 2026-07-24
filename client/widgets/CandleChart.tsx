@@ -1105,7 +1105,7 @@ export function CandleChart({
     const lineOptions = {
       price: averagePrice,
       color: colors.avgPriceLine,
-      lineWidth: 2 as const,
+      lineWidth: 1 as const,
       lineStyle: LineStyle.Dashed,
       axisLabelVisible: true,
       title: '평단',
