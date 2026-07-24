@@ -140,17 +140,20 @@ export function PortfolioSidebar({
 
       <section className="panel portfolio-sidebar__holdings">
         <div className="panel-title">
-          <Typography size={20} as="h2">보유 종목</Typography>
-          {holdings.length > 0 && (
-            <button
-              type="button"
-              className="portfolio-briefing-btn"
-              onClick={() => setBriefingOpen(true)}
-              title="보유 종목 뉴스·공시 AI 브리핑"
-            >
-              AI 브리핑
-            </button>
-          )}
+          {/* 타이틀 + AI 브리핑 버튼을 한 그룹으로 — 좌측에 나란히, 갱신 표시는 우측 유지 */}
+          <div className="panel-title__group">
+            <Typography size={20} as="h2">보유 종목</Typography>
+            {holdings.length > 0 && (
+              <button
+                type="button"
+                className="portfolio-briefing-btn"
+                onClick={() => setBriefingOpen(true)}
+                title="보유 종목 뉴스·공시 AI 브리핑"
+              >
+                AI 브리핑
+              </button>
+            )}
+          </div>
           <Typography size={14} className="price-meta">
             <span
               className={`refresh-dot${holdingsRefreshing ? ' is-active' : ''}`}
