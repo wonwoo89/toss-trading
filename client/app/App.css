@@ -3928,17 +3928,13 @@ input[type='checkbox']:focus-visible {
   }
 }
 
-/* PWA 새 배포 업데이트 배너 — 우하단 플로팅 */
+/* PWA 새 배포 업데이트 배너 — 플로팅(위치는 아래 미디어 쿼리에서 기기별 분기) */
 .pwa-update {
   position: fixed;
-  right: 12px;
-  /* 플로팅 하단 내비게이션(데스크톱 DesktopNav·모바일 탭바, 점유 ~72px) 위로 띄운다 */
-  bottom: calc(84px + env(safe-area-inset-bottom));
   z-index: 330; /* 하단 내비(310·320)보다 위 */
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  max-width: min(92vw, 30rem);
   padding: 0.6rem 0.8rem;
   border-radius: 10px;
   border: 1px solid var(--border-default);
@@ -3946,6 +3942,24 @@ input[type='checkbox']:focus-visible {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
   font-size: 0.8rem;
   color: var(--text-primary);
+}
+/* 데스크톱 — 완전한 우하단 코너 플로팅(가로가 넓어 하단 내비와 겹치지 않음) */
+@media (min-width: 1101px) {
+  .pwa-update {
+    right: 12px;
+    bottom: 12px;
+    max-width: min(92vw, 30rem);
+  }
+}
+/* 모바일 — 바텀 내비게이션 위쪽에 좌우 여백을 둔 전체 가로폭 플로팅 */
+@media (max-width: 1100px) {
+  .pwa-update {
+    left: 12px;
+    right: 12px;
+    max-width: none;
+    /* 탭바 점유 높이(62px + 오프셋) 위로 10px 여백 */
+    bottom: calc(72px + var(--mobile-tab-bar-bottom));
+  }
 }
 .pwa-update__text {
   flex: 1 1 auto;
