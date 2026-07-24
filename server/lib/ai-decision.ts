@@ -691,3 +691,228 @@ export async function getAiBacktestAnalysis(
     );
   }
 }
+
+// ── 보유 종목 AI 브리핑 — 뉴스·공시·정보를 웹 검색으로 종합(구독 경로 전용) ──────
+//
+// 판단/분석과 달리 실시간 웹 검색(WebSearch 내장 도구)이 필요해 구독(Agent SDK)
+// 경로에서만 지원한다. 보유 종목 전체를 한 번의 호출로 처리해 호출 수를 아끼고,
+// 캐시(라우트 계층)로 접속마다 재호출되지 않게 한다.
+
+export interface BriefingNewsItem {
+  title: string;
+  date?: string;
+  impact?: 'positive' | 'negative' | 'neutral';
+  note?: string;
+}
+
+export interface BriefingSymbolItem {
+  symbol: string;
+  summary: string;
+  news: BriefingNewsItem[];
+}
+
+export interface AiBriefingResult {
+  overall: string;
+  items: BriefingSymbolItem[];
+  model: string;
+  fallback?: boolean;
+}
+
+/** 웹 검색 여러 라운드가 필요해 판단(90s)보다 길게 잡는다. */
+const BRIEFING_TIMEOUT_MS = 180_000;
+const BRIEFING_HARD_TIMEOUT_MS = BRIEFING_TIMEOUT_MS + 15_000;
+
+const BRIEFING_SYSTEM = `너는 미국 주식 개인 투자자를 위한 브리핑 어시스턴트다.
+WebSearch 도구로 각 종목의 최근 뉴스·공시(실적 발표, 가이던스, SEC 공시, 애널리스트 액션)와
+예정된 이벤트(실적 발표일 등)를 확인해 한국어로 간결하게 정리한다.
+규칙:
+- 반드시 검색으로 확인한 내용만 쓴다. 확인 못 한 종목은 summary 에 "최근 확인된 주요 소식 없음"이라고 쓴다.
+- 각 뉴스에는 가능한 한 날짜를 붙이고, 주가에 미칠 영향을 impact(positive/negative/neutral)로 표시한다.
+- 과장·추측·투자 권유 금지. 사실 요약과 일정 안내만.
+- 종목당 뉴스는 중요도 순 최대 3건.`;
+
+const BRIEFING_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['overall', 'items'],
+  properties: {
+    overall: {
+      type: 'string',
+      description: '보유 종목 전반·시장 분위기 종합 코멘트(한국어 2~4문장)',
+    },
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['symbol', 'summary', 'news'],
+        properties: {
+          symbol: { type: 'string' },
+          summary: { type: 'string', description: '종목 현황 요약 2~3문장(한국어)' },
+          news: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['title'],
+              properties: {
+                title: { type: 'string' },
+                date: { type: 'string', description: 'YYYY-MM-DD 또는 상대 표기' },
+                impact: { type: 'string', enum: ['positive', 'negative', 'neutral'] },
+                note: { type: 'string', description: '한 줄 보충 설명(선택)' },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
+function buildBriefingPrompt(symbols: string[]): string {
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  return [
+    `오늘(KST): ${today}`,
+    `보유 종목: ${symbols.join(', ')}`,
+    '',
+    '위 미국 주식 종목들에 대해 WebSearch 로 최근 1~2주 뉴스·공시·예정 이벤트를 확인하고,',
+    '종목별 summary(2~3문장)와 주요 뉴스(최대 3건), 전체 종합 코멘트(overall)를 JSON 으로 작성해줘.',
+    '모든 종목을 빠짐없이 items 에 포함할 것.',
+  ].join('\n');
+}
+
+function briefingFallback(reason: string): AiBriefingResult {
+  return { overall: reason, items: [], model: 'fallback', fallback: true };
+}
+
+function normalizeBriefing(parsed: Record<string, unknown>, symbols: string[]): AiBriefingResult {
+  const rawItems = Array.isArray(parsed.items) ? parsed.items : [];
+  const items: BriefingSymbolItem[] = [];
+  for (const raw of rawItems) {
+    if (!raw || typeof raw !== 'object') continue;
+    const r = raw as Record<string, unknown>;
+    const symbol = typeof r.symbol === 'string' ? r.symbol.trim().toUpperCase() : '';
+    if (!symbol) continue;
+    const newsRaw = Array.isArray(r.news) ? r.news : [];
+    const news: BriefingNewsItem[] = [];
+    for (const n of newsRaw.slice(0, 5)) {
+      if (!n || typeof n !== 'object') continue;
+      const nn = n as Record<string, unknown>;
+      if (typeof nn.title !== 'string' || !nn.title.trim()) continue;
+      news.push({
+        title: nn.title.slice(0, 200),
+        date: typeof nn.date === 'string' ? nn.date.slice(0, 30) : undefined,
+        impact:
+          nn.impact === 'positive' || nn.impact === 'negative' || nn.impact === 'neutral'
+            ? nn.impact
+            : undefined,
+        note: typeof nn.note === 'string' ? nn.note.slice(0, 300) : undefined,
+      });
+    }
+    items.push({
+      symbol,
+      summary: typeof r.summary === 'string' ? r.summary.slice(0, 800) : '',
+      news,
+    });
+  }
+  // 요청 종목 순서로 정렬 + 누락 종목은 빈 항목으로 보충(빠짐없이 표시).
+  const bySymbol = new Map(items.map((i) => [i.symbol, i]));
+  const ordered = symbols.map(
+    (s) => bySymbol.get(s) ?? { symbol: s, summary: '이번 브리핑에서 확인되지 않았습니다.', news: [] }
+  );
+  return {
+    overall: typeof parsed.overall === 'string' ? parsed.overall.slice(0, 1200) : '',
+    items: ordered,
+    model: MODEL,
+  };
+}
+
+async function briefViaSubscription(symbols: string[]): Promise<AiBriefingResult> {
+  const { query } = await loadAgentSdk();
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), BRIEFING_TIMEOUT_MS);
+  try {
+    const stream = query({
+      prompt: buildBriefingPrompt(symbols),
+      options: {
+        model: MODEL,
+        systemPrompt: BRIEFING_SYSTEM,
+        // 검색 여러 라운드(종목 수만큼) 허용 — WebSearch 만 열어준다.
+        maxTurns: 25,
+        tools: ['WebSearch'],
+        permissionMode: 'dontAsk',
+        settingSources: [],
+        persistSession: false,
+        outputFormat: {
+          type: 'json_schema',
+          schema: BRIEFING_SCHEMA as unknown as Record<string, unknown>,
+        },
+        abortController: abort,
+      },
+    });
+
+    for await (const message of stream) {
+      if (message.type !== 'result') continue;
+      if (message.subtype !== 'success') {
+        const detail = message.errors?.length ? message.errors.join('; ') : message.subtype;
+        return briefingFallback(`AI 브리핑 실패(${detail}) — 갱신을 다시 시도해주세요.`);
+      }
+      let raw: unknown = message.structured_output;
+      if (raw === undefined && typeof message.result === 'string') {
+        try {
+          raw = JSON.parse(message.result);
+        } catch {
+          return briefingFallback('AI 응답 파싱 실패 — 갱신을 다시 시도해주세요.');
+        }
+      }
+      if (!raw || typeof raw !== 'object') {
+        return briefingFallback('AI 응답 없음 — 갱신을 다시 시도해주세요.');
+      }
+      return normalizeBriefing(raw as Record<string, unknown>, symbols);
+    }
+    return briefingFallback('AI 응답 없음 — 갱신을 다시 시도해주세요.');
+  } catch (error) {
+    const message = abort.signal.aborted
+      ? `시간 초과(${BRIEFING_TIMEOUT_MS / 1000}s)`
+      : error instanceof Error
+        ? error.message
+        : '알 수 없는 오류';
+    return briefingFallback(`AI 브리핑 실패: ${message}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 하드 타임아웃 — 판단 경로와 동일하게 슬롯 누수·좀비 런타임을 방지한다. */
+function briefWithHardTimeout(symbols: string[]): Promise<AiBriefingResult> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.error('[ai] 브리핑 무응답 — 하드 타임아웃: 런타임 정리 후 슬롯 회수');
+      killStaleClaudeRuntimes(() => resolve(briefingFallback('AI 브리핑 무응답(하드 타임아웃)')));
+    }, BRIEFING_HARD_TIMEOUT_MS);
+    briefViaSubscription(symbols).then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        resolve(
+          briefingFallback(`AI 브리핑 실패: ${error instanceof Error ? error.message : '오류'}`)
+        );
+      }
+    );
+  });
+}
+
+export async function getAiMarketBriefing(symbols: string[]): Promise<AiBriefingResult> {
+  if (symbols.length === 0) return briefingFallback('브리핑할 종목이 없습니다.');
+  if (!isAiConfigured()) return briefingFallback('AI 미설정(CLAUDE_CODE_OAUTH_TOKEN 없음)');
+  if (getAiAuthMode() !== 'subscription') {
+    return briefingFallback('브리핑(웹 검색)은 구독(OAuth) 모드에서만 지원합니다.');
+  }
+  return queueSubscriptionTask(
+    () => briefWithHardTimeout(symbols),
+    () => briefingFallback('AI 동시 요청 초과 — 잠시 후 갱신해주세요.')
+  );
+}

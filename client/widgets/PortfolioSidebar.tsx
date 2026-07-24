@@ -4,6 +4,8 @@ import { OpenOrdersPanel } from './OpenOrdersPanel';
 import { PortfolioStats } from './PortfolioStats';
 import { StockLabel } from './StockLabel';
 import { useAutomatedSymbols } from '../shared/hooks/useAutomatedSymbols';
+import { MarketBriefingModal } from './MarketBriefingModal';
+import { api } from '../shared/api/client';
 import { Typography } from '../shared/ui/Typography';
 import { formatProfitLoss, formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
 import type { HoldingItem, Order } from '../shared/types';
@@ -42,6 +44,16 @@ export function PortfolioSidebar({
 }: PortfolioSidebarProps) {
   // AI 자동매매(단일/다중) 실행 중 종목 — 티커 좌상단 ★ 표시용(30초 폴링).
   const automatedSymbols = useAutomatedSymbols();
+
+  // AI 브리핑 — 접속(보유 목록 확보) 시 백그라운드로 1회 요청해 서버 캐시를 데워 두고,
+  // 모달을 열면 캐시가 즉시 뜬다. 갱신은 모달 안의 버튼으로.
+  const [briefingOpen, setBriefingOpen] = useState(false);
+  const briefingWarmedRef = useRef(false);
+  useEffect(() => {
+    if (briefingWarmedRef.current || holdings.length === 0) return;
+    briefingWarmedRef.current = true;
+    void api.getAiBriefing(holdings.map((h) => h.symbol)).catch(() => undefined);
+  }, [holdings]);
   const navigate = useNavigate();
   const [showHidden, setShowHidden] = useState(false);
 
@@ -119,10 +131,26 @@ export function PortfolioSidebar({
           totalProfitLossRate={totalProfitLossRate}
         />
       </section>
+      {briefingOpen && (
+        <MarketBriefingModal
+          symbols={holdings.map((h) => h.symbol)}
+          onClose={() => setBriefingOpen(false)}
+        />
+      )}
 
       <section className="panel portfolio-sidebar__holdings">
         <div className="panel-title">
           <Typography size={20} as="h2">보유 종목</Typography>
+          {holdings.length > 0 && (
+            <button
+              type="button"
+              className="portfolio-briefing-btn"
+              onClick={() => setBriefingOpen(true)}
+              title="보유 종목 뉴스·공시 AI 브리핑"
+            >
+              AI 브리핑
+            </button>
+          )}
           <Typography size={14} className="price-meta">
             <span
               className={`refresh-dot${holdingsRefreshing ? ' is-active' : ''}`}

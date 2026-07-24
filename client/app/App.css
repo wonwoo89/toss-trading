@@ -519,6 +519,88 @@ textarea {
   gap: 0.5rem;
 }
 
+/* ── 보유 종목 AI 브리핑 — 헤더 버튼 + 모달 콘텐츠 ── */
+.portfolio-briefing-btn {
+  border: none;
+  background: var(--bg-subtle);
+  color: var(--accent, #3182f6);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.market-briefing__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+.market-briefing__overall {
+  margin: 0 0 0.9rem;
+  line-height: 1.55;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+}
+.market-briefing__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.market-briefing__item {
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 0.7rem 0.8rem;
+}
+.market-briefing__symbol {
+  margin: 0 0 0.3rem;
+  font-weight: 700;
+}
+.market-briefing__summary {
+  margin: 0 0 0.45rem;
+  line-height: 1.55;
+  color: var(--text-primary);
+}
+.market-briefing__news {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.market-briefing__news-title {
+  line-height: 1.45;
+}
+.market-briefing__news-note {
+  margin: 0.1rem 0 0 0;
+  line-height: 1.4;
+}
+.market-briefing__impact {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+.market-briefing__impact.is-positive {
+  background: color-mix(in srgb, var(--color-up) 14%, transparent);
+  color: var(--color-up);
+}
+.market-briefing__impact.is-negative {
+  background: color-mix(in srgb, var(--color-down) 14%, transparent);
+  color: var(--color-down);
+}
+
 /* ── 누적 주문내역 모달 — backtest-modal 프레임 재사용 + 기간 칩/리스트/더보기 ── */
 .order-history-modal__filters {
   display: flex;

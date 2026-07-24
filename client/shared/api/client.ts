@@ -319,6 +319,23 @@ async function request<T>(
 
 export const api = {
   getAccounts: () => request<ApiEnvelope<Account[]>>('/account/accounts'),
+  // 보유 종목 AI 브리핑(뉴스·공시 종합, 웹 검색) — 서버 60분 캐시, force=강제 갱신.
+  getAiBriefing: (symbols: string[], force = false) =>
+    request<
+      ApiEnvelope<{
+        at: number;
+        symbols: string[];
+        overall: string;
+        items: {
+          symbol: string;
+          summary: string;
+          news: { title: string; date?: string; impact?: 'positive' | 'negative' | 'neutral'; note?: string }[];
+        }[];
+        model: string;
+        fallback?: boolean;
+        cached?: boolean;
+      }>
+    >(`/ai/briefing?symbols=${symbols.map((s) => s.toUpperCase()).join(',')}${force ? '&force=1' : ''}`),
   // 서버 자동매매 주문 알림(접수/취소/체결) 폴링 — after=0 은 커서 초기화(과거 재생 없음).
   getOrderNotifications: (after: number) =>
     request<
