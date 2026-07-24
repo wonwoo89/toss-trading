@@ -3912,13 +3912,12 @@ input[type='checkbox']:focus-visible {
   }
 }
 
-/* PWA 새 배포 업데이트 배너 (하단 중앙) */
+/* PWA 새 배포 업데이트 배너 — 우하단 플로팅 */
 .pwa-update {
   position: fixed;
-  left: 50%;
+  right: 12px;
   /* 플로팅 하단 내비게이션(데스크톱 DesktopNav·모바일 탭바, 점유 ~72px) 위로 띄운다 */
   bottom: calc(84px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
   z-index: 330; /* 하단 내비(310·320)보다 위 */
   display: flex;
   align-items: center;
@@ -3938,18 +3937,22 @@ input[type='checkbox']:focus-visible {
 }
 .pwa-update__btn {
   flex: 0 0 auto;
-  padding: 0.35rem 0.7rem;
+  /* 모바일 탭 타겟 확보(≥40px) — 작아서 탭이 빗나가던 문제 */
+  min-height: 40px;
+  padding: 0.5rem 1rem;
   border: none;
-  border-radius: 7px;
-  font-size: 0.78rem;
+  border-radius: 9px;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #fff;
   background: var(--accent, #3182f6);
 }
 .pwa-update__close {
   flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
+  /* ✕ 도 탭 타겟 확대 + 업데이트 버튼과 간격을 둬 오터치 방지 */
+  width: 36px;
+  height: 36px;
+  margin-left: 0.35rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
