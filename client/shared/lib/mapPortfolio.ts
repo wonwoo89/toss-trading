@@ -78,6 +78,11 @@ export function mapOrders(orders: OrdersPageRaw | null | undefined): Order[] {
     quantity: toNumber(order.quantity),
     price: toNumber(order.price),
     filledQuantity: toNumber(order.execution?.filledQuantity),
+    executedPrice:
+      toNumber(order.execution?.averageFilledPrice) ??
+      toNumber(order.execution?.averagePrice) ??
+      toNumber(order.execution?.avgPrice),
+    executedAmount: toNumber(order.execution?.filledAmount) ?? toNumber(order.execution?.amount),
     orderedAt: order.orderedAt,
   }));
 }

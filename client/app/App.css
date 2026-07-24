@@ -5411,3 +5411,39 @@ input[type='checkbox']:focus-visible {
   cursor: pointer;
   padding: 0.1rem 0.25rem;
 }
+
+/* 주문내역 모달 — 오늘 실현 손익(추정) 요약 카드 */
+.order-history-modal__pnl {
+  margin-bottom: 0.9rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.order-history-modal__pnl-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.order-history-modal__pnl-total {
+  font-weight: 700;
+}
+.order-history-modal__pnl-total.is-buy {
+  color: var(--color-up);
+}
+.order-history-modal__pnl-total.is-sell {
+  color: var(--color-down);
+}
+.order-history-modal__pnl-rows {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.8rem;
+  color: var(--text-secondary);
+}
+.order-history-modal__pnl-note {
+  margin: 0;
+  line-height: 1.4;
+}
