@@ -2,6 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../shared/api/client';
 import { unwrapResult } from '../shared/lib/parse';
+import {
+  getBriefingExtras,
+  isValidBriefingSymbol,
+  setBriefingExtras,
+} from '../shared/lib/briefingExtras';
 import { Button } from '../shared/ui/Button';
 import { Chip } from '../shared/ui/Chip';
 import { Typography } from '../shared/ui/Typography';
@@ -65,6 +70,28 @@ export function MarketBriefingModal({
   const [error, setError] = useState<string | null>(null);
   // 종목별 보기 — 판단 로그 패널과 동일한 필터 칩(전체/종목).
   const [filter, setFilter] = useState<string>('ALL');
+  // 관심 종목(보유 외) — localStorage 영속. 추가/제거 시 브리핑 세트가 바뀌어 재조회된다.
+  const [extras, setExtras] = useState<string[]>(getBriefingExtras);
+  const [extraInput, setExtraInput] = useState('');
+
+  const addExtra = () => {
+    const sym = extraInput.trim().toUpperCase();
+    if (!isValidBriefingSymbol(sym)) return;
+    if (symbols.some((s) => s.toUpperCase() === sym) || extras.includes(sym)) {
+      setExtraInput('');
+      return;
+    }
+    const next = [...extras, sym];
+    setExtras(next);
+    setBriefingExtras(next);
+    setExtraInput('');
+  };
+  const removeExtra = (sym: string) => {
+    const next = extras.filter((s) => s !== sym);
+    setExtras(next);
+    setBriefingExtras(next);
+    if (filter === sym) setFilter('ALL');
+  };
   // 종목별 시황 분석 — 카드에서 요청 시 로드(서버 30분 캐시).
   const [analyses, setAnalyses] = useState<Record<string, SymbolAnalysis | null>>({});
   const [analysisLoading, setAnalysisLoading] = useState<string | null>(null);
@@ -82,7 +109,8 @@ export function MarketBriefingModal({
   }, []);
 
   // 부모가 매 렌더마다 새 배열을 넘겨도(보유 폴링) 재요청되지 않게 키 문자열로 안정화.
-  const symbolsKey = symbols.map((s) => s.toUpperCase()).join(',');
+  // 보유 + 관심 종목을 합쳐 한 번에 브리핑(중복 제거).
+  const symbolsKey = [...new Set([...symbols.map((s) => s.toUpperCase()), ...extras])].join(',');
   const load = useCallback(
     async (force: boolean) => {
       setLoading(true);
@@ -139,11 +167,41 @@ export function MarketBriefingModal({
         <div className="backtest-modal__body">
           <div className="market-briefing__toolbar">
             <Typography size={12} className="hint">
-              보유 {symbols.length}종목 · 뉴스/공시 웹 검색 종합 (투자 권유 아님)
+              보유 {symbols.length}종목{extras.length > 0 ? ` + 관심 ${extras.length}종목` : ''} ·
+              뉴스/공시 웹 검색 종합 (투자 권유 아님)
             </Typography>
             <Button size="sm" disabled={loading} onClick={() => void load(true)}>
               {loading ? '생성 중…' : '갱신'}
             </Button>
+          </div>
+
+          {/* 관심 종목 추가 — 보유하지 않은 종목도 브리핑·시황 분석 대상에 포함 */}
+          <div className="market-briefing__extras">
+            <input
+              className="market-briefing__extras-input"
+              value={extraInput}
+              placeholder="관심 종목 추가 (예: PLTR)"
+              onChange={(e) => setExtraInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') addExtra();
+              }}
+            />
+            <Button size="sm" onClick={addExtra} disabled={!isValidBriefingSymbol(extraInput.trim().toUpperCase())}>
+              추가
+            </Button>
+            {extras.map((sym) => (
+              <span key={sym} className="market-briefing__extra-chip">
+                {sym}
+                <button
+                  type="button"
+                  className="market-briefing__extra-remove"
+                  onClick={() => removeExtra(sym)}
+                  aria-label={`${sym} 관심 종목에서 제거`}
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
           </div>
 
           {loading && (
