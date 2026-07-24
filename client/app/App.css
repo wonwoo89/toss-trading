@@ -1805,6 +1805,7 @@ body.is-row-resizing {
     min-width: 0;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     /* 다른 섹션(.panel)과 동일한 카드 박스 */
     background: var(--bg-panel);
     border: 1px solid var(--border-subtle);
@@ -1836,6 +1837,7 @@ body.is-row-resizing {
     flex: 1 1 auto;
     min-height: 120px;
     overflow-y: auto;
+    overflow-x: hidden;
     /* 다른 섹션(.panel)과 동일한 카드 박스 */
     background: var(--bg-panel);
     border: 1px solid var(--border-subtle);
@@ -1972,6 +1974,9 @@ body.is-row-resizing {
   opacity: 0.22;
   pointer-events: none;
   min-width: 4px;
+  /* width 는 행 폭 기준 % 라 left/right 6px 인셋과 합치면 행을 넘어
+     가로 스크롤을 만든다 — 양쪽 인셋만큼 상한을 둔다 */
+  max-width: calc(100% - 12px);
 }
 .obl__qty.is-ask .obl__qty-bar {
   right: 6px;
@@ -4118,11 +4123,13 @@ input[type='checkbox']:focus-visible {
     background: var(--bg-base);
   }
 
-  /* 호가 본문 — 섹션 내부에서만 스크롤, 마지막 행이 잘려 보이지 않게 하단 패딩 */
+  /* 호가 본문 — 섹션 내부에서만 스크롤(세로만 — 콘텐츠가 몇 px 넘쳐도 가로 스크롤 금지),
+     마지막 행이 잘려 보이지 않게 하단 패딩 */
   .orderbook-section__body {
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
     padding-bottom: 0.6rem;
   }
 
