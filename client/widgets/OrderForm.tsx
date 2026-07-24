@@ -16,6 +16,7 @@ import {
 import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
+import { getStoredAmountOrder, setStoredAmountOrder } from '../shared/lib/amountOrderPreference';
 import { subscribeLimitPriceSelect } from '../shared/lib/limitPriceBus';
 import {
   getStoredQuantityPercent,
@@ -186,7 +187,8 @@ export function OrderForm({
   );
   const [price, setPrice] = useState('');
   const [orderAmount, setOrderAmount] = useState('');
-  const [useAmountOrder, setUseAmountOrder] = useState(false);
+  // 금액 주문 토글은 영속 — 종목 전환(key 리마운트)·새로고침에도 마지막 선택 유지.
+  const [useAmountOrder, setUseAmountOrder] = useState(getStoredAmountOrder);
   const [useTakeProfitSell, setUseTakeProfitSell] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
@@ -654,7 +656,10 @@ export function OrderForm({
       className="order-form__amount-toggle"
       label="금액 주문"
       checked={useAmountOrder}
-      onChange={setUseAmountOrder}
+      onChange={(checked) => {
+        setUseAmountOrder(checked);
+        setStoredAmountOrder(checked);
+      }}
     />
   );
 
