@@ -2105,6 +2105,17 @@ body.is-row-resizing {
   text-align: center;
 }
 
+/* 금액 주문 빠른 추가 버튼(+$10/50/100/500) — 누적 가산, 인풋 바로 아래 한 줄 */
+.order-amount-quick {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.order-amount-quick__btn {
+  flex: 1 1 0;
+  font-variant-numeric: tabular-nums;
+}
+
 /* 하단 요약(총잔량·불균형·스프레드·체결흐름) */
 .obl__foot {
   display: flex;

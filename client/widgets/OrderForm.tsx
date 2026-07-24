@@ -730,6 +730,26 @@ export function OrderForm({
               value={orderAmount}
               onChange={(e) => setOrderAmount(sanitizeDecimalInput(e.target.value))}
             />
+            {/* 빠른 금액 추가 — 누를 때마다 입력 금액에 누적(세그먼티드 아님, 독립 버튼) */}
+            <div className="order-amount-quick">
+              {[10, 50, 100, 500].map((usd) => (
+                <Button
+                  key={usd}
+                  size="sm"
+                  className="order-amount-quick__btn"
+                  onClick={() =>
+                    setOrderAmount((prev) => {
+                      const cur = Number.parseFloat(prev);
+                      const next = (Number.isFinite(cur) ? cur : 0) + usd;
+                      // 부동소수 오차 방지 — 센트(2자리)로 반올림
+                      return String(Math.round(next * 100) / 100);
+                    })
+                  }
+                >
+                  +${usd}
+                </Button>
+              ))}
+            </div>
             <Typography as="p" size={12} className="hint order-form__footer-hint">
               금액 주문은 시장가로 체결됩니다. <strong>금액 매도</strong>는 입력 금액만큼(분할),
               <strong> 전액 매도</strong>는 보유 전량을 매도합니다.
