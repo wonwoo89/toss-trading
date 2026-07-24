@@ -33,7 +33,7 @@ export const AUTO_TRADE_DEFAULTS: AutoTradeSettings = {
   useAi: true,
   targetPercent: 1,
   stopLossPercent: 3,
-  trailingStopPercent: 0,
+  trailingStopPercent: 1.5,
   buyMaxPercent: 5,
   dailyLossLimitUsd: 0,
   holdTpOnTrend: true,
@@ -44,8 +44,9 @@ export const AUTO_TRADE_DEFAULTS: AutoTradeSettings = {
  * 기본값 개정 버전. 저장본의 버전이 낮으면 목표/손절만 새 기본값으로 1회 덮어쓴다
  * (사용자 요청으로 기본값을 바꿀 때 기기에 남은 옛 저장값이 이기지 않도록).
  *  - v2: 목표 3→1%, 손절 2→3%
+ *  - v3: 트레일링 0→1.5%
  */
-const SETTINGS_DEFAULTS_VERSION = 2;
+const SETTINGS_DEFAULTS_VERSION = 3;
 
 const SETTINGS_KEY = 'toss-trading:auto-trade-settings';
 const LEDGER_KEY = 'toss-trading:auto-trade-daily-pnl';
@@ -79,10 +80,9 @@ export function getAutoTradeSettings(): AutoTradeSettings {
       stopLossPercent: outdated
         ? AUTO_TRADE_DEFAULTS.stopLossPercent
         : numberOr(parsed.stopLossPercent, AUTO_TRADE_DEFAULTS.stopLossPercent),
-      trailingStopPercent: numberOr(
-        parsed.trailingStopPercent,
-        AUTO_TRADE_DEFAULTS.trailingStopPercent
-      ),
+      trailingStopPercent: outdated
+        ? AUTO_TRADE_DEFAULTS.trailingStopPercent
+        : numberOr(parsed.trailingStopPercent, AUTO_TRADE_DEFAULTS.trailingStopPercent),
       buyMaxPercent: numberOr(parsed.buyMaxPercent, AUTO_TRADE_DEFAULTS.buyMaxPercent),
       dailyLossLimitUsd: numberOr(
         parsed.dailyLossLimitUsd,

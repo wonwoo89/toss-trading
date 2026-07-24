@@ -825,7 +825,7 @@ export function ServerAiPage({
           poolUsd: 500,
           targetPercent: 1,
           stopLossPercent: 3,
-          trailingStopPercent: 0,
+          trailingStopPercent: 0.5,
           buyMaxPercent: limits.maxBuyPercent,
         },
       ],

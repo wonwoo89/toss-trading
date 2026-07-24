@@ -82,7 +82,7 @@ function sanitizeSymbolConfig(raw: unknown): AutoSymbolConfig | null {
     poolUsd: clampNumber(r.poolUsd, BG_LIVE_POOL_MIN_USD, BG_LIVE_POOL_MAX_USD, BG_LIVE_POOL_DEFAULT_USD),
     targetPercent: clampNumber(r.targetPercent, 0.1, 100, 1),
     stopLossPercent: clampNumber(r.stopLossPercent, 0.1, 100, 3),
-    trailingStopPercent: clampNumber(r.trailingStopPercent, 0, 100, 0),
+    trailingStopPercent: clampNumber(r.trailingStopPercent, 0, 100, 0.5),
     // 1회 매수는 서버 상한(5%)을 절대 넘길 수 없다.
     buyMaxPercent: clampNumber(r.buyMaxPercent, 0.1, MAX_BUY_PERCENT_CAP, MAX_BUY_PERCENT_CAP),
   };

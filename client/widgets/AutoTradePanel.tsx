@@ -402,7 +402,8 @@ export function AutoTradePanel({
             poolUsd: 500,
             targetPercent,
             stopLossPercent,
-            trailingStopPercent,
+            // 다중종목 기본 트레일링(0.5%) — 단일 패널 값(기본 1.5%)과 분리
+            trailingStopPercent: 0.5,
             buyMaxPercent: 5,
           },
         ];
