@@ -3912,13 +3912,12 @@ input[type='checkbox']:focus-visible {
   }
 }
 
-/* PWA 새 배포 업데이트 배너 (하단 중앙) */
+/* PWA 새 배포 업데이트 배너 — 우하단 플로팅 */
 .pwa-update {
   position: fixed;
-  left: 50%;
+  right: 12px;
   /* 플로팅 하단 내비게이션(데스크톱 DesktopNav·모바일 탭바, 점유 ~72px) 위로 띄운다 */
   bottom: calc(84px + env(safe-area-inset-bottom));
-  transform: translateX(-50%);
   z-index: 330; /* 하단 내비(310·320)보다 위 */
   display: flex;
   align-items: center;
