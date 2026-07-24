@@ -306,10 +306,13 @@ export function PortfolioSidebar({
       <OpenOrdersPanel
         openOrders={openOrders}
         onCancel={onCancelOrder}
-        holdingsAvgPrices={Object.fromEntries(
+        holdingsSnapshot={Object.fromEntries(
           [...holdings, ...hiddenHoldings]
             .filter((h) => typeof h.averagePrice === 'number' && h.averagePrice > 0)
-            .map((h) => [h.symbol.toUpperCase(), h.averagePrice as number])
+            .map((h) => [
+              h.symbol.toUpperCase(),
+              { quantity: h.quantity ?? 0, averagePrice: h.averagePrice as number },
+            ])
         )}
       />
     </aside>

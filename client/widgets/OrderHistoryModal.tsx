@@ -60,11 +60,20 @@ interface DailyPnlRow {
   soldQty: number;
 }
 
-/** 오늘 체결된 매도의 실현 손익(추정) — (체결가 − 원가) × 수량.
- *  원가는 보유 평단 → 없으면(전량 청산) 당일 매수 평균가 → 둘 다 없으면 제외. */
+interface HoldingSnapshot {
+  quantity: number;
+  averagePrice: number;
+}
+
+const QTY_EPS = 1e-6;
+
+/** 오늘 실현 손익 — 평균단가법을 그대로 재현한다(토스와 동일 방식).
+ *  1) 현재 보유(수량·평단)에서 오늘 체결을 역순으로 되감아 장 시작 시점 평단을 복원하고
+ *  2) 시간순으로 재생하며 각 매도 시점의 평단으로 (체결가 − 평단) × 수량 − 왕복 수수료를 누적.
+ *  이월 포지션을 오늘 전량 청산해 평단을 복원할 수 없는 종목만 제외로 명시한다. */
 function computeDailyPnl(
   orders: Order[],
-  holdingsAvgPrices: Record<string, number>,
+  holdings: Record<string, HoldingSnapshot>,
   commissionRatePercent: number
 ): { rows: DailyPnlRow[]; total: number; excluded: string[] } {
   const commissionRate = commissionRatePercent / 100;
@@ -83,57 +92,103 @@ function computeDailyPnl(
   };
   const isFilled = (o: Order) => o.status === 'FILLED' || (o.filledQuantity ?? 0) > 0;
 
-  // 당일 매수 평균가(전량 청산 종목의 원가 폴백)
-  const buyAgg = new Map<string, { cost: number; qty: number }>();
-  for (const o of orders) {
-    if (o.side !== 'BUY' || !isFilled(o)) continue;
-    const price = fillPriceOf(o);
-    const qty = filledQtyOf(o);
-    if (price === undefined || qty <= 0) continue;
-    const agg = buyAgg.get(o.symbol) ?? { cost: 0, qty: 0 };
-    agg.cost += price * qty;
-    agg.qty += qty;
-    buyAgg.set(o.symbol, agg);
-  }
-
-  const rowMap = new Map<string, DailyPnlRow>();
+  // 종목별 체결 이벤트(시간순)
+  const events = new Map<string, { side: 'BUY' | 'SELL'; price: number; qty: number; t: number }[]>();
   const excluded = new Set<string>();
   for (const o of orders) {
-    if (o.side !== 'SELL' || !isFilled(o)) continue;
+    if ((o.side !== 'BUY' && o.side !== 'SELL') || !isFilled(o)) continue;
     const price = fillPriceOf(o);
     const qty = filledQtyOf(o);
     if (price === undefined || qty <= 0) {
       excluded.add(o.symbol);
       continue;
     }
-    const buy = buyAgg.get(o.symbol);
-    const cost = holdingsAvgPrices[o.symbol.toUpperCase()] ?? (buy && buy.qty > 0 ? buy.cost / buy.qty : undefined);
-    if (cost === undefined || cost <= 0) {
-      excluded.add(o.symbol);
+    const list = events.get(o.symbol) ?? [];
+    list.push({ side: o.side, price, qty, t: o.orderedAt ? new Date(o.orderedAt).getTime() : 0 });
+    events.set(o.symbol, list);
+  }
+
+  const rows: DailyPnlRow[] = [];
+  for (const [symbol, list] of events) {
+    if (excluded.has(symbol)) continue; // 체결가 미상 주문이 섞이면 재구성이 어긋남 — 제외
+    list.sort((a, b) => a.t - b.t);
+    if (!list.some((e) => e.side === 'SELL')) continue; // 매도 없으면 실현 손익 없음
+
+    // 1) 역순 되감기 — 현재 보유에서 오늘 체결을 걷어내 장 시작 시점(수량·평단) 복원.
+    //    평균단가법: 매수 되감기는 평단을 역산, 매도 되감기는 수량만 복원(평단 불변).
+    const snapshot = holdings[symbol.toUpperCase()];
+    let qty = snapshot?.quantity ?? 0;
+    let avg: number | undefined =
+      snapshot && snapshot.averagePrice > 0 ? snapshot.averagePrice : undefined;
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+      const e = list[i];
+      if (e.side === 'BUY') {
+        const prevQty = qty - e.qty;
+        if (prevQty > QTY_EPS && avg !== undefined) {
+          avg = (avg * qty - e.price * e.qty) / prevQty;
+          qty = prevQty;
+        } else {
+          // 이 매수로 포지션이 시작됨 — 그 이전은 무포지션.
+          qty = 0;
+          avg = undefined;
+        }
+      } else {
+        qty += e.qty; // 매도 되감기 — 평단은 그대로
+      }
+    }
+
+    // 이월 보유가 있는데 평단을 복원 못 한 경우(현재 전량 청산 등) — 정확 계산 불가.
+    if (qty > QTY_EPS && avg === undefined) {
+      excluded.add(symbol);
       continue;
     }
-    const row = rowMap.get(o.symbol) ?? { symbol: o.symbol, realized: 0, soldQty: 0 };
-    // 왕복 결제 수수료(매수분+매도분) 차감 — 토스 실현 손익 표기와 근접하게.
-    const roundTripFee = (price + cost) * qty * commissionRate;
-    row.realized += (price - cost) * qty - roundTripFee;
-    row.soldQty += qty;
-    rowMap.set(o.symbol, row);
+
+    // 2) 시간순 재생 — 각 매도 시점의 평단으로 실현 손익 누적(왕복 수수료 차감).
+    let runQty = qty;
+    let runAvg = avg;
+    let realized = 0;
+    let soldQty = 0;
+    let broken = false;
+    for (const e of list) {
+      if (e.side === 'BUY') {
+        runAvg =
+          runQty > QTY_EPS && runAvg !== undefined
+            ? (runAvg * runQty + e.price * e.qty) / (runQty + e.qty)
+            : e.price;
+        runQty += e.qty;
+      } else {
+        if (runAvg === undefined || runQty <= QTY_EPS) {
+          broken = true; // 보유 없이 매도 기록 — 데이터 불일치
+          break;
+        }
+        const sellQty = Math.min(e.qty, runQty);
+        realized += (e.price - runAvg) * sellQty - (e.price + runAvg) * sellQty * commissionRate;
+        soldQty += sellQty;
+        runQty -= sellQty;
+      }
+    }
+    if (broken) {
+      excluded.add(symbol);
+      continue;
+    }
+    rows.push({ symbol, realized, soldQty });
   }
-  const rows = [...rowMap.values()].sort((a, b) => Math.abs(b.realized) - Math.abs(a.realized));
+
+  rows.sort((a, b) => Math.abs(b.realized) - Math.abs(a.realized));
   return {
     rows,
     total: rows.reduce((sum, r) => sum + r.realized, 0),
-    excluded: [...excluded].filter((sym) => !rowMap.has(sym)),
+    excluded: [...excluded].filter((sym) => !rows.some((r) => r.symbol === sym)),
   };
 }
 
 export function OrderHistoryModal({
   onClose,
-  holdingsAvgPrices = {},
+  holdingsSnapshot = {},
 }: {
   onClose: () => void;
-  /** 종목별 보유 평단 — 당일 실현 손익(추정) 계산의 원가 기준. */
-  holdingsAvgPrices?: Record<string, number>;
+  /** 종목별 현재 보유(수량·평단) — 오늘 체결을 되감아 매도 시점 평단을 복원하는 기준. */
+  holdingsSnapshot?: Record<string, HoldingSnapshot>;
 }) {
   const { selectedAccountSeq } = useAppContext();
   const [rangeDays, setRangeDays] = useState<number>(7);
@@ -217,7 +272,7 @@ export function OrderHistoryModal({
     };
   }, [selectedAccountSeq]);
   const dailyPnl = todayOrders
-    ? computeDailyPnl(todayOrders, holdingsAvgPrices, commissionRatePercent)
+    ? computeDailyPnl(todayOrders, holdingsSnapshot, commissionRatePercent)
     : null;
 
   // ESC 닫기 + 배경 스크롤 잠금 (다른 전체 모달과 동일 패턴)
@@ -283,8 +338,8 @@ export function OrderHistoryModal({
               </div>
             )}
             <Typography size={12} as="p" className="hint order-history-modal__pnl-note">
-              매도 체결 × (체결가 − 평단) − 왕복 수수료({(commissionRatePercent * 2).toFixed(2)}%) 추정
-              {dailyPnl.excluded.length > 0 ? ` · 원가 미상 제외: ${dailyPnl.excluded.join(', ')}` : ''}
+              매도 시점 평단 기준(평균단가법 재구성) − 왕복 수수료({(commissionRatePercent * 2).toFixed(2)}%)
+              {dailyPnl.excluded.length > 0 ? ` · 계산 불가 제외: ${dailyPnl.excluded.join(', ')}` : ''}
             </Typography>
           </div>
         )}
