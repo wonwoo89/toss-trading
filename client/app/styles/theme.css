@@ -46,7 +46,8 @@
   --chart-crosshair: rgba(163, 163, 163, 0.45);
   --chart-separator: rgba(255, 255, 255, 0.14);
   --chart-separator-hover: rgba(163, 163, 163, 0.28);
-  --chart-avg-price-line: #d4a24a;
+  /* 평단선 — 볼린저(노랑)와 혼동되지 않게 회색 */
+  --chart-avg-price-line: #9ca3af;
   --chart-avg-price-label-text: #171717;
   --chart-bb-upper: #f5d547;
   --chart-bb-middle: #f5d547;
@@ -108,7 +109,8 @@
   --chart-crosshair: rgba(82, 82, 82, 0.45);
   --chart-separator: rgba(0, 0, 0, 0.12);
   --chart-separator-hover: rgba(0, 0, 0, 0.18);
-  --chart-avg-price-line: #b8860b;
+  /* 평단선 — 볼린저(노랑)와 혼동되지 않게 회색 */
+  --chart-avg-price-line: #6b7280;
   --chart-avg-price-label-text: #ffffff;
   --chart-bb-upper: #d4a017;
   --chart-bb-middle: #d4a017;
