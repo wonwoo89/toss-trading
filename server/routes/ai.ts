@@ -73,8 +73,10 @@ interface CachedBriefing extends AiBriefingResult {
   at: number;
   symbols: string[];
 }
-let briefingCache: { key: string; data: CachedBriefing } | null = null;
-let briefingInflight: { key: string; promise: Promise<CachedBriefing> } | null = null;
+/** 세트(key)별 브리핑 캐시 — 보유 세트·관심 종목 추가 세트가 공존한다(최대 5세트). */
+const briefingCache = new Map<string, CachedBriefing>();
+const briefingInflight = new Map<string, Promise<CachedBriefing>>();
+const BRIEFING_MAX_KEYS = 5;
 
 // ── 캐시 파일 영속화 — 잦은 배포(서버 재시작)에도 브리핑/분석을 잃지 않게 한다 ──
 // 단일 JSON 파일을 통째로 덮어쓰는 방식이라 파일이 쌓이지 않고, 내부 항목은
@@ -87,13 +89,20 @@ const AI_CACHE_KEEP_MS = 24 * 60 * 60 * 1000;
 const AI_CACHE_MAX_ANALYSES = 30;
 
 interface PersistedAiCache {
-  briefing: { key: string; data: CachedBriefing } | null;
+  briefings: Record<string, CachedBriefing>;
   analyses: Record<string, CachedAnalysis>;
 }
 
 function pruneAndSaveAiCache(): void {
   const now = Date.now();
-  if (briefingCache && now - briefingCache.data.at > AI_CACHE_KEEP_MS) briefingCache = null;
+  for (const [key, entry] of briefingCache) {
+    if (now - entry.at > AI_CACHE_KEEP_MS) briefingCache.delete(key);
+  }
+  if (briefingCache.size > BRIEFING_MAX_KEYS) {
+    const sorted = [...briefingCache.entries()].sort((a, b) => b[1].at - a[1].at);
+    briefingCache.clear();
+    for (const [key, entry] of sorted.slice(0, BRIEFING_MAX_KEYS)) briefingCache.set(key, entry);
+  }
   for (const [symbol, entry] of analysisCache) {
     if (now - entry.at > AI_CACHE_KEEP_MS) analysisCache.delete(symbol);
   }
@@ -105,7 +114,7 @@ function pruneAndSaveAiCache(): void {
     }
   }
   const payload: PersistedAiCache = {
-    briefing: briefingCache,
+    briefings: Object.fromEntries(briefingCache),
     analyses: Object.fromEntries(analysisCache),
   };
   try {
@@ -118,10 +127,18 @@ function pruneAndSaveAiCache(): void {
 
 function loadAiCacheFromDisk(): void {
   try {
-    const raw = JSON.parse(fs.readFileSync(AI_CACHE_PATH, 'utf8')) as Partial<PersistedAiCache>;
+    const raw = JSON.parse(fs.readFileSync(AI_CACHE_PATH, 'utf8')) as Partial<PersistedAiCache> & {
+      briefing?: { key: string; data: CachedBriefing } | null; // 구버전(단일 캐시) 호환
+    };
     const now = Date.now();
-    if (raw.briefing?.data && typeof raw.briefing.key === 'string' && now - raw.briefing.data.at <= AI_CACHE_KEEP_MS) {
-      briefingCache = raw.briefing as { key: string; data: CachedBriefing };
+    if (raw.briefings && typeof raw.briefings === 'object') {
+      for (const [key, entry] of Object.entries(raw.briefings)) {
+        if (entry && typeof entry === 'object' && now - (entry as CachedBriefing).at <= AI_CACHE_KEEP_MS) {
+          briefingCache.set(key, entry as CachedBriefing);
+        }
+      }
+    } else if (raw.briefing?.data && now - raw.briefing.data.at <= AI_CACHE_KEEP_MS) {
+      briefingCache.set(raw.briefing.key, raw.briefing.data);
     }
     if (raw.analyses && typeof raw.analyses === 'object') {
       for (const [symbol, entry] of Object.entries(raw.analyses)) {
@@ -151,12 +168,14 @@ aiRouter.get('/briefing', async (req, res, next) => {
     const force = req.query.force === '1' || req.query.force === 'true';
     const key = symbols.join(',');
 
-    if (!force && briefingCache?.key === key && Date.now() - briefingCache.data.at < BRIEFING_TTL_MS) {
-      res.json({ result: { ...briefingCache.data, cached: true } });
+    const cachedEntry = briefingCache.get(key);
+    if (!force && cachedEntry && Date.now() - cachedEntry.at < BRIEFING_TTL_MS) {
+      res.json({ result: { ...cachedEntry, cached: true } });
       return;
     }
-    if (briefingInflight?.key === key) {
-      res.json({ result: { ...(await briefingInflight.promise), cached: false } });
+    const inflightEntry = briefingInflight.get(key);
+    if (inflightEntry) {
+      res.json({ result: { ...(await inflightEntry), cached: false } });
       return;
     }
 
@@ -164,17 +183,17 @@ aiRouter.get('/briefing', async (req, res, next) => {
       const cached: CachedBriefing = { ...data, at: Date.now(), symbols };
       // 실패(fallback) 결과는 캐시하지 않는다 — 다음 요청/갱신에서 재시도.
       if (!data.fallback) {
-        briefingCache = { key, data: cached };
+        briefingCache.set(key, cached);
         pruneAndSaveAiCache(); // 갱신 포함 매 성공 생성마다 파일도 함께 업데이트
       }
       return cached;
     });
-    briefingInflight = { key, promise };
+    briefingInflight.set(key, promise);
     try {
       const data = await promise;
       res.json({ result: { ...data, cached: false } });
     } finally {
-      if (briefingInflight?.key === key) briefingInflight = null;
+      briefingInflight.delete(key);
     }
   } catch (error) {
     next(error);

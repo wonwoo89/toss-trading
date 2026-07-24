@@ -6,6 +6,7 @@ import { StockLabel } from './StockLabel';
 import { useAutomatedSymbols } from '../shared/hooks/useAutomatedSymbols';
 import { MarketBriefingModal } from './MarketBriefingModal';
 import { api } from '../shared/api/client';
+import { getBriefingExtras } from '../shared/lib/briefingExtras';
 import { Typography } from '../shared/ui/Typography';
 import { formatProfitLoss, formatUsd, getKrProfitLossClass } from '../shared/lib/formatHoldings';
 import type { HoldingItem, Order } from '../shared/types';
@@ -52,7 +53,8 @@ export function PortfolioSidebar({
   useEffect(() => {
     if (briefingWarmedRef.current || holdings.length === 0) return;
     briefingWarmedRef.current = true;
-    void api.getAiBriefing(holdings.map((h) => h.symbol)).catch(() => undefined);
+    const warmSymbols = [...new Set([...holdings.map((h) => h.symbol.toUpperCase()), ...getBriefingExtras()])];
+    void api.getAiBriefing(warmSymbols).catch(() => undefined);
   }, [holdings]);
   const navigate = useNavigate();
   const [showHidden, setShowHidden] = useState(false);

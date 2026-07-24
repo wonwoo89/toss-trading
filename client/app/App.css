@@ -5372,3 +5372,42 @@ input[type='checkbox']:focus-visible {
   color: var(--color-up);
   line-height: 1.4;
 }
+
+/* 브리핑 관심 종목(보유 외) 추가 행 — 인풋 + 제거 가능한 칩 */
+.market-briefing__extras {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+}
+.market-briefing__extras-input {
+  box-sizing: border-box;
+  height: 32px;
+  width: 12.5rem;
+  padding: 0 0.6rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+.market-briefing__extra-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.35rem 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: var(--bg-subtle);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.market-briefing__extra-remove {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 0.1rem 0.25rem;
+}
