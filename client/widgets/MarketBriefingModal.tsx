@@ -110,7 +110,7 @@ export function MarketBriefingModal({
           </div>
 
           {loading && (
-            <Typography size={13} as="p" className="hint">
+            <Typography size={12} as="p" className="hint">
               브리핑 생성 중 — 웹 검색을 포함해 1~2분 걸릴 수 있어요.
             </Typography>
           )}
@@ -129,11 +129,11 @@ export function MarketBriefingModal({
               <ul className="market-briefing__list">
                 {data.items.map((item) => (
                   <li key={item.symbol} className="market-briefing__item">
-                    <Typography size={15} as="h3" className="market-briefing__symbol">
+                    <Typography size={16} as="h3" className="market-briefing__symbol">
                       {item.symbol}
                     </Typography>
                     {item.summary && (
-                      <Typography size={13} as="p" className="market-briefing__summary">
+                      <Typography size={12} as="p" className="market-briefing__summary">
                         {item.summary}
                       </Typography>
                     )}
@@ -141,7 +141,7 @@ export function MarketBriefingModal({
                       <ul className="market-briefing__news">
                         {item.news.map((n, i) => (
                           <li key={i} className="market-briefing__news-item">
-                            <Typography size={13} className="market-briefing__news-title">
+                            <Typography size={12} className="market-briefing__news-title">
                               {n.impact && (
                                 <span className={`market-briefing__impact is-${n.impact}`}>
                                   {IMPACT_LABELS[n.impact]}
