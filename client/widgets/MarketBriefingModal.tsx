@@ -1,0 +1,172 @@
+import { useCallback, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { api } from '../shared/api/client';
+import { unwrapResult } from '../shared/lib/parse';
+import { Button } from '../shared/ui/Button';
+import { Typography } from '../shared/ui/Typography';
+
+interface Briefing {
+  at: number;
+  symbols: string[];
+  overall: string;
+  items: {
+    symbol: string;
+    summary: string;
+    news: { title: string; date?: string; impact?: 'positive' | 'negative' | 'neutral'; note?: string }[];
+  }[];
+  model: string;
+  fallback?: boolean;
+  cached?: boolean;
+}
+
+const IMPACT_LABELS: Record<string, string> = {
+  positive: '호재',
+  negative: '악재',
+  neutral: '중립',
+};
+
+function formatAt(at: number): string {
+  return new Date(at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * 보유 종목 AI 브리핑 모달 — 서버가 웹 검색으로 종합한 뉴스·공시·현황을 표시.
+ * 열면 서버 캐시(60분)를 바로 보여주고, '갱신'은 강제로 새로 생성한다(웹 검색 포함 1~2분).
+ */
+export function MarketBriefingModal({
+  symbols,
+  onClose,
+}: {
+  symbols: string[];
+  onClose: () => void;
+}) {
+  const [data, setData] = useState<Briefing | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // 부모가 매 렌더마다 새 배열을 넘겨도(보유 폴링) 재요청되지 않게 키 문자열로 안정화.
+  const symbolsKey = symbols.map((s) => s.toUpperCase()).join(',');
+  const load = useCallback(
+    async (force: boolean) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = unwrapResult(await api.getAiBriefing(symbolsKey.split(','), force));
+        if (res) setData(res);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '브리핑을 불러오지 못했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    [symbolsKey]
+  );
+
+  useEffect(() => {
+    void load(false);
+  }, [load]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div className="backtest-modal__overlay" onClick={onClose} role="presentation">
+      <div
+        className="backtest-modal market-briefing-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="보유 종목 AI 브리핑"
+      >
+        <div className="backtest-modal__head">
+          <Typography size={16} as="h2" className="backtest-modal__title">
+            AI 브리핑
+            {data && !data.fallback && (
+              <span className="hint"> · {formatAt(data.at)} 생성{data.cached ? ' (캐시)' : ''}</span>
+            )}
+          </Typography>
+          <button type="button" className="backtest-modal__close" onClick={onClose} aria-label="닫기">
+            ✕
+          </button>
+        </div>
+        <div className="backtest-modal__body">
+          <div className="market-briefing__toolbar">
+            <Typography size={12} className="hint">
+              보유 {symbols.length}종목 · 뉴스/공시 웹 검색 종합 (투자 권유 아님)
+            </Typography>
+            <Button size="sm" disabled={loading} onClick={() => void load(true)}>
+              {loading ? '생성 중…' : '갱신'}
+            </Button>
+          </div>
+
+          {loading && (
+            <Typography size={12} as="p" className="hint">
+              브리핑 생성 중 — 웹 검색을 포함해 1~2분 걸릴 수 있어요.
+            </Typography>
+          )}
+          {error && <div className="banner error">{error}</div>}
+          {data?.fallback && !loading && (
+            <div className="banner error">{data.overall}</div>
+          )}
+
+          {data && !data.fallback && (
+            <>
+              {data.overall && (
+                <Typography size={14} as="p" className="market-briefing__overall">
+                  {data.overall}
+                </Typography>
+              )}
+              <ul className="market-briefing__list">
+                {data.items.map((item) => (
+                  <li key={item.symbol} className="market-briefing__item">
+                    <Typography size={16} as="h3" className="market-briefing__symbol">
+                      {item.symbol}
+                    </Typography>
+                    {item.summary && (
+                      <Typography size={12} as="p" className="market-briefing__summary">
+                        {item.summary}
+                      </Typography>
+                    )}
+                    {item.news.length > 0 && (
+                      <ul className="market-briefing__news">
+                        {item.news.map((n, i) => (
+                          <li key={i} className="market-briefing__news-item">
+                            <Typography size={12} className="market-briefing__news-title">
+                              {n.impact && (
+                                <span className={`market-briefing__impact is-${n.impact}`}>
+                                  {IMPACT_LABELS[n.impact]}
+                                </span>
+                              )}
+                              {n.title}
+                              {n.date && <span className="hint"> · {n.date}</span>}
+                            </Typography>
+                            {n.note && (
+                              <Typography size={12} as="p" className="hint market-briefing__news-note">
+                                {n.note}
+                              </Typography>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
