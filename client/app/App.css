@@ -545,12 +545,22 @@ textarea {
   gap: 0.6rem;
   margin-bottom: 0.7rem;
 }
-.market-briefing__overall {
-  margin: 0 0 0.9rem;
-  line-height: 1.55;
-  padding: 0.65rem 0.8rem;
+/* .ui-typo { margin:0 } (뒤 선언)보다 우선하도록 모달 스코프로 특정성 확보 */
+.market-briefing-modal .market-briefing__overall {
+  /* 종합 요약과 아래(칩·카드) 사이 여유 간격 */
+  margin: 0 0 1.5rem;
+  line-height: 1.6;
+  padding: 0.8rem 0.9rem;
   border-radius: 10px;
   background: var(--bg-subtle);
+}
+
+/* 종목 필터 칩 — 판단 로그 패널과 동일한 사용성(전체/종목) */
+.market-briefing__filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
 }
 .market-briefing__list {
   list-style: none;
