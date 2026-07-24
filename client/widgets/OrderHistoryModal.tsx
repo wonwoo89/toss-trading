@@ -53,6 +53,57 @@ function quantityLabel(order: Order): string {
  * 누적 주문내역 모달 — 토스 /api/v1/orders 의 status=CLOSED(종료된 주문)를
  * 기간 프리셋 + 커서 페이지네이션으로 조회한다. (미체결은 기존 패널이 담당)
  */
+interface DailyPnlRow {
+  symbol: string;
+  buyUsd: number;
+  sellUsd: number;
+  net: number;
+}
+
+/** 오늘 매매 손익(달러) — 당일 체결 기준 매도 금액 − 매수 금액(현금 흐름).
+ *  원가(평단) 없이 체결 금액만으로 계산한다. 금액을 알 수 없는 체결은 제외에 명시. */
+function computeDailyPnl(orders: Order[]): {
+  rows: DailyPnlRow[];
+  totalBuy: number;
+  totalSell: number;
+  net: number;
+  excluded: string[];
+} {
+  const filledQtyOf = (o: Order): number => {
+    const qty = o.filledQuantity !== undefined && o.filledQuantity > 0 ? o.filledQuantity : o.quantity ?? 0;
+    return qty > 0 ? qty : 0;
+  };
+  const amountOf = (o: Order): number | undefined => {
+    if (o.executedAmount !== undefined && o.executedAmount > 0) return o.executedAmount;
+    const qty = filledQtyOf(o);
+    if (qty <= 0) return undefined;
+    if (o.executedPrice !== undefined && o.executedPrice > 0) return o.executedPrice * qty;
+    if (o.orderType === 'LIMIT' && o.price !== undefined && o.price > 0) return o.price * qty;
+    return undefined;
+  };
+  const isFilled = (o: Order) => o.status === 'FILLED' || (o.filledQuantity ?? 0) > 0;
+
+  const rowMap = new Map<string, DailyPnlRow>();
+  const excluded = new Set<string>();
+  for (const o of orders) {
+    if ((o.side !== 'BUY' && o.side !== 'SELL') || !isFilled(o)) continue;
+    const amount = amountOf(o);
+    if (amount === undefined) {
+      excluded.add(o.symbol);
+      continue;
+    }
+    const row = rowMap.get(o.symbol) ?? { symbol: o.symbol, buyUsd: 0, sellUsd: 0, net: 0 };
+    if (o.side === 'BUY') row.buyUsd += amount;
+    else row.sellUsd += amount;
+    row.net = row.sellUsd - row.buyUsd;
+    rowMap.set(o.symbol, row);
+  }
+  const rows = [...rowMap.values()].sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+  const totalBuy = rows.reduce((sum, r) => sum + r.buyUsd, 0);
+  const totalSell = rows.reduce((sum, r) => sum + r.sellUsd, 0);
+  return { rows, totalBuy, totalSell, net: totalSell - totalBuy, excluded: [...excluded] };
+}
+
 export function OrderHistoryModal({ onClose }: { onClose: () => void }) {
   const { selectedAccountSeq } = useAppContext();
   const [rangeDays, setRangeDays] = useState<number>(7);
@@ -96,6 +147,29 @@ export function OrderHistoryModal({ onClose }: { onClose: () => void }) {
     void fetchPage(rangeDays);
   }, [rangeDays, fetchPage]);
 
+  // 당일 실현 손익(추정) — 선택한 기간과 무관하게 항상 '오늘' 체결 기준으로 별도 조회.
+  const [todayOrders, setTodayOrders] = useState<Order[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = unwrapResult(
+          await api.getOrders(
+            { status: 'CLOSED', from: kstDateStr(0), to: kstDateStr(0), limit: 100 },
+            selectedAccountSeq
+          )
+        );
+        if (!cancelled && res) setTodayOrders(mapOrders(res));
+      } catch {
+        if (!cancelled) setTodayOrders([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAccountSeq]);
+  const dailyPnl = todayOrders ? computeDailyPnl(todayOrders) : null;
+
   // ESC 닫기 + 배경 스크롤 잠금 (다른 전체 모달과 동일 패턴)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -137,6 +211,33 @@ export function OrderHistoryModal({ onClose }: { onClose: () => void }) {
             </Chip>
           ))}
         </div>
+
+        {dailyPnl && (dailyPnl.rows.length > 0 || dailyPnl.excluded.length > 0) && (
+          <div className="order-history-modal__pnl">
+            <div className="order-history-modal__pnl-head">
+              <Typography size={14}>오늘 매매 손익</Typography>
+              <Typography
+                size={16}
+                className={`order-history-modal__pnl-total ${dailyPnl.net > 0 ? 'is-buy' : dailyPnl.net < 0 ? 'is-sell' : ''}`}
+              >
+                {dailyPnl.net >= 0 ? '+' : ''}${dailyPnl.net.toFixed(2)}
+              </Typography>
+            </div>
+            {dailyPnl.rows.length > 0 && (
+              <div className="order-history-modal__pnl-rows">
+                {dailyPnl.rows.map((r) => (
+                  <Typography key={r.symbol} size={12} className="order-history-modal__pnl-row">
+                    {r.symbol} {r.net >= 0 ? '+' : ''}${r.net.toFixed(2)}
+                  </Typography>
+                ))}
+              </div>
+            )}
+            <Typography size={12} as="p" className="hint order-history-modal__pnl-note">
+              당일 체결 기준 매도 ${dailyPnl.totalSell.toFixed(2)} − 매수 ${dailyPnl.totalBuy.toFixed(2)} · 수수료 제외
+              {dailyPnl.excluded.length > 0 ? ` · 금액 미상 제외: ${dailyPnl.excluded.join(', ')}` : ''}
+            </Typography>
+          </div>
+        )}
 
         {error && <div className="banner error">{error}</div>}
 

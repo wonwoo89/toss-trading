@@ -108,6 +108,13 @@ export interface OrderRaw {
   orderedAt?: string;
   execution?: {
     filledQuantity?: string;
+    /** 체결 평균가 — 서버 응답 필드명이 확정이 아니라 후보를 모두 받는다. */
+    averageFilledPrice?: string;
+    averagePrice?: string;
+    avgPrice?: string;
+    /** 체결 금액(달러) — 시장가 금액 주문의 체결가 역산용. */
+    filledAmount?: string;
+    amount?: string;
   };
 }
 
@@ -206,6 +213,10 @@ export interface Order {
   quantity?: number;
   price?: number;
   filledQuantity?: number;
+  /** 체결 평균가(있으면) — 당일 손익 추정에 사용. */
+  executedPrice?: number;
+  /** 체결 금액(있으면) — 시장가 체결가 역산용. */
+  executedAmount?: number;
   orderedAt?: string;
 }
 
