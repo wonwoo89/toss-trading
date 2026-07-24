@@ -26,6 +26,25 @@ const IMPACT_LABELS: Record<string, string> = {
   neutral: '중립',
 };
 
+interface SymbolAnalysis {
+  at: number;
+  symbol: string;
+  stance: 'bullish' | 'bearish' | 'neutral';
+  trend: string;
+  drivers: string[];
+  support?: string;
+  resistance?: string;
+  scenario: string;
+  risks: string;
+  fallback?: boolean;
+}
+
+const STANCE_LABELS: Record<string, string> = {
+  bullish: '상승 우위',
+  bearish: '하락 우위',
+  neutral: '중립',
+};
+
 function formatAt(at: number): string {
   return new Date(at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
@@ -46,6 +65,21 @@ export function MarketBriefingModal({
   const [error, setError] = useState<string | null>(null);
   // 종목별 보기 — 판단 로그 패널과 동일한 필터 칩(전체/종목).
   const [filter, setFilter] = useState<string>('ALL');
+  // 종목별 시황 분석 — 카드에서 요청 시 로드(서버 30분 캐시).
+  const [analyses, setAnalyses] = useState<Record<string, SymbolAnalysis | null>>({});
+  const [analysisLoading, setAnalysisLoading] = useState<string | null>(null);
+
+  const loadAnalysis = useCallback(async (symbol: string, force: boolean) => {
+    setAnalysisLoading(symbol);
+    try {
+      const res = unwrapResult(await api.getAiSymbolAnalysis(symbol, force));
+      if (res) setAnalyses((prev) => ({ ...prev, [symbol]: res }));
+    } catch {
+      setAnalyses((prev) => ({ ...prev, [symbol]: null }));
+    } finally {
+      setAnalysisLoading((cur) => (cur === symbol ? null : cur));
+    }
+  }, []);
 
   // 부모가 매 렌더마다 새 배열을 넘겨도(보유 폴링) 재요청되지 않게 키 문자열로 안정화.
   const symbolsKey = symbols.map((s) => s.toUpperCase()).join(',');
@@ -180,6 +214,66 @@ export function MarketBriefingModal({
                           </li>
                         ))}
                       </ul>
+                    )}
+
+                    {/* 종목별 시황 분석 — 캔들·지표 + 웹 검색 심층 리포트(요청 시 로드) */}
+                    <div className="market-briefing__analysis-actions">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={analysisLoading === item.symbol}
+                        onClick={() => void loadAnalysis(item.symbol, Boolean(analyses[item.symbol]))}
+                      >
+                        {analysisLoading === item.symbol
+                          ? '분석 중…'
+                          : analyses[item.symbol]
+                            ? '다시 분석'
+                            : '시황 분석'}
+                      </Button>
+                    </div>
+                    {analysisLoading === item.symbol && (
+                      <Typography size={14} as="p" className="hint">
+                        시황 분석 중 — 웹 검색을 포함해 1~2분 걸릴 수 있어요.
+                      </Typography>
+                    )}
+                    {analyses[item.symbol]?.fallback && analysisLoading !== item.symbol && (
+                      <div className="banner error">{analyses[item.symbol]!.trend}</div>
+                    )}
+                    {analyses[item.symbol] && !analyses[item.symbol]!.fallback && (
+                      <div className="market-briefing__analysis">
+                        <Typography size={14} className={`market-briefing__stance is-${analyses[item.symbol]!.stance}`}>
+                          {STANCE_LABELS[analyses[item.symbol]!.stance]}
+                        </Typography>
+                        <Typography size={16} as="p" className="market-briefing__analysis-text">
+                          {analyses[item.symbol]!.trend}
+                        </Typography>
+                        {analyses[item.symbol]!.drivers.length > 0 && (
+                          <ul className="market-briefing__drivers">
+                            {analyses[item.symbol]!.drivers.map((d, i) => (
+                              <li key={i}>
+                                <Typography size={16}>{d}</Typography>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {(analyses[item.symbol]!.support || analyses[item.symbol]!.resistance) && (
+                          <Typography size={16} as="p" className="market-briefing__analysis-text">
+                            {analyses[item.symbol]!.support ? `지지: ${analyses[item.symbol]!.support}` : ''}
+                            {analyses[item.symbol]!.support && analyses[item.symbol]!.resistance ? ' · ' : ''}
+                            {analyses[item.symbol]!.resistance ? `저항: ${analyses[item.symbol]!.resistance}` : ''}
+                          </Typography>
+                        )}
+                        {analyses[item.symbol]!.scenario && (
+                          <Typography size={16} as="p" className="market-briefing__analysis-text">
+                            시나리오 — {analyses[item.symbol]!.scenario}
+                          </Typography>
+                        )}
+                        {analyses[item.symbol]!.risks && (
+                          <Typography size={14} as="p" className="hint market-briefing__analysis-text">
+                            리스크 — {analyses[item.symbol]!.risks}
+                          </Typography>
+                        )}
+                      </div>
                     )}
                   </li>
                 ))}

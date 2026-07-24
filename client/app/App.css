@@ -618,6 +618,49 @@ textarea {
   color: var(--color-down);
 }
 
+/* 종목별 시황 분석 블록 */
+.market-briefing__analysis-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+.market-briefing__analysis {
+  margin-top: 0.5rem;
+  padding: 0.7rem 0.8rem;
+  border-radius: 10px;
+  background: var(--bg-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.market-briefing-modal .market-briefing__analysis-text {
+  margin: 0;
+  line-height: 1.6;
+}
+.market-briefing__stance {
+  align-self: flex-start;
+  padding: 0.1rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 700;
+  background: var(--bg-base);
+  color: var(--text-secondary);
+}
+.market-briefing__stance.is-bullish {
+  background: color-mix(in srgb, var(--color-up) 14%, transparent);
+  color: var(--color-up);
+}
+.market-briefing__stance.is-bearish {
+  background: color-mix(in srgb, var(--color-down) 14%, transparent);
+  color: var(--color-down);
+}
+.market-briefing__drivers {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
 /* ── 누적 주문내역 모달 — backtest-modal 프레임 재사용 + 기간 칩/리스트/더보기 ── */
 .order-history-modal__filters {
   display: flex;
