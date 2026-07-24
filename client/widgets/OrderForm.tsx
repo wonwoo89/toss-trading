@@ -754,6 +754,15 @@ export function OrderForm({
                   +${usd}
                 </Button>
               ))}
+              <Button
+                size="sm"
+                variant="ghost"
+                className="order-amount-quick__btn order-amount-quick__reset"
+                disabled={!orderAmount}
+                onClick={() => setOrderAmount('')}
+              >
+                초기화
+              </Button>
             </div>
             <Typography as="p" size={12} className="hint order-form__footer-hint">
               금액 주문은 시장가로 체결됩니다. <strong>금액 매도</strong>는 입력 금액만큼(분할),
