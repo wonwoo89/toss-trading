@@ -5,6 +5,7 @@ import { unwrapResult } from '../shared/lib/parse';
 import { mapOrders } from '../shared/lib/mapPortfolio';
 import { formatOrderDateLabel, formatOrderPriceLabel } from '../shared/lib/formatOrders';
 import { useAppContext } from '../app/providers/AppContext';
+import { resolveUsCommissionRatePercent } from '../shared/lib/commissionBreakEven';
 import { Chip } from '../shared/ui/Chip';
 import { Button } from '../shared/ui/Button';
 import { Typography } from '../shared/ui/Typography';
@@ -63,8 +64,10 @@ interface DailyPnlRow {
  *  원가는 보유 평단 → 없으면(전량 청산) 당일 매수 평균가 → 둘 다 없으면 제외. */
 function computeDailyPnl(
   orders: Order[],
-  holdingsAvgPrices: Record<string, number>
+  holdingsAvgPrices: Record<string, number>,
+  commissionRatePercent: number
 ): { rows: DailyPnlRow[]; total: number; excluded: string[] } {
+  const commissionRate = commissionRatePercent / 100;
   const fillPriceOf = (o: Order): number | undefined => {
     if (o.executedPrice !== undefined && o.executedPrice > 0) return o.executedPrice;
     const qty = o.filledQuantity ?? o.quantity;
@@ -110,7 +113,9 @@ function computeDailyPnl(
       continue;
     }
     const row = rowMap.get(o.symbol) ?? { symbol: o.symbol, realized: 0, soldQty: 0 };
-    row.realized += (price - cost) * qty;
+    // 왕복 결제 수수료(매수분+매도분) 차감 — 토스 실현 손익 표기와 근접하게.
+    const roundTripFee = (price + cost) * qty * commissionRate;
+    row.realized += (price - cost) * qty - roundTripFee;
     row.soldQty += qty;
     rowMap.set(o.symbol, row);
   }
@@ -193,7 +198,27 @@ export function OrderHistoryModal({
       cancelled = true;
     };
   }, [selectedAccountSeq]);
-  const dailyPnl = todayOrders ? computeDailyPnl(todayOrders, holdingsAvgPrices) : null;
+  // 계좌 실제 수수료율(US) — 실패 시 기본값 폴백.
+  const [commissionRatePercent, setCommissionRatePercent] = useState<number>(
+    resolveUsCommissionRatePercent(undefined)
+  );
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = unwrapResult(await api.getCommissions(selectedAccountSeq));
+        if (!cancelled && res) setCommissionRatePercent(resolveUsCommissionRatePercent(res));
+      } catch {
+        // 기본 요율 유지
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAccountSeq]);
+  const dailyPnl = todayOrders
+    ? computeDailyPnl(todayOrders, holdingsAvgPrices, commissionRatePercent)
+    : null;
 
   // ESC 닫기 + 배경 스크롤 잠금 (다른 전체 모달과 동일 패턴)
   useEffect(() => {
@@ -258,7 +283,7 @@ export function OrderHistoryModal({
               </div>
             )}
             <Typography size={12} as="p" className="hint order-history-modal__pnl-note">
-              매도 체결 × (체결가 − 평단) 기준 추정치 · 수수료 제외
+              매도 체결 × (체결가 − 평단) − 왕복 수수료({(commissionRatePercent * 2).toFixed(2)}%) 추정
               {dailyPnl.excluded.length > 0 ? ` · 원가 미상 제외: ${dailyPnl.excluded.join(', ')}` : ''}
             </Typography>
           </div>
