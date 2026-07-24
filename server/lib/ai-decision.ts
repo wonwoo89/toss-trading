@@ -838,8 +838,10 @@ async function briefViaSubscription(symbols: string[]): Promise<AiBriefingResult
         model: MODEL,
         systemPrompt: BRIEFING_SYSTEM,
         // 검색 여러 라운드(종목 수만큼) 허용 — WebSearch 만 열어준다.
+        // dontAsk 모드는 권한 요청을 자동 거부하므로 allowedTools 로 명시 허용해야 실제로 돈다.
         maxTurns: 25,
         tools: ['WebSearch'],
+        allowedTools: ['WebSearch'],
         permissionMode: 'dontAsk',
         settingSources: [],
         persistSession: false,
