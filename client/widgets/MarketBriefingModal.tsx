@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { api } from '../shared/api/client';
 import { unwrapResult } from '../shared/lib/parse';
 import { Button } from '../shared/ui/Button';
+import { Chip } from '../shared/ui/Chip';
 import { Typography } from '../shared/ui/Typography';
 
 interface Briefing {
@@ -43,6 +44,8 @@ export function MarketBriefingModal({
   const [data, setData] = useState<Briefing | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 종목별 보기 — 판단 로그 패널과 동일한 필터 칩(전체/종목).
+  const [filter, setFilter] = useState<string>('ALL');
 
   // 부모가 매 렌더마다 새 배열을 넘겨도(보유 폴링) 재요청되지 않게 키 문자열로 안정화.
   const symbolsKey = symbols.map((s) => s.toUpperCase()).join(',');
@@ -110,7 +113,7 @@ export function MarketBriefingModal({
           </div>
 
           {loading && (
-            <Typography size={12} as="p" className="hint">
+            <Typography size={14} as="p" className="hint">
               브리핑 생성 중 — 웹 검색을 포함해 1~2분 걸릴 수 있어요.
             </Typography>
           )}
@@ -121,19 +124,38 @@ export function MarketBriefingModal({
 
           {data && !data.fallback && (
             <>
-              {data.overall && (
-                <Typography size={14} as="p" className="market-briefing__overall">
+              {/* 종합 요약 — 전체 보기에서만. 종목 칩 선택 시 해당 카드에 집중 */}
+              {filter === 'ALL' && data.overall && (
+                <Typography size={16} as="p" className="market-briefing__overall">
                   {data.overall}
                 </Typography>
               )}
+              {data.items.length > 1 && (
+                <div className="market-briefing__filter" role="tablist" aria-label="브리핑 종목 필터">
+                  <Chip selected={filter === 'ALL'} onClick={() => setFilter('ALL')}>
+                    전체
+                  </Chip>
+                  {data.items.map((item) => (
+                    <Chip
+                      key={item.symbol}
+                      selected={filter === item.symbol}
+                      onClick={() => setFilter(item.symbol)}
+                    >
+                      {item.symbol}
+                    </Chip>
+                  ))}
+                </div>
+              )}
               <ul className="market-briefing__list">
-                {data.items.map((item) => (
+                {data.items
+                  .filter((item) => filter === 'ALL' || item.symbol === filter)
+                  .map((item) => (
                   <li key={item.symbol} className="market-briefing__item">
-                    <Typography size={16} as="h3" className="market-briefing__symbol">
+                    <Typography size={18} as="h3" className="market-briefing__symbol">
                       {item.symbol}
                     </Typography>
                     {item.summary && (
-                      <Typography size={12} as="p" className="market-briefing__summary">
+                      <Typography size={16} as="p" className="market-briefing__summary">
                         {item.summary}
                       </Typography>
                     )}
@@ -141,7 +163,7 @@ export function MarketBriefingModal({
                       <ul className="market-briefing__news">
                         {item.news.map((n, i) => (
                           <li key={i} className="market-briefing__news-item">
-                            <Typography size={12} className="market-briefing__news-title">
+                            <Typography size={16} className="market-briefing__news-title">
                               {n.impact && (
                                 <span className={`market-briefing__impact is-${n.impact}`}>
                                   {IMPACT_LABELS[n.impact]}
@@ -151,7 +173,7 @@ export function MarketBriefingModal({
                               {n.date && <span className="hint"> · {n.date}</span>}
                             </Typography>
                             {n.note && (
-                              <Typography size={12} as="p" className="hint market-briefing__news-note">
+                              <Typography size={14} as="p" className="hint market-briefing__news-note">
                                 {n.note}
                               </Typography>
                             )}
