@@ -3938,18 +3938,22 @@ input[type='checkbox']:focus-visible {
 }
 .pwa-update__btn {
   flex: 0 0 auto;
-  padding: 0.35rem 0.7rem;
+  /* 모바일 탭 타겟 확보(≥40px) — 작아서 탭이 빗나가던 문제 */
+  min-height: 40px;
+  padding: 0.5rem 1rem;
   border: none;
-  border-radius: 7px;
-  font-size: 0.78rem;
+  border-radius: 9px;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #fff;
   background: var(--accent, #3182f6);
 }
 .pwa-update__close {
   flex: 0 0 auto;
-  width: 22px;
-  height: 22px;
+  /* ✕ 도 탭 타겟 확대 + 업데이트 버튼과 간격을 둬 오터치 방지 */
+  width: 36px;
+  height: 36px;
+  margin-left: 0.35rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;

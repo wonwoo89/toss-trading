@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Typography } from '../shared/ui/Typography';
 
@@ -22,6 +23,17 @@ export function PwaUpdatePrompt() {
     },
   });
 
+  // 적용 중 표시 + 강제 리로드 폴백 — iOS 에서 skipWaiting/controllerchange 가
+  // 무반응이면(새 워커 설치 중 등) 버튼이 '안 눌린 것'처럼 보이는 문제를 막는다.
+  const [updating, setUpdating] = useState(false);
+  const applyUpdate = () => {
+    if (updating) return;
+    setUpdating(true);
+    void updateServiceWorker(true).catch(() => undefined);
+    // 2.5초 내 워커 교체 리로드가 일어나지 않으면 강제 새로고침(새 워커가 활성화돼 있으면 새 버전으로 뜬다).
+    setTimeout(() => window.location.reload(), 2500);
+  };
+
   if (!needRefresh) return null;
 
   return (
@@ -30,9 +42,10 @@ export function PwaUpdatePrompt() {
       <button
         type="button"
         className="pwa-update__btn"
-        onClick={() => updateServiceWorker(true)}
+        disabled={updating}
+        onClick={applyUpdate}
       >
-        업데이트
+        {updating ? '적용 중…' : '업데이트'}
       </button>
       <button
         type="button"
