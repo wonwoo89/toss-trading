@@ -15,15 +15,12 @@ interface OpenOrdersPanelProps {
   openOrders: Order[];
   onCancel: (orderId: string) => Promise<void>;
   hideSymbol?: boolean;
-  /** 종목별 보유 평단 — 주문내역 모달의 당일 실현 손익(추정) 계산용. */
-  holdingsAvgPrices?: Record<string, number>;
 }
 
 export function OpenOrdersPanel({
   openOrders,
   onCancel,
   hideSymbol = false,
-  holdingsAvgPrices,
 }: OpenOrdersPanelProps) {
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -47,12 +44,7 @@ export function OpenOrdersPanel({
           주문 내역
         </Button>
       </div>
-      {historyOpen && (
-        <OrderHistoryModal
-          onClose={() => setHistoryOpen(false)}
-          holdingsAvgPrices={holdingsAvgPrices}
-        />
-      )}
+      {historyOpen && <OrderHistoryModal onClose={() => setHistoryOpen(false)} />}
 
       <div className="panel-body open-orders-panel__body">
         {openOrders.length === 0 ? (

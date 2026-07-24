@@ -303,15 +303,7 @@ export function PortfolioSidebar({
         </div>
       </section>
 
-      <OpenOrdersPanel
-        openOrders={openOrders}
-        onCancel={onCancelOrder}
-        holdingsAvgPrices={Object.fromEntries(
-          [...holdings, ...hiddenHoldings]
-            .filter((h) => typeof h.averagePrice === 'number' && h.averagePrice > 0)
-            .map((h) => [h.symbol.toUpperCase(), h.averagePrice as number])
-        )}
-      />
+      <OpenOrdersPanel openOrders={openOrders} onCancel={onCancelOrder} />
     </aside>
   );
 }
