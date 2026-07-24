@@ -3946,8 +3946,12 @@ input[type='checkbox']:focus-visible {
   .trading-layout.layout-v2--tab-order.layout-v2--order-book .chart-panel {
     display: none;
   }
+  /* 섹션 = [상단 바(고정 행)] + [호가 내부 스크롤] 의 flex 컬럼.
+     iOS 는 overflow 컨테이너 안 sticky 가 오배치되므로 sticky 를 쓰지 않고
+     overflow:hidden 으로 위쪽 유격에 내용이 비치는 것도 차단한다. */
   .trading-layout.layout-v2--order-book .orderbook-section {
-    display: block;
+    display: flex;
+    flex-direction: column;
     order: -1;
     position: sticky;
     top: env(safe-area-inset-top);
@@ -3955,19 +3959,26 @@ input[type='checkbox']:focus-visible {
     background: var(--bg-base);
     height: 50dvh;
     min-height: 260px;
-    overflow-y: auto;
-    margin-bottom: -8px;
+    overflow: hidden;
+    /* 하단 여백 — 호가창과 주문폼(현재가 행) 사이 숨 쉴 간격 */
+    margin-bottom: 10px;
   }
 
-  /* 호가창 상단 바 — 차트 복귀 버튼이 자체 행을 차지(오버레이 아님, 호가를 가리지 않음) */
+  /* 호가창 상단 바 — 차트 복귀 버튼이 자체 행(고정)을 차지, 호가를 가리지 않음 */
   .orderbook-section__bar {
+    flex: 0 0 auto;
     display: flex;
     justify-content: flex-end;
     padding: 0.35rem 0.5rem;
-    position: sticky;
-    top: 0;
-    z-index: 5;
     background: var(--bg-base);
+  }
+
+  /* 호가 본문 — 섹션 내부에서만 스크롤, 마지막 행이 잘려 보이지 않게 하단 패딩 */
+  .orderbook-section__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding-bottom: 0.6rem;
   }
 
   .trading-layout.layout-v2--tab-order .chart-panel {

@@ -338,7 +338,7 @@ export function StockPage() {
             {/* 호가 — 데스크톱은 주문폼 아래 별도 섹션, 모바일은 호가 탭 전용.
                 (MarketPanel 좌측 하단에서 이동 — 호가 심도가 늘어도 차트 높이를 잠식하지 않게) */}
             <div className="orderbook-section">
-              {/* 호가창 상단 바 — 차트 복귀 버튼이 자체 공간을 차지해 호가 행을 가리지 않는다 */}
+              {/* 호가창 상단 바 — 차트 복귀 버튼이 자체 공간(고정 행)을 차지해 호가를 가리지 않는다 */}
               {v2Active && mobileTab === 'order' && orderBookView && (
                 <div className="orderbook-section__bar">
                   <Button size="sm" onClick={() => setOrderBookView(false)}>
@@ -346,15 +346,17 @@ export function StockPage() {
                   </Button>
                 </div>
               )}
-              <OrderbookPanel
-                bids={marketPanelProps.bids ?? []}
-                asks={marketPanelProps.asks ?? []}
-                trades={marketPanelProps.trades ?? []}
-                currency={marketPanelProps.currency}
-                previousClose={marketPanelProps.previousClose}
-                candles={marketPanelProps.candles}
-                candleInterval={marketPanelProps.candleInterval}
-              />
+              <div className="orderbook-section__body">
+                <OrderbookPanel
+                  bids={marketPanelProps.bids ?? []}
+                  asks={marketPanelProps.asks ?? []}
+                  trades={marketPanelProps.trades ?? []}
+                  currency={marketPanelProps.currency}
+                  previousClose={marketPanelProps.previousClose}
+                  candles={marketPanelProps.candles}
+                  candleInterval={marketPanelProps.candleInterval}
+                />
+              </div>
             </div>
           </section>
         ) : null}
