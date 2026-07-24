@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Router } from 'express';
 import {
   getAiAuthMode,
@@ -73,6 +76,65 @@ interface CachedBriefing extends AiBriefingResult {
 let briefingCache: { key: string; data: CachedBriefing } | null = null;
 let briefingInflight: { key: string; promise: Promise<CachedBriefing> } | null = null;
 
+// ── 캐시 파일 영속화 — 잦은 배포(서버 재시작)에도 브리핑/분석을 잃지 않게 한다 ──
+// 단일 JSON 파일을 통째로 덮어쓰는 방식이라 파일이 쌓이지 않고, 내부 항목은
+// 저장 시점에 오래된 것(24시간 경과)과 초과분(분석 30종목)을 자동 정리한다.
+const aiCacheRootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const AI_CACHE_DIR = path.join(aiCacheRootDir, 'server', 'data');
+const AI_CACHE_PATH = path.join(AI_CACHE_DIR, 'ai-insight-cache.json');
+/** 파일 보존 한도 — TTL(30/60분)이 지나도 재시작 직후 참고용으로 하루까지는 유지. */
+const AI_CACHE_KEEP_MS = 24 * 60 * 60 * 1000;
+const AI_CACHE_MAX_ANALYSES = 30;
+
+interface PersistedAiCache {
+  briefing: { key: string; data: CachedBriefing } | null;
+  analyses: Record<string, CachedAnalysis>;
+}
+
+function pruneAndSaveAiCache(): void {
+  const now = Date.now();
+  if (briefingCache && now - briefingCache.data.at > AI_CACHE_KEEP_MS) briefingCache = null;
+  for (const [symbol, entry] of analysisCache) {
+    if (now - entry.at > AI_CACHE_KEEP_MS) analysisCache.delete(symbol);
+  }
+  if (analysisCache.size > AI_CACHE_MAX_ANALYSES) {
+    const sorted = [...analysisCache.entries()].sort((a, b) => b[1].at - a[1].at);
+    analysisCache.clear();
+    for (const [symbol, entry] of sorted.slice(0, AI_CACHE_MAX_ANALYSES)) {
+      analysisCache.set(symbol, entry);
+    }
+  }
+  const payload: PersistedAiCache = {
+    briefing: briefingCache,
+    analyses: Object.fromEntries(analysisCache),
+  };
+  try {
+    fs.mkdirSync(AI_CACHE_DIR, { recursive: true });
+    fs.writeFileSync(AI_CACHE_PATH, JSON.stringify(payload), 'utf8');
+  } catch (error) {
+    console.error('[ai] 캐시 파일 저장 실패:', error);
+  }
+}
+
+function loadAiCacheFromDisk(): void {
+  try {
+    const raw = JSON.parse(fs.readFileSync(AI_CACHE_PATH, 'utf8')) as Partial<PersistedAiCache>;
+    const now = Date.now();
+    if (raw.briefing?.data && typeof raw.briefing.key === 'string' && now - raw.briefing.data.at <= AI_CACHE_KEEP_MS) {
+      briefingCache = raw.briefing as { key: string; data: CachedBriefing };
+    }
+    if (raw.analyses && typeof raw.analyses === 'object') {
+      for (const [symbol, entry] of Object.entries(raw.analyses)) {
+        if (entry && typeof entry === 'object' && now - (entry as CachedAnalysis).at <= AI_CACHE_KEEP_MS) {
+          analysisCache.set(symbol, entry as CachedAnalysis);
+        }
+      }
+    }
+  } catch {
+    // 파일 없음/손상 — 빈 캐시로 시작
+  }
+}
+
 aiRouter.get('/briefing', async (req, res, next) => {
   try {
     const symbols = String(req.query.symbols ?? '')
@@ -101,7 +163,10 @@ aiRouter.get('/briefing', async (req, res, next) => {
     const promise = getAiMarketBriefing(symbols).then((data) => {
       const cached: CachedBriefing = { ...data, at: Date.now(), symbols };
       // 실패(fallback) 결과는 캐시하지 않는다 — 다음 요청/갱신에서 재시도.
-      if (!data.fallback) briefingCache = { key, data: cached };
+      if (!data.fallback) {
+        briefingCache = { key, data: cached };
+        pruneAndSaveAiCache(); // 갱신 포함 매 성공 생성마다 파일도 함께 업데이트
+      }
       return cached;
     });
     briefingInflight = { key, promise };
@@ -185,7 +250,10 @@ aiRouter.get('/analysis', async (req, res, next) => {
       });
       const entry: CachedAnalysis = { ...data, at: Date.now(), symbol };
       // 실패(fallback)는 캐시하지 않는다 — 다음 시도에서 재생성.
-      if (!data.fallback) analysisCache.set(symbol, entry);
+      if (!data.fallback) {
+        analysisCache.set(symbol, entry);
+        pruneAndSaveAiCache(); // 갱신 포함 매 성공 생성마다 파일도 함께 업데이트
+      }
       return entry;
     })();
     analysisInflight.set(symbol, promise);
@@ -199,3 +267,6 @@ aiRouter.get('/analysis', async (req, res, next) => {
     next(error);
   }
 });
+
+// 서버 기동 시 디스크 캐시 복원 — 배포 직후에도 이전 브리핑/분석이 즉시 뜬다.
+loadAiCacheFromDisk();
