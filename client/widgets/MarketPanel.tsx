@@ -80,6 +80,8 @@ interface MarketPanelProps {
   autoSubmitting?: boolean;
   /** 자동매매 '로그 보기' 대체 동작(모바일 AI 탭 전환) — 없으면 /server-ai 이동. */
   onViewAiLogs?: (target: 'single' | 'bg') => void;
+  /** 모바일 주문 탭 차트↔호가 전환 — 지정 시 차트 헤더의 백테스트 버튼 자리를 이 토글이 대체. */
+  orderBookToggle?: { open: boolean; onToggle: () => void };
   /** 세미오토/오토 활성 여부 변경 알림 — 주문폼의 수동 주문 잠금에 사용. */
   onAutoExecModeChange?: (active: boolean) => void;
 }
@@ -118,6 +120,7 @@ export function MarketPanel({
   onViewAiLogs,
   autoSubmitting = false,
   onAutoExecModeChange,
+  orderBookToggle,
 }: MarketPanelProps) {
   const [backtestOpen, setBacktestOpen] = useState(false);
   const [bollingerVisible, setBollingerVisible] = useState(getStoredBollingerVisible);
@@ -200,15 +203,27 @@ export function MarketPanel({
                 </option>
               ))}
             </select>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="chart-backtest-btn"
-              onClick={() => setBacktestOpen(true)}
-              title="이 종목 신호 백테스트"
-            >
-              백테스트
-            </Button>
+            {orderBookToggle ? (
+              /* 모바일 주문 탭 — 백테스트 대신 호가 전환 버튼(백테스트는 차트 탭 전용, AI 최적화 용도) */
+              <Button
+                size="sm"
+                variant="ghost"
+                className="chart-backtest-btn"
+                onClick={orderBookToggle.onToggle}
+              >
+                {orderBookToggle.open ? '차트 보기' : '호가 보기'}
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="chart-backtest-btn"
+                onClick={() => setBacktestOpen(true)}
+                title="이 종목 신호 백테스트"
+              >
+                백테스트
+              </Button>
+            )}
           </div>
         </div>
 

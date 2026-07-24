@@ -255,6 +255,11 @@ export function StockPage() {
                     : undefined
                 }
                 onAutoExecModeChange={setAutoTradeActive}
+                orderBookToggle={
+                  v2Active && mobileTab === 'order'
+                    ? { open: orderBookView, onToggle: () => setOrderBookView((v) => !v) }
+                    : undefined
+                }
               />
             </>
           ) : null}
@@ -311,18 +316,6 @@ export function StockPage() {
                 : undefined
             }
           >
-            {/* 모바일 주문 탭: 스티키 영역(차트↔호가) 전환 버튼 — 스크롤 중에도 우상단 고정 */}
-            {v2Active && mobileTab === 'order' && (
-              <div className="order-view-toggle">
-                <Button
-                  size="sm"
-                  className="order-view-toggle__btn"
-                  onClick={() => setOrderBookView((v) => !v)}
-                >
-                  {orderBookView ? '차트 보기' : '호가 보기'}
-                </Button>
-              </div>
-            )}
             <OrderForm
               key={symbol}
               {...orderFormProps}
@@ -345,6 +338,14 @@ export function StockPage() {
             {/* 호가 — 데스크톱은 주문폼 아래 별도 섹션, 모바일은 호가 탭 전용.
                 (MarketPanel 좌측 하단에서 이동 — 호가 심도가 늘어도 차트 높이를 잠식하지 않게) */}
             <div className="orderbook-section">
+              {/* 호가창 상단 바 — 차트 복귀 버튼이 자체 공간을 차지해 호가 행을 가리지 않는다 */}
+              {v2Active && mobileTab === 'order' && orderBookView && (
+                <div className="orderbook-section__bar">
+                  <Button size="sm" onClick={() => setOrderBookView(false)}>
+                    차트 보기
+                  </Button>
+                </div>
+              )}
               <OrderbookPanel
                 bids={marketPanelProps.bids ?? []}
                 asks={marketPanelProps.asks ?? []}

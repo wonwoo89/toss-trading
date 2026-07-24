@@ -3869,10 +3869,9 @@ input[type='checkbox']:focus-visible {
   background: var(--accent, #3182f6);
 }
 
-/* 데스크톱: 탭바·레이아웃 토글 숨김 (모바일 전용 기능) */
+/* 데스크톱: 탭바 숨김 (모바일 전용 기능) */
 @media (min-width: 1101px) {
-  .mobile-tab-bar,
-  .order-view-toggle {
+  .mobile-tab-bar {
     display: none;
   }
 }
@@ -3960,25 +3959,15 @@ input[type='checkbox']:focus-visible {
     margin-bottom: -8px;
   }
 
-  /* 스티키 영역(차트/호가) 전환 버튼 — 높이 0 스티키로 영역 우상단에 겹쳐 고정 */
-  .order-view-toggle {
-    order: -2;
-    position: sticky;
-    top: calc(env(safe-area-inset-top) + 8px);
-    z-index: 210;
-    height: 0;
+  /* 호가창 상단 바 — 차트 복귀 버튼이 자체 행을 차지(오버레이 아님, 호가를 가리지 않음) */
+  .orderbook-section__bar {
     display: flex;
     justify-content: flex-end;
-  }
-  /* 공통 ui-btn 위에 오버레이 가독성 보정만: 차트 위에 뜨므로 반투명 배경 + 블러 */
-  .order-view-toggle__btn {
-    background: color-mix(in srgb, var(--bg-base) 82%, transparent);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
-  }
-  .order-view-toggle__btn:hover:not(:disabled) {
-    background: color-mix(in srgb, var(--bg-base) 92%, transparent);
+    padding: 0.35rem 0.5rem;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg-base);
   }
 
   .trading-layout.layout-v2--tab-order .chart-panel {
