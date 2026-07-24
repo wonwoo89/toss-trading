@@ -918,3 +918,197 @@ export async function getAiMarketBriefing(symbols: string[]): Promise<AiBriefing
     () => briefingFallback('AI 동시 요청 초과 — 잠시 후 갱신해주세요.')
   );
 }
+
+// ── 종목별 시황 분석 — 캔들·지표 컨텍스트 + 웹 검색으로 심층 리포트(구독 경로 전용) ──
+
+export interface SymbolAnalysisContext {
+  symbol: string;
+  currentPrice?: number;
+  /** 일봉(최근 → 과거 정렬 무관, 최대 40개 권장) — 중기 추세 판단용. */
+  daily: AiDecisionCandle[];
+  /** 5분봉(최대 60개) — 당일 흐름 판단용. */
+  intraday: AiDecisionCandle[];
+  signal?: { level: string; score: number; rsi?: number; sma20?: number; sma50?: number; atr?: number };
+  regime?: { adx?: number; state: string };
+}
+
+export interface AiSymbolAnalysis {
+  stance: 'bullish' | 'bearish' | 'neutral';
+  trend: string;
+  drivers: string[];
+  support?: string;
+  resistance?: string;
+  scenario: string;
+  risks: string;
+  model: string;
+  fallback?: boolean;
+}
+
+const ANALYSIS_TIMEOUT_MS = 150_000;
+const ANALYSIS_HARD_TIMEOUT_MS = ANALYSIS_TIMEOUT_MS + 15_000;
+
+const ANALYSIS_SYSTEM = `너는 미국 주식 시황 분석가다. 제공된 캔들·지표 데이터(기술적)와
+WebSearch 로 확인한 최신 뉴스·수급·섹터 동향(재료)을 종합해 한국어 시황 리포트를 작성한다.
+규칙:
+- 기술적 판단은 제공된 데이터에 근거하고, 뉴스·재료는 검색으로 확인한 것만 쓴다.
+- 지지/저항은 캔들에서 근거 있는 구체적 가격대로 제시한다.
+- 단정 대신 조건부 시나리오("~를 지키면/이탈하면")로 서술한다. 투자 권유 금지.
+- 분량: trend 2~3문장, drivers 2~4개(각 한 줄), scenario 2~3문장, risks 1~2문장.`;
+
+const ANALYSIS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['stance', 'trend', 'drivers', 'scenario', 'risks'],
+  properties: {
+    stance: { type: 'string', enum: ['bullish', 'bearish', 'neutral'], description: '종합 스탠스' },
+    trend: { type: 'string', description: '추세 요약(중기+당일)' },
+    drivers: { type: 'array', items: { type: 'string' }, description: '주요 동인(뉴스·수급·섹터)' },
+    support: { type: 'string', description: '주요 지지선(가격대·근거 한 줄)' },
+    resistance: { type: 'string', description: '주요 저항선(가격대·근거 한 줄)' },
+    scenario: { type: 'string', description: '단기 시나리오(조건부)' },
+    risks: { type: 'string', description: '핵심 리스크' },
+  },
+} as const;
+
+function fmtCandleLine(c: AiDecisionCandle): string {
+  const d = new Date(c.t * 1000).toISOString().slice(0, 16).replace('T', ' ');
+  return `${d} O${c.o} H${c.h} L${c.l} C${c.c} V${c.v}`;
+}
+
+function buildAnalysisPrompt(ctx: SymbolAnalysisContext): string {
+  const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+  const lines = [
+    `오늘(KST): ${today}`,
+    `종목: ${ctx.symbol}`,
+    ctx.currentPrice ? `현재가: $${ctx.currentPrice}` : '',
+    ctx.signal
+      ? `지표(5분봉): score ${ctx.signal.score} (${ctx.signal.level})` +
+        (ctx.signal.rsi !== undefined ? ` · RSI ${ctx.signal.rsi.toFixed(1)}` : '') +
+        (ctx.signal.sma20 !== undefined ? ` · SMA20 ${ctx.signal.sma20.toFixed(2)}` : '') +
+        (ctx.signal.sma50 !== undefined ? ` · SMA50 ${ctx.signal.sma50.toFixed(2)}` : '')
+      : '',
+    ctx.regime ? `국면: ${ctx.regime.state}${ctx.regime.adx !== undefined ? ` (ADX ${ctx.regime.adx.toFixed(1)})` : ''}` : '',
+    '',
+    `일봉(${ctx.daily.length}개):`,
+    ...ctx.daily.map(fmtCandleLine),
+    '',
+    `5분봉(${ctx.intraday.length}개):`,
+    ...ctx.intraday.map(fmtCandleLine),
+    '',
+    '위 데이터로 기술적 흐름을 분석하고, WebSearch 로 이 종목의 최신 뉴스·수급·섹터 동향을 확인해',
+    '시황 리포트를 JSON 으로 작성해줘.',
+  ];
+  return lines.filter((l) => l !== '').join('\n');
+}
+
+function symbolAnalysisFallback(reason: string): AiSymbolAnalysis {
+  return { stance: 'neutral', trend: reason, drivers: [], scenario: '', risks: '', model: 'fallback', fallback: true };
+}
+
+function normalizeSymbolAnalysis(parsed: Record<string, unknown>): AiSymbolAnalysis {
+  const stance =
+    parsed.stance === 'bullish' || parsed.stance === 'bearish' || parsed.stance === 'neutral'
+      ? parsed.stance
+      : 'neutral';
+  const drivers = Array.isArray(parsed.drivers)
+    ? parsed.drivers.filter((d): d is string => typeof d === 'string').map((d) => d.slice(0, 300)).slice(0, 6)
+    : [];
+  return {
+    stance,
+    trend: typeof parsed.trend === 'string' ? parsed.trend.slice(0, 800) : '',
+    drivers,
+    support: typeof parsed.support === 'string' ? parsed.support.slice(0, 200) : undefined,
+    resistance: typeof parsed.resistance === 'string' ? parsed.resistance.slice(0, 200) : undefined,
+    scenario: typeof parsed.scenario === 'string' ? parsed.scenario.slice(0, 800) : '',
+    risks: typeof parsed.risks === 'string' ? parsed.risks.slice(0, 500) : '',
+    model: MODEL,
+  };
+}
+
+async function analyzeSymbolViaSubscription(ctx: SymbolAnalysisContext): Promise<AiSymbolAnalysis> {
+  const { query } = await loadAgentSdk();
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), ANALYSIS_TIMEOUT_MS);
+  try {
+    const stream = query({
+      prompt: buildAnalysisPrompt(ctx),
+      options: {
+        model: MODEL,
+        systemPrompt: ANALYSIS_SYSTEM,
+        maxTurns: 15,
+        tools: ['WebSearch'],
+        allowedTools: ['WebSearch'],
+        permissionMode: 'dontAsk',
+        settingSources: [],
+        persistSession: false,
+        outputFormat: {
+          type: 'json_schema',
+          schema: ANALYSIS_SCHEMA as unknown as Record<string, unknown>,
+        },
+        abortController: abort,
+      },
+    });
+
+    for await (const message of stream) {
+      if (message.type !== 'result') continue;
+      if (message.subtype !== 'success') {
+        const detail = message.errors?.length ? message.errors.join('; ') : message.subtype;
+        return symbolAnalysisFallback(`AI 분석 실패(${detail}) — 다시 시도해주세요.`);
+      }
+      let raw: unknown = message.structured_output;
+      if (raw === undefined && typeof message.result === 'string') {
+        try {
+          raw = JSON.parse(message.result);
+        } catch {
+          return symbolAnalysisFallback('AI 응답 파싱 실패 — 다시 시도해주세요.');
+        }
+      }
+      if (!raw || typeof raw !== 'object') {
+        return symbolAnalysisFallback('AI 응답 없음 — 다시 시도해주세요.');
+      }
+      return normalizeSymbolAnalysis(raw as Record<string, unknown>);
+    }
+    return symbolAnalysisFallback('AI 응답 없음 — 다시 시도해주세요.');
+  } catch (error) {
+    const message = abort.signal.aborted
+      ? `시간 초과(${ANALYSIS_TIMEOUT_MS / 1000}s)`
+      : error instanceof Error
+        ? error.message
+        : '알 수 없는 오류';
+    return symbolAnalysisFallback(`AI 분석 실패: ${message}`);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function analyzeSymbolWithHardTimeout(ctx: SymbolAnalysisContext): Promise<AiSymbolAnalysis> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      console.error('[ai] 시황 분석 무응답 — 하드 타임아웃: 런타임 정리 후 슬롯 회수');
+      killStaleClaudeRuntimes(() => resolve(symbolAnalysisFallback('AI 분석 무응답(하드 타임아웃)')));
+    }, ANALYSIS_HARD_TIMEOUT_MS);
+    analyzeSymbolViaSubscription(ctx).then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        resolve(
+          symbolAnalysisFallback(`AI 분석 실패: ${error instanceof Error ? error.message : '오류'}`)
+        );
+      }
+    );
+  });
+}
+
+export async function getAiSymbolAnalysis(ctx: SymbolAnalysisContext): Promise<AiSymbolAnalysis> {
+  if (!isAiConfigured()) return symbolAnalysisFallback('AI 미설정(CLAUDE_CODE_OAUTH_TOKEN 없음)');
+  if (getAiAuthMode() !== 'subscription') {
+    return symbolAnalysisFallback('시황 분석(웹 검색)은 구독(OAuth) 모드에서만 지원합니다.');
+  }
+  return queueSubscriptionTask(
+    () => analyzeSymbolWithHardTimeout(ctx),
+    () => symbolAnalysisFallback('AI 동시 요청 초과 — 잠시 후 다시 시도해주세요.')
+  );
+}

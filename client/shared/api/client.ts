@@ -336,6 +336,24 @@ export const api = {
         cached?: boolean;
       }>
     >(`/ai/briefing?symbols=${symbols.map((s) => s.toUpperCase()).join(',')}${force ? '&force=1' : ''}`),
+  // 종목별 AI 시황 분석(캔들·지표 + 웹 검색) — 서버 30분 캐시, force=강제 재생성.
+  getAiSymbolAnalysis: (symbol: string, force = false) =>
+    request<
+      ApiEnvelope<{
+        at: number;
+        symbol: string;
+        stance: 'bullish' | 'bearish' | 'neutral';
+        trend: string;
+        drivers: string[];
+        support?: string;
+        resistance?: string;
+        scenario: string;
+        risks: string;
+        model: string;
+        fallback?: boolean;
+        cached?: boolean;
+      }>
+    >(`/ai/analysis?symbol=${symbol.toUpperCase()}${force ? '&force=1' : ''}`),
   // 서버 자동매매 주문 알림(접수/취소/체결) 폴링 — after=0 은 커서 초기화(과거 재생 없음).
   getOrderNotifications: (after: number) =>
     request<
