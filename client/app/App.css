@@ -3113,8 +3113,21 @@ input[type='checkbox']:focus-visible {
 
 .order-price-modes,
 .order-quantity-percents,
-.order-take-profit-rates {
+.order-take-profit-rates,
+.order-profit-rates {
   display: flex; /* 세그먼티드를 폼 폭에 맞춰 풀폭으로 */
+}
+/* 목표 수익률 빠른 선택(1/3/5/10/20%) — 인풋 행 아래 */
+.order-profit-rates {
+  margin-top: 0.35rem;
+}
+/* 주문 방식(가격/수익률/금액) 선택 — 라벨 행 우측의 컴팩트 세그먼티드 */
+.order-entry-modes {
+  flex: 0 0 auto;
+}
+.order-entry-modes .ui-segmented__item {
+  padding: 0.3rem 0.6rem;
+  font-size: 0.75rem;
 }
 /* 가격 인풋·스테퍼 행과 가격 모드 세그먼티드 사이 간격 */
 .order-price-modes {
