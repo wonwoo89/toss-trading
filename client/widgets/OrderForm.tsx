@@ -16,13 +16,19 @@ import {
 import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
 import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
-import { getStoredAmountOrder, setStoredAmountOrder } from '../shared/lib/amountOrderPreference';
+import {
+  getStoredOrderEntryMode,
+  getStoredProfitTargetRate,
+  setStoredOrderEntryMode,
+  setStoredProfitTargetRate,
+  type OrderEntryMode,
+} from '../shared/lib/orderEntryModePreference';
 import { subscribeLimitPriceSelect } from '../shared/lib/limitPriceBus';
 import {
   getStoredQuantityPercent,
   setStoredQuantityPercent,
 } from '../shared/lib/quantityPercentPreference';
-import { tickSizeFor, floorToTick } from '../shared/lib/usTick';
+import { tickSizeFor, floorToTick, ceilToTick } from '../shared/lib/usTick';
 import {
   estimateNetSellProfit,
   getTakeProfitCostContext,
@@ -38,6 +44,9 @@ import type {
 type PriceMode = 'limit' | 'current' | 'market';
 
 const QUANTITY_PERCENTAGES = [1, 10, 25, 50, 100] as const;
+
+/** 수익률 매도 빠른 선택지(평단 대비 %). */
+const PROFIT_RATE_OPTIONS = [1, 3, 5, 10, 20] as const;
 
 const PRICE_MODES = ['limit', 'current', 'market'] as const satisfies readonly PriceMode[];
 
@@ -187,8 +196,12 @@ export function OrderForm({
   );
   const [price, setPrice] = useState('');
   const [orderAmount, setOrderAmount] = useState('');
-  // 금액 주문 토글은 영속 — 종목 전환(key 리마운트)·새로고침에도 마지막 선택 유지.
-  const [useAmountOrder, setUseAmountOrder] = useState(getStoredAmountOrder);
+  // 주문 방식(가격/수익률/금액)은 영속 — 종목 전환(key 리마운트)·새로고침에도 마지막 선택 유지.
+  const [orderEntryMode, setOrderEntryMode] = useState<OrderEntryMode>(getStoredOrderEntryMode);
+  const useAmountOrder = orderEntryMode === 'amount';
+  const useProfitOrder = orderEntryMode === 'profit';
+  // 목표 수익률(평단 대비 %) — 수익률 매도 지정가 자동 계산에 사용.
+  const [profitRate, setProfitRate] = useState(() => String(getStoredProfitTargetRate()));
   const [useTakeProfitSell, setUseTakeProfitSell] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
@@ -230,9 +243,28 @@ export function OrderForm({
 
   const isPriceInputDisabled = priceMode === 'current' || priceMode === 'market';
 
-  const effectiveOrderPrice = priceMode === 'limit' ? Number(price) || currentPrice : currentPrice;
+  // 목표 수익률(%) 파싱값 — 0 이하·비정상 입력은 무효.
+  const profitRateNumber = useMemo(() => {
+    const n = Number(profitRate);
+    return Number.isFinite(n) && n > 0 ? n : undefined;
+  }, [profitRate]);
 
-  const effectiveBuyPrice = effectiveOrderPrice;
+  // 수익률 매도 지정가 = 평단 × (1 + 목표%) 를 틱 단위로 올림(목표 수익률 이상 보장).
+  const targetSellPrice = useMemo(() => {
+    if (!useProfitOrder) return undefined;
+    if (holdingAveragePrice === undefined || holdingAveragePrice <= 0) return undefined;
+    if (profitRateNumber === undefined) return undefined;
+    return ceilToTick(holdingAveragePrice * (1 + profitRateNumber / 100));
+  }, [useProfitOrder, holdingAveragePrice, profitRateNumber]);
+
+  const effectiveOrderPrice = useProfitOrder
+    ? targetSellPrice
+    : priceMode === 'limit'
+      ? Number(price) || currentPrice
+      : currentPrice;
+
+  // 매수 여력은 수익률(매도 전용) 모드에서도 현재가 기준으로 계산한다.
+  const effectiveBuyPrice = useProfitOrder ? currentPrice : effectiveOrderPrice;
 
   const maxBuyQuantity = useMemo(() => {
     if (buyingPower === undefined || buyingPower <= 0) return undefined;
@@ -287,7 +319,7 @@ export function OrderForm({
     sellableQuantity,
     effectiveSellableQuantity,
     maxBuyQuantity,
-    useAmountOrder,
+    orderEntryMode,
     submitting,
     priceMode,
     currentPrice,
@@ -299,7 +331,7 @@ export function OrderForm({
     sellableQuantity,
     effectiveSellableQuantity,
     maxBuyQuantity,
-    useAmountOrder,
+    orderEntryMode,
     submitting,
     priceMode,
     currentPrice,
@@ -342,10 +374,12 @@ export function OrderForm({
   }, [useAmountOrder, currentPrice, buyQuantityForPercent, effectiveQuantity]);
 
   const sellEstimatedAmount = useMemo(() => {
-    if (useAmountOrder || currentPrice === undefined || currentPrice <= 0) return undefined;
+    // 수익률 모드는 목표 지정가 기준(체결 시 수령액), 그 외는 현재가 기준.
+    const px = useProfitOrder ? targetSellPrice : currentPrice;
+    if (useAmountOrder || px === undefined || px <= 0) return undefined;
     const qty = sellQuantityForPercent ?? effectiveQuantity;
-    return qty !== undefined ? qty * currentPrice : undefined;
-  }, [useAmountOrder, currentPrice, sellQuantityForPercent, effectiveQuantity]);
+    return qty !== undefined ? qty * px : undefined;
+  }, [useAmountOrder, useProfitOrder, targetSellPrice, currentPrice, sellQuantityForPercent, effectiveQuantity]);
 
   // 매도 예상 실수익(비용 반영) — 매도가(지정가 입력값/현재가) × 예상 수량 기준, 평단 대비.
   const sellProfitEstimate = useMemo(() => {
@@ -473,6 +507,30 @@ export function OrderForm({
     setSelectedQuantityPercent(undefined);
   };
 
+  // ── 목표 수익률(%) 입력 — 인풋·±스테퍼·빠른 선택 버튼 ──
+  const handleProfitRateInput = (value: string) => {
+    const sanitized = sanitizeDecimalInput(value);
+    setProfitRate(sanitized);
+    const n = Number(sanitized);
+    if (Number.isFinite(n) && n > 0) setStoredProfitTargetRate(n);
+  };
+
+  const commitProfitRate = (rate: number) => {
+    setProfitRate(String(rate));
+    setStoredProfitTargetRate(rate);
+  };
+
+  // 스테퍼는 0.5%p 단위 — 빠른 선택(1/3/5/10/20) 사이 미세 조정용.
+  const stepProfitRate = (dir: 1 | -1) => {
+    const base = profitRateNumber ?? 0;
+    const next = Math.round((base + dir * 0.5) * 100) / 100;
+    if (next <= 0) {
+      setProfitRate('');
+      return;
+    }
+    commitProfitRate(next);
+  };
+
   // 매수(주문가능)·매도(보유) 어느 쪽이든 여력이 있으면 % 컨트롤 노출 (사이드 비의존)
   const showQuantityPercentButtons =
     (maxBuyQuantity !== undefined && maxBuyQuantity > 0) ||
@@ -495,7 +553,7 @@ export function OrderForm({
 
       const quantityPercent = getQuantityPercentFromKey(event);
       if (quantityPercent !== undefined) {
-        if (state.useAmountOrder) return;
+        if (state.orderEntryMode === 'amount') return;
         event.preventDefault();
         setSelectedQuantityPercent(quantityPercent);
         setQuantity(''); // 비율 우선 — 직접 입력 수량 초기화
@@ -505,6 +563,8 @@ export function OrderForm({
       switch (event.code) {
         // A = 직접 매수, S = 직접 매도 (직매수/매도 실행 버튼과 동일하게 동작)
         case 'KeyA':
+          // 수익률 모드는 매도 전용 — 매수 단축키 무시
+          if (state.orderEntryMode === 'profit') return;
           event.preventDefault();
           executeManualRef.current('BUY');
           return;
@@ -514,13 +574,13 @@ export function OrderForm({
           return;
         case 'KeyW': {
           // 100% 선택
-          if (state.useAmountOrder) return;
+          if (state.orderEntryMode === 'amount') return;
           event.preventDefault();
           setSelectedQuantityPercent(100);
           return;
         }
         case 'BracketLeft': {
-          if (state.useAmountOrder) return;
+          if (state.orderEntryMode !== 'price') return;
 
           const nextMode = getAdjacentPriceMode(state.priceMode, -1, state.currentPrice);
           if (nextMode === state.priceMode) return;
@@ -530,7 +590,7 @@ export function OrderForm({
           return;
         }
         case 'BracketRight': {
-          if (state.useAmountOrder) return;
+          if (state.orderEntryMode !== 'price') return;
 
           const nextMode = getAdjacentPriceMode(state.priceMode, 1, state.currentPrice);
           if (nextMode === state.priceMode) return;
@@ -575,7 +635,26 @@ export function OrderForm({
       clientOrderId: crypto.randomUUID(),
     };
 
-    if (useAmountOrder) {
+    if (useProfitOrder) {
+      // 수익률 매도 — 평단 × (1 + 목표%) 지정가 매도 전용.
+      if (effectiveSide !== 'SELL') {
+        showToast('수익률 주문은 매도 전용입니다.', 'error');
+        return;
+      }
+      if (targetSellPrice === undefined) {
+        showToast('보유 평단이 없거나 목표 수익률이 올바르지 않습니다.', 'error');
+        return;
+      }
+      const submitQuantity = pendingQuantity ?? effectiveQuantity;
+      if (submitQuantity === undefined || submitQuantity <= 0) {
+        showToast('수량을 입력하거나 비율(%)을 선택해 주세요.', 'error');
+        return;
+      }
+      payload.side = 'SELL';
+      payload.quantity = submitQuantity;
+      payload.orderType = 'LIMIT';
+      payload.price = targetSellPrice;
+    } else if (useAmountOrder) {
       // 금액(시장가) 주문. 모두 시장가로 체결.
       //  - 전액 매도: 입력 금액과 무관하게 보유 전량 시장가 매도(소수점 잔량 포함).
       //  - 금액 매수/매도: 입력한 달러 금액만큼 시장가(분할) 주문.
@@ -650,17 +729,74 @@ export function OrderForm({
     }
   };
 
-  // 가격/주문금액 라벨과 같은 줄(우측)에 두는 금액 주문 토글 (두 모드 공통)
-  const amountOrderToggle = (
-    <Checkbox
-      className="order-form__amount-toggle"
-      label="금액 주문"
-      checked={useAmountOrder}
-      onChange={(checked) => {
-        setUseAmountOrder(checked);
-        setStoredAmountOrder(checked);
+  // 가격/수익률/주문금액 라벨과 같은 줄(우측)에 두는 주문 방식 선택 (전 모드 공통)
+  const entryModeSelector = (
+    <SegmentedControl
+      className="order-entry-modes"
+      aria-label="주문 방식"
+      value={orderEntryMode}
+      onChange={(mode) => {
+        setOrderEntryMode(mode);
+        setStoredOrderEntryMode(mode);
       }}
+      options={[
+        { value: 'price', label: '가격' },
+        {
+          value: 'profit',
+          label: '수익률',
+          // 평단이 없으면(미보유) 수익률 매도 불가
+          disabled: !(holdingAveragePrice !== undefined && holdingAveragePrice > 0),
+        },
+        { value: 'amount', label: '금액' },
+      ]}
     />
+  );
+
+  // 수량 섹션 — 가격/수익률 모드 공통(직접 입력 + 비율 %).
+  const quantitySection = (
+    <div className="order-form__section">
+      <Typography as="div" size={12} className="order-form__section-title">수량</Typography>
+      {/* 직접 입력 시 비율 해제(입력 우선), 비율 선택 시 입력 초기화(비율 우선) */}
+      <div className="order-price-row">
+        <TextField
+          className="order-price-field"
+          type="number"
+          value={quantity}
+          placeholder={
+            selectedQuantityPercent !== undefined
+              ? `비율 ${selectedQuantityPercent}% 적용중`
+              : '수량 직접 입력'
+          }
+          onChange={(e) => handleQuantityInput(e.target.value)}
+        />
+        <Button
+          className="order-price-step"
+          aria-label="1주 빼기"
+          onClick={() => stepQuantity(-1)}
+        >
+          −
+        </Button>
+        <Button
+          className="order-price-step"
+          aria-label="1주 더하기"
+          onClick={() => stepQuantity(1)}
+        >
+          ＋
+        </Button>
+      </div>
+      {showQuantityPercentButtons && (
+        <SegmentedControl
+          className="order-quantity-percents"
+          aria-label="수량 비율"
+          value={selectedQuantityPercent !== undefined ? String(selectedQuantityPercent) : ''}
+          onChange={(value) => applyQuantityPercent(Number(value))}
+          options={QUANTITY_PERCENTAGES.map((percent) => ({
+            value: String(percent),
+            label: `${percent}%`,
+          }))}
+        />
+      )}
+    </div>
   );
 
   return (
@@ -724,7 +860,7 @@ export function OrderForm({
           <div className="order-form__section">
             <div className="order-form__field-header">
               <Typography size={14} className="order-form__field-label">주문 금액 (USD)</Typography>
-              {amountOrderToggle}
+              {entryModeSelector}
             </div>
             {/* required 미지정 — '전액 매도'는 금액 입력 없이도 실행되어야 하므로
                 네이티브 폼 검증(requestSubmit)이 빈 금액으로 막지 않게 한다. 매수 금액은
@@ -769,12 +905,68 @@ export function OrderForm({
               <strong> 전액 매도</strong>는 보유 전량을 매도합니다.
             </Typography>
           </div>
+        ) : useProfitOrder ? (
+          <>
+            <div className="order-form__section">
+              <div className="order-form__field-header">
+                <Typography size={14} className="order-form__field-label">목표 수익률 (%)</Typography>
+                {entryModeSelector}
+              </div>
+              {/* 인풋 + ±0.5%p 스테퍼 — 가격 행과 동일 배치 */}
+              <div className="order-price-row">
+                <TextField
+                  className="order-price-field"
+                  type="number"
+                  value={profitRate}
+                  placeholder="평단 대비 %"
+                  onChange={(e) => handleProfitRateInput(e.target.value)}
+                />
+                <Button
+                  className="order-price-step"
+                  aria-label="0.5%p 내리기"
+                  onClick={() => stepProfitRate(-1)}
+                >
+                  −
+                </Button>
+                <Button
+                  className="order-price-step"
+                  aria-label="0.5%p 올리기"
+                  onClick={() => stepProfitRate(1)}
+                >
+                  ＋
+                </Button>
+              </div>
+              <SegmentedControl
+                className="order-profit-rates"
+                aria-label="목표 수익률 선택"
+                value={
+                  profitRateNumber !== undefined &&
+                  (PROFIT_RATE_OPTIONS as readonly number[]).includes(profitRateNumber)
+                    ? String(profitRateNumber)
+                    : ''
+                }
+                onChange={(value) => commitProfitRate(Number(value))}
+                options={PROFIT_RATE_OPTIONS.map((rate) => ({
+                  value: String(rate),
+                  label: `${rate}%`,
+                }))}
+              />
+              <Typography as="p" size={12} className="hint order-form__footer-hint">
+                {holdingAveragePrice !== undefined && holdingAveragePrice > 0
+                  ? targetSellPrice !== undefined
+                    ? <>평단 {formatPrice(holdingAveragePrice, currency)} + {profitRateNumber}% → 지정가 <strong>{formatPrice(targetSellPrice, currency)}</strong> 매도</>
+                    : '목표 수익률을 입력해 주세요.'
+                  : '보유 종목이 아니어서 평단 기준 수익률 매도를 사용할 수 없어요.'}
+              </Typography>
+            </div>
+            {quantitySection}
+          </>
         ) : (
           <>
             <div className="order-form__section">
               <div className="order-form__field-header">
                 <Typography size={14} className="order-form__field-label">가격</Typography>
-                {amountOrderToggle}
+                {entryModeSelector}
               </div>
               {/* 배치: [가격 인풋] [−] [+] — 스테퍼는 우측에 모아 정렬 */}
               <div className="order-price-row">
@@ -823,49 +1015,7 @@ export function OrderForm({
               />
             </div>
 
-            <div className="order-form__section">
-              <Typography as="div" size={12} className="order-form__section-title">수량</Typography>
-              {/* 직접 입력 시 비율 해제(입력 우선), 비율 선택 시 입력 초기화(비율 우선) */}
-              <div className="order-price-row">
-                <TextField
-                  className="order-price-field"
-                  type="number"
-                  value={quantity}
-                  placeholder={
-                    selectedQuantityPercent !== undefined
-                      ? `비율 ${selectedQuantityPercent}% 적용중`
-                      : '수량 직접 입력'
-                  }
-                  onChange={(e) => handleQuantityInput(e.target.value)}
-                />
-                <Button
-                  className="order-price-step"
-                  aria-label="1주 빼기"
-                  onClick={() => stepQuantity(-1)}
-                >
-                  −
-                </Button>
-                <Button
-                  className="order-price-step"
-                  aria-label="1주 더하기"
-                  onClick={() => stepQuantity(1)}
-                >
-                  ＋
-                </Button>
-              </div>
-              {showQuantityPercentButtons && (
-                <SegmentedControl
-                  className="order-quantity-percents"
-                  aria-label="수량 비율"
-                  value={selectedQuantityPercent !== undefined ? String(selectedQuantityPercent) : ''}
-                  onChange={(value) => applyQuantityPercent(Number(value))}
-                  options={QUANTITY_PERCENTAGES.map((percent) => ({
-                    value: String(percent),
-                    label: `${percent}%`,
-                  }))}
-                />
-              )}
-            </div>
+            {quantitySection}
 
             <div className="order-form__section">
               <Checkbox
@@ -930,7 +1080,7 @@ export function OrderForm({
               : (sellCapacityReady ? '0주' : (effectiveSellableQuantity !== undefined ? '—' : '불러오는 중...'))}
           </Typography>
 
-          {!useAmountOrder && (
+          {orderEntryMode === 'price' && (
             <>
               <Typography as="p" size={14} className="order-estimated-amount">
                 예상 매수{' '}
@@ -962,33 +1112,74 @@ export function OrderForm({
               </Typography>
             </>
           )}
+
+          {useProfitOrder && (
+            <Typography as="p" size={14} className="order-estimated-amount sell">
+              예상 매도{' '}
+              <Typography as="strong" size={14}>
+                {sellDisplayQuantity !== undefined
+                  ? `${formatOrderQuantity(sellDisplayQuantity)}주${sellEstimatedAmount !== undefined ? ` · ${formatUsd(sellEstimatedAmount)}` : ''}`
+                  : '—'}
+              </Typography>
+              {sellProfitEstimate && (
+                <Typography
+                  size={14}
+                  className={`order-sell-profit ${getKrProfitLossClass(sellProfitEstimate.profit) ?? ''}`}
+                  title="목표 지정가 기준, 수수료·세금 반영 예상 실수익"
+                >
+                  {sellProfitEstimate.profit >= 0 ? '+' : '−'}
+                  {formatUsd(Math.abs(sellProfitEstimate.profit))} (
+                  {sellProfitEstimate.ratePercent >= 0 ? '+' : '−'}
+                  {Math.abs(sellProfitEstimate.ratePercent).toFixed(2)}%)
+                </Typography>
+              )}
+            </Typography>
+          )}
         </div>
 
-        {/* 직접 입력(수량·가격)으로 실행하는 버튼. 사용자가 정한 값 그대로 주문. */}
-        <div className="order-manual-actions">
-          <Button
-            variant="buy"
-            className="order-manual-btn"
-            onClick={() => executeManual('BUY')}
-            disabled={submitting}
-          >
-            {useAmountOrder ? '금액 매수' : '직접 매수'}
-            {!useAmountOrder && !quantity && selectedQuantityPercent !== undefined && (
-              <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
-            )}
-          </Button>
-          <Button
-            variant="sell"
-            className="order-manual-btn"
-            onClick={() => executeManual('SELL')}
-            disabled={submitting}
-          >
-            {useAmountOrder ? '금액 매도' : '직접 매도'}
-            {!useAmountOrder && !quantity && selectedQuantityPercent !== undefined && (
-              <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
-            )}
-          </Button>
-        </div>
+        {/* 직접 입력(수량·가격)으로 실행하는 버튼. 사용자가 정한 값 그대로 주문.
+            수익률 모드는 매도 전용 — 목표 지정가 매도 버튼 하나만 노출. */}
+        {useProfitOrder ? (
+          <div className="order-manual-actions">
+            <Button
+              variant="sell"
+              className="order-manual-btn order-manual-btn--full"
+              onClick={() => executeManual('SELL')}
+              disabled={submitting || targetSellPrice === undefined}
+            >
+              수익률 매도
+              {targetSellPrice !== undefined ? ` (${formatPrice(targetSellPrice, currency)})` : ''}
+              {!quantity && selectedQuantityPercent !== undefined && (
+                <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="order-manual-actions">
+            <Button
+              variant="buy"
+              className="order-manual-btn"
+              onClick={() => executeManual('BUY')}
+              disabled={submitting}
+            >
+              {useAmountOrder ? '금액 매수' : '직접 매수'}
+              {!useAmountOrder && !quantity && selectedQuantityPercent !== undefined && (
+                <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
+              )}
+            </Button>
+            <Button
+              variant="sell"
+              className="order-manual-btn"
+              onClick={() => executeManual('SELL')}
+              disabled={submitting}
+            >
+              {useAmountOrder ? '금액 매도' : '직접 매도'}
+              {!useAmountOrder && !quantity && selectedQuantityPercent !== undefined && (
+                <span className="order-manual-btn__pct">{selectedQuantityPercent}%</span>
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* 금액(시장가) 모드 전용 — 입력 금액과 무관하게 보유 전량을 시장가로 매도.
             분할(금액) 매도는 위의 '금액 매도' 버튼으로 유지된다. */}
