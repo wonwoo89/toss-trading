@@ -1,11 +1,36 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 import { Typography } from '../shared/ui/Typography';
+
+/** 업데이트 시도 흔적 — 활성화가 끝나기 전에 리로드돼도 다음 로드에서 이어서 적용하기 위함. */
+const ATTEMPT_KEY = 'toss-trading:pwa-update-attempted';
+
+function getAttempted(): boolean {
+  try {
+    return sessionStorage.getItem(ATTEMPT_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function setAttempted(on: boolean) {
+  try {
+    if (on) sessionStorage.setItem(ATTEMPT_KEY, '1');
+    else sessionStorage.removeItem(ATTEMPT_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 /**
  * PWA 새 배포 알림 배너. 서비스워커가 새 버전을 감지하면(needRefresh) 배너를 띄우고,
  * '업데이트'를 누르면 새 SW 를 즉시 적용(skipWaiting)하고 페이지를 리로드한다.
  * 앱이 다시 보일 때(복귀/포커스) 능동적으로 업데이트를 확인해 새 배포를 빨리 감지한다.
+ *
+ * iOS 에서 워커 활성화가 리로드보다 늦으면 이전 버전이 다시 뜨며 배너가 반복 노출되는
+ * 문제가 있어: ① 강제 리로드 폴백을 8초로 늦추고(정상 경로는 controllerchange 가 리로드)
+ * ② 시도 흔적(sessionStorage)을 남겨 리로드 후에도 대기 워커가 남아 있으면
+ *    자동으로 skipWaiting 을 재요청해 루프를 끊는다.
  */
 export function PwaUpdatePrompt() {
   const {
@@ -15,6 +40,14 @@ export function PwaUpdatePrompt() {
     immediate: true,
     onRegisteredSW(_swUrl, registration) {
       if (!registration) return;
+      // 직전 시도가 활성화 전에 리로드된 경우 — 대기 워커에 스킵을 다시 요청(배너 루프 방지).
+      if (getAttempted()) {
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+        } else {
+          setAttempted(false); // 이미 새 워커로 넘어옴 — 흔적 정리
+        }
+      }
       const check = () => {
         if (document.visibilityState === 'visible') void registration.update();
       };
@@ -23,15 +56,29 @@ export function PwaUpdatePrompt() {
     },
   });
 
-  // 적용 중 표시 + 강제 리로드 폴백 — iOS 에서 skipWaiting/controllerchange 가
-  // 무반응이면(새 워커 설치 중 등) 버튼이 '안 눌린 것'처럼 보이는 문제를 막는다.
+  // 업데이트 시도 중 새 워커가 컨트롤러를 넘겨받으면 즉시 리로드해 새 버전으로 전환.
+  // (시도 흔적이 있을 때만 — 다른 이유의 controllerchange 로 사용 중 화면이 날아가지 않게)
+  useEffect(() => {
+    const sw = navigator.serviceWorker;
+    if (!sw) return;
+    const onControllerChange = () => {
+      if (!getAttempted()) return;
+      setAttempted(false);
+      window.location.reload();
+    };
+    sw.addEventListener('controllerchange', onControllerChange);
+    return () => sw.removeEventListener('controllerchange', onControllerChange);
+  }, []);
+
   const [updating, setUpdating] = useState(false);
   const applyUpdate = () => {
     if (updating) return;
     setUpdating(true);
+    setAttempted(true);
     void updateServiceWorker(true).catch(() => undefined);
-    // 2.5초 내 워커 교체 리로드가 일어나지 않으면 강제 새로고침(새 워커가 활성화돼 있으면 새 버전으로 뜬다).
-    setTimeout(() => window.location.reload(), 2500);
+    // 폴백: 8초 내 워커 전환(controllerchange → 리로드)이 없으면 강제 리로드.
+    // 리로드 후에도 대기 워커가 남아 있으면 위 onRegisteredSW 재시도 로직이 이어받는다.
+    setTimeout(() => window.location.reload(), 8000);
   };
 
   if (!needRefresh) return null;
