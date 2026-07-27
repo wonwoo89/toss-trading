@@ -3946,6 +3946,43 @@ input[type='checkbox']:focus-visible {
   }
 }
 
+/* 끌어당겨 새로고침 인디케이터 — 상단 중앙 알약, 당김 거리만큼 내려온다 */
+.pull-refresh {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) - 40px);
+  left: 50%;
+  z-index: 340; /* 업데이트 배너(330)보다 위 — 순간 표시라 겹쳐도 무방 */
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-panel);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.pull-refresh__icon {
+  font-size: 1rem;
+  line-height: 1;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+.pull-refresh__icon.is-ready {
+  color: var(--accent);
+  transform: rotate(180deg);
+}
+.pull-refresh__icon.is-spinning {
+  animation: pull-refresh-spin 0.8s linear infinite;
+}
+@keyframes pull-refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* PWA 새 배포 업데이트 배너 — 플로팅(위치는 아래 미디어 쿼리에서 기기별 분기) */
 .pwa-update {
   position: fixed;
