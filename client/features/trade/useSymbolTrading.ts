@@ -217,6 +217,9 @@ export function useSymbolTrading(
   const handleCandleIntervalChange = useCallback((interval: CandleInterval) => {
     setCandleInterval(interval);
     setStoredCandleInterval(interval);
+    // 봉 단위 전환 시 전체 새로고침 — 저장된 단위로 차트·지표·폴링을 처음부터 다시 구성해
+    // 이전 단위의 잔존 시리즈/스케일이 섞이는 문제를 원천 차단한다(사용자 요청).
+    window.location.reload();
   }, []);
 
   const handleTakeProfitRateChange = useCallback((rate: number) => {
