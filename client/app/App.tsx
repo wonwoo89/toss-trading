@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { DesktopNav } from '../widgets/DesktopNav';
 import { Header } from '../widgets/Header';
 import { PwaUpdatePrompt } from '../widgets/PwaUpdatePrompt';
+import { PullToRefresh } from '../widgets/PullToRefresh';
 import { OrderEventToasts } from '../widgets/OrderEventToasts';
 import { AppProvider, useAppContext } from './providers/AppContext';
 import { ThemeProvider } from './providers/ThemeContext';
@@ -16,6 +17,8 @@ function AppShell() {
   return (
     <div className="app">
       <PwaUpdatePrompt />
+      {/* 최상단에서 아래로 당기면 전체 새로고침(터치/PWA 전용) */}
+      <PullToRefresh />
       {/* 서버 자동매매 주문 접수/취소/체결 토스트 알림(전 화면 공통) */}
       <OrderEventToasts />
       <Header />
