@@ -28,8 +28,9 @@ import {
   getStoredQuantityPercent,
   setStoredQuantityPercent,
 } from '../shared/lib/quantityPercentPreference';
-import { tickSizeFor, floorToTick, ceilToTick } from '../shared/lib/usTick';
+import { tickSizeFor, floorToTick } from '../shared/lib/usTick';
 import {
+  calculateTakeProfitSellPrice,
   estimateNetSellProfit,
   getTakeProfitCostContext,
 } from '../shared/lib/takeProfitSell';
@@ -249,22 +250,11 @@ export function OrderForm({
     return Number.isFinite(n) && n > 0 ? n : undefined;
   }, [profitRate]);
 
-  // 수익률 매도 지정가 = 평단 × (1 + 목표%) 를 틱 단위로 올림(목표 수익률 이상 보장).
-  const targetSellPrice = useMemo(() => {
-    if (!useProfitOrder) return undefined;
-    if (holdingAveragePrice === undefined || holdingAveragePrice <= 0) return undefined;
-    if (profitRateNumber === undefined) return undefined;
-    return ceilToTick(holdingAveragePrice * (1 + profitRateNumber / 100));
-  }, [useProfitOrder, holdingAveragePrice, profitRateNumber]);
-
-  const effectiveOrderPrice = useProfitOrder
-    ? targetSellPrice
-    : priceMode === 'limit'
-      ? Number(price) || currentPrice
-      : currentPrice;
+  // 가격 모드에서 사용자가 정한 기준가(지정가 입력값/현재가).
+  const manualOrderPrice = priceMode === 'limit' ? Number(price) || currentPrice : currentPrice;
 
   // 매수 여력은 수익률(매도 전용) 모드에서도 현재가 기준으로 계산한다.
-  const effectiveBuyPrice = useProfitOrder ? currentPrice : effectiveOrderPrice;
+  const effectiveBuyPrice = useProfitOrder ? currentPrice : manualOrderPrice;
 
   const maxBuyQuantity = useMemo(() => {
     if (buyingPower === undefined || buyingPower <= 0) return undefined;
@@ -365,6 +355,41 @@ export function OrderForm({
   // 예상 표시 수량 — % 선택값이 없으면 직접 입력 수량으로 폴백(예상 금액과 동일 기준).
   const buyDisplayQuantity = buyQuantityForPercent ?? effectiveQuantity;
   const sellDisplayQuantity = sellQuantityForPercent ?? effectiveQuantity;
+
+  // 수익률 매도 지정가 — 평단·목표 실수익률에 비용(수수료·제세금)을 반영해 역산.
+  // (매수 후 익절 매도와 동일 계산 — 체결 시 실수익이 목표 % 이상이 되는 최소가)
+  const targetSellPrice = useMemo(() => {
+    if (!useProfitOrder) return undefined;
+    if (holdingAveragePrice === undefined || holdingAveragePrice <= 0) return undefined;
+    if (profitRateNumber === undefined) return undefined;
+    // 수량 미선택 시 보유 전량 기준(비용 비율은 수량에 거의 불변).
+    const qty =
+      sellQuantityForPercent ??
+      effectiveQuantity ??
+      effectiveSellableQuantity ??
+      holdingQuantity ??
+      1;
+    if (!(qty > 0)) return undefined;
+    return calculateTakeProfitSellPrice(
+      holdingAveragePrice,
+      qty,
+      profitRateNumber,
+      getTakeProfitCostContext(holding),
+      commissionRatePercent
+    );
+  }, [
+    useProfitOrder,
+    holdingAveragePrice,
+    profitRateNumber,
+    sellQuantityForPercent,
+    effectiveQuantity,
+    effectiveSellableQuantity,
+    holdingQuantity,
+    holding,
+    commissionRatePercent,
+  ]);
+
+  const effectiveOrderPrice = useProfitOrder ? targetSellPrice : manualOrderPrice;
 
   // 예상 금액(현재가 기준) = 예상 수량 × 현재가. (% 미선택 시 직접 입력 수량으로 폴백)
   const buyEstimatedAmount = useMemo(() => {
@@ -954,7 +979,7 @@ export function OrderForm({
               <Typography as="p" size={12} className="hint order-form__footer-hint">
                 {holdingAveragePrice !== undefined && holdingAveragePrice > 0
                   ? targetSellPrice !== undefined
-                    ? <>평단 {formatPrice(holdingAveragePrice, currency)} + {profitRateNumber}% → 지정가 <strong>{formatPrice(targetSellPrice, currency)}</strong> 매도</>
+                    ? <>평단 {formatPrice(holdingAveragePrice, currency)} + 실수익 {profitRateNumber}% (수수료·세금 반영) → 지정가 <strong>{formatPrice(targetSellPrice, currency)}</strong> 매도</>
                     : '목표 수익률을 입력해 주세요.'
                   : '보유 종목이 아니어서 평단 기준 수익률 매도를 사용할 수 없어요.'}
               </Typography>

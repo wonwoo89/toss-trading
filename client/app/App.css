@@ -2827,6 +2827,11 @@ input[type='checkbox']:focus-visible {
   width: 100%;
   margin-top: 0.5rem;
 }
+/* 실행 그리드(2열) 안의 전체 폭 버튼(수익률 매도) — 두 열을 모두 차지 */
+.order-manual-actions .order-manual-btn--full {
+  grid-column: 1 / -1;
+  margin-top: 0;
+}
 
 /* 키보드 단축키 안내: 데스크톱 헤더(테마 토글 옆)에 트리거 1개 + hover/focus 툴팁.
    모바일에서는 숨김(아래 @media max-width 참고). */
