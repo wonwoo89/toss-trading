@@ -569,8 +569,7 @@ export function CandleChart({
   const volumeProfileBinsRef = useRef(volumeProfileBins);
   volumeProfileBinsRef.current = volumeProfileBins;
   // 슈퍼트렌드: 상승/하락 구간을 색으로 구분하기 위해 두 라인 시리즈로 분리(상승=빨강/하락=파랑).
-  const stUpSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
-  const stDownSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const stSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const avgPriceLineRef = useRef<IPriceLine | null>(null);
   const prevFirstTimeRef = useRef<number | null>(null);
   const prevDataLengthRef = useRef<number | null>(null);
@@ -765,22 +764,20 @@ export function CandleChart({
     bbFillPrimitive.setFillColor(colors.bollingerFill);
     bbMiddleSeries.attachPrimitive(bbFillPrimitive);
 
-    // 슈퍼트렌드 — 상승(빨강)/하락(파랑) 두 라인. 색만 다르고 동일 스타일.
-    const stLineOptions = {
-      lineWidth: 2 as const,
-      lastValueVisible: false,
-      priceLineVisible: false,
-      crosshairMarkerVisible: false,
-      visible: showSupertrend,
-    };
-    const stUpSeries = chart.addSeries(
+    // 슈퍼트렌드 — 단일 라인 + 점별 색상(상승=빨강/하락=파랑).
+    // 두 시리즈로 나누면 라인 시리즈가 whitespace 를 끊지 않고 직선으로 이어붙여
+    // 반대 추세 구간을 가로지르는 대각선(또는 두 줄 공존처럼 보이는 잔상)이 생긴다.
+    const stSeries = chart.addSeries(
       LineSeries,
-      { ...stLineOptions, color: colors.candleUp, title: '슈퍼트렌드' },
-      0
-    );
-    const stDownSeries = chart.addSeries(
-      LineSeries,
-      { ...stLineOptions, color: colors.candleDown, title: '' },
+      {
+        lineWidth: 2 as const,
+        lastValueVisible: false,
+        priceLineVisible: false,
+        crosshairMarkerVisible: false,
+        visible: showSupertrend,
+        color: colors.candleUp,
+        title: '슈퍼트렌드',
+      },
       0
     );
 
@@ -815,8 +812,7 @@ export function CandleChart({
     bbMiddleSeriesRef.current = bbMiddleSeries;
     bbLowerSeriesRef.current = bbLowerSeries;
     bbFillPrimitiveRef.current = bbFillPrimitive;
-    stUpSeriesRef.current = stUpSeries;
-    stDownSeriesRef.current = stDownSeries;
+    stSeriesRef.current = stSeries;
     volumeSeriesRef.current = volumeSeries;
 
     const saveViewportIfReady = (targetChart: IChartApi = chart) => {
@@ -994,8 +990,7 @@ export function CandleChart({
       bbMiddleSeriesRef.current = null;
       bbLowerSeriesRef.current = null;
       bbFillPrimitiveRef.current = null;
-      stUpSeriesRef.current = null;
-      stDownSeriesRef.current = null;
+      stSeriesRef.current = null;
       volumeSeriesRef.current = null;
       avgPriceLineRef.current = null;
     };
@@ -1085,8 +1080,7 @@ export function CandleChart({
 
   // 슈퍼트렌드 on/off — 상승/하락 라인 표시 토글(데이터는 유지).
   useEffect(() => {
-    stUpSeriesRef.current?.applyOptions({ visible: showSupertrend });
-    stDownSeriesRef.current?.applyOptions({ visible: showSupertrend });
+    stSeriesRef.current?.applyOptions({ visible: showSupertrend });
   }, [showSupertrend]);
 
   useEffect(() => {
@@ -1213,21 +1207,18 @@ export function CandleChart({
     bbLowerSeriesRef.current?.setData(lowerBandData);
     bbFillPrimitiveRef.current?.setBands(bollingerBands);
 
-    // 슈퍼트렌드: 상승/하락을 두 라인으로 분리(상승=빨강, 하락=파랑). 비활성 구간은 whitespace 로
-    // 끊는다. 전환봉에서 이전 추세 점을 직선으로 잇지 않는다 — 대각선 연결이 실제 밴드처럼
-    // 보여 혼동을 줘, 추세가 바뀌면 새 위치에서 새 라인이 시작되게 한다.
+    // 슈퍼트렌드: 단일 라인 + 점별 색상(상승=빨강, 하락=파랑).
+    // 라인 시리즈는 whitespace 를 끊지 않고 직선으로 이어붙이므로 두 시리즈 분리 방식은
+    // 반대 추세 구간을 관통하는 대각선을 만든다 — 항상 값이 있는 한 줄로 그려
+    // 전환은 봉 사이 1칸의 짧은 수직 이동으로만 나타나게 한다.
     const supertrend = calculateSupertrendSeries(sortedCandles);
-    type StDatum = { time: UTCTimestamp; value: number } | { time: UTCTimestamp };
-    const stUp: StDatum[] = supertrend.map((p) => ({ time: toChartTime(p.time) }));
-    const stDown: StDatum[] = supertrend.map((p) => ({ time: toChartTime(p.time) }));
-    for (let i = 0; i < supertrend.length; i += 1) {
-      const p = supertrend[i];
-      const point = { time: toChartTime(p.time), value: p.value };
-      if (p.dir === 'up') stUp[i] = point;
-      else stDown[i] = point;
-    }
-    stUpSeriesRef.current?.setData(stUp);
-    stDownSeriesRef.current?.setData(stDown);
+    stSeriesRef.current?.setData(
+      supertrend.map((p) => ({
+        time: toChartTime(p.time),
+        value: p.value,
+        color: p.dir === 'up' ? colors.candleUp : colors.candleDown,
+      }))
+    );
 
     if (visibleRange && prependedCount > 0) {
       const from = Math.max(0, visibleRange.from + prependedCount);
