@@ -1214,7 +1214,8 @@ export function CandleChart({
     bbFillPrimitiveRef.current?.setBands(bollingerBands);
 
     // 슈퍼트렌드: 상승/하락을 두 라인으로 분리(상승=빨강, 하락=파랑). 비활성 구간은 whitespace 로
-    // 끊고, 추세 전환봉에선 이전 봉 점을 새 라인에도 넣어 색 경계가 끊기지 않게 연결한다.
+    // 끊는다. 전환봉에서 이전 추세 점을 직선으로 잇지 않는다 — 대각선 연결이 실제 밴드처럼
+    // 보여 혼동을 줘, 추세가 바뀌면 새 위치에서 새 라인이 시작되게 한다.
     const supertrend = calculateSupertrendSeries(sortedCandles);
     type StDatum = { time: UTCTimestamp; value: number } | { time: UTCTimestamp };
     const stUp: StDatum[] = supertrend.map((p) => ({ time: toChartTime(p.time) }));
@@ -1224,12 +1225,6 @@ export function CandleChart({
       const point = { time: toChartTime(p.time), value: p.value };
       if (p.dir === 'up') stUp[i] = point;
       else stDown[i] = point;
-      if (i > 0 && supertrend[i].dir !== supertrend[i - 1].dir) {
-        const prev = supertrend[i - 1];
-        const prevPoint = { time: toChartTime(prev.time), value: prev.value };
-        if (p.dir === 'up') stUp[i - 1] = prevPoint;
-        else stDown[i - 1] = prevPoint;
-      }
     }
     stUpSeriesRef.current?.setData(stUp);
     stDownSeriesRef.current?.setData(stDown);
