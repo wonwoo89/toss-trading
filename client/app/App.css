@@ -5563,3 +5563,22 @@ input[type='checkbox']:focus-visible {
   margin: 0;
   line-height: 1.4;
 }
+
+/* 데스크톱 검색바 포커스 시 최근 검색 패널 — 자동완성과 동일한 드롭다운 스타일 */
+.symbol-search-recent {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 0.6rem 0.7rem;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+}
+.symbol-search-recent .recent-searches__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}

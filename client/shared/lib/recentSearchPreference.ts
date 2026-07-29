@@ -48,8 +48,10 @@ function commit(next: RecentSearchEntry[]) {
 /** 검색 선택 기록 — 같은 심볼은 맨 앞으로 이동, 최대 MAX_ENTRIES 유지. */
 export function addRecentSearch(symbol: string, name?: string) {
   const upper = symbol.toUpperCase();
+  const prev = getRecentSearches().find((e) => e.symbol === upper);
   const rest = getRecentSearches().filter((e) => e.symbol !== upper);
-  commit([{ symbol: upper, name }, ...rest].slice(0, MAX_ENTRIES));
+  // 이름 없이 재기록될 때(최근 검색 칩에서 재선택 등) 기존 이름을 보존한다.
+  commit([{ symbol: upper, name: name ?? prev?.name }, ...rest].slice(0, MAX_ENTRIES));
 }
 
 export function clearRecentSearches() {

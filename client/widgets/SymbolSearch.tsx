@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../shared/api/client';
 import { setLastSelectedSymbol } from '../shared/lib/lastSymbolPreference';
-import { addRecentSearch } from '../shared/lib/recentSearchPreference';
+import {
+  addRecentSearch,
+  getRecentSearches,
+  subscribeRecentSearches,
+} from '../shared/lib/recentSearchPreference';
+import { RecentSearchChips } from './RecentSearchChips';
 import type { StockInfo } from '../shared/types';
 import { Typography } from '../shared/ui/Typography';
 
@@ -28,6 +33,9 @@ export function SymbolSearch() {
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [isSearching, setIsSearching] = useState(false);
+  // 포커스 시 최근 검색 패널 — 자동완성이 없을 때만 노출(모바일 검색 탭과 데이터 공유).
+  const [recentOpen, setRecentOpen] = useState(false);
+  const recentEntries = useSyncExternalStore(subscribeRecentSearches, getRecentSearches);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -69,6 +77,7 @@ export function SymbolSearch() {
       if (!containerRef.current?.contains(event.target as Node)) {
         setIsOpen(false);
         setActiveIndex(-1);
+        setRecentOpen(false);
       }
     };
 
@@ -88,8 +97,10 @@ export function SymbolSearch() {
       setIsOpen(false);
       setActiveIndex(-1);
       setIsSearching(false);
+      setRecentOpen(true); // 입력을 비우면 최근 검색으로 복귀
       return;
     }
+    setRecentOpen(false);
 
     const seq = ++requestSeqRef.current;
     setIsSearching(true);
@@ -131,6 +142,8 @@ export function SymbolSearch() {
     setSuggestions([]);
     setIsOpen(false);
     setActiveIndex(-1);
+    setRecentOpen(false);
+    inputRef.current?.blur();
     setLastSelectedSymbol(normalized);
     navigate(`/stock/${normalized}`);
   };
@@ -163,6 +176,9 @@ export function SymbolSearch() {
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      setRecentOpen(false);
+    }
     if (!isOpen || suggestions.length === 0) return;
 
     if (event.key === 'ArrowDown') {
@@ -207,6 +223,7 @@ export function SymbolSearch() {
           }}
           onFocus={() => {
             if (suggestions.length > 0) setIsOpen(true);
+            else setRecentOpen(true);
           }}
           onKeyDown={handleKeyDown}
           placeholder="AAPL 또는 애플"
@@ -239,6 +256,11 @@ export function SymbolSearch() {
               </li>
             ))}
           </ul>
+        )}
+        {recentOpen && !isOpen && recentEntries.length > 0 && (
+          <div className="symbol-search-recent">
+            <RecentSearchChips onSelect={goToSymbol} />
+          </div>
         )}
         {isSearching && searchInput.trim() && (
           <Typography size={12} className="symbol-search-status" aria-live="polite">
