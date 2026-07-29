@@ -1796,8 +1796,8 @@ body.is-row-resizing {
     height: auto;
     flex-direction: row;
     gap: 1rem;
-    /* 하단 중앙 플로팅 내비(DesktopNav)가 주문폼 버튼을 가리지 않게 여유 확보 */
-    margin-bottom: 64px;
+    /* 하단 여백은 주문폼에만 — 호가는 화면 하단까지 내려간다(아래 order-form 높이 참조) */
+    margin-bottom: 0;
   }
   .trading-layout:not(.trading-layout--portfolio-only) .order-column .orderbook-section {
     order: -1; /* DOM은 주문폼이 먼저 — 시각은 호가(좌) | 주문폼(우) */
@@ -1817,7 +1817,9 @@ body.is-row-resizing {
     flex: 1 1 0;
     min-width: 0;
     min-height: 0;
-    height: 100%;
+    /* 하단 중앙 플로팅 내비(DesktopNav)가 주문 버튼을 가리지 않게 주문폼만 띄운다.
+       호가는 예외 — 화면 하단까지 꽉 채움. */
+    height: calc(100% - 64px);
     overflow-y: auto;
   }
   /* 세로 분할 리사이즈 핸들 — 가로 5:5 고정 배치가 되어 불필요 */
