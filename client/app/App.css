@@ -1830,6 +1830,22 @@ body.is-row-resizing {
    주문 컬럼은 [주문폼] 위 + [호가] 아래 스택. 기본은 주문폼 자연 높이, 호가가 남는
    공간을 채우고 내부 스크롤. 핸들 드래그(.order-column--split) 시 --orderbook-ratio 로 분할. */
 @media (min-width: 1281px) {
+  /* 컬럼 높이를 뷰포트에 고정(상단 여백 1rem + 헤더 + 헤더 마진 1rem + 하단 여백 1rem 제외)
+     → 차트가 50dvh 고정 대신 남는 세로 공간을 전부 쓴다. 하단 정보는 자연 높이 + 내부 스크롤. */
+  .trading-layout:not(.trading-layout--portfolio-only) {
+    height: calc(100dvh - var(--header-height) - 3rem - env(safe-area-inset-top));
+    max-height: calc(100dvh - var(--header-height) - 3rem - env(safe-area-inset-top));
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .chart-panel {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 320px;
+  }
+  .trading-layout:not(.trading-layout--portfolio-only) .market-panel__below {
+    flex: 0 0 auto;
+    max-height: 45%;
+    overflow-y: auto;
+  }
   .trading-layout:not(.trading-layout--portfolio-only) .order-column {
     gap: 0.5rem;
   }
