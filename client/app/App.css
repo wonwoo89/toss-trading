@@ -3663,10 +3663,10 @@ input[type='checkbox']:focus-visible {
     border-radius: 999px;
     border: 1px solid var(--border-subtle);
     /* 반투명 + 블러 — 뒤 콘텐츠 위에 떠 있는 느낌 */
-    background: color-mix(in srgb, var(--bg-base) 78%, transparent);
+    background: color-mix(in srgb, var(--bg-base) 68%, transparent);
     backdrop-filter: blur(14px);
     -webkit-backdrop-filter: blur(14px);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.25);
   }
 
   .desktop-nav__item {
@@ -4090,10 +4090,10 @@ input[type='checkbox']:focus-visible {
   padding: 5px;
   border-radius: 999px;
   border: 1px solid var(--border-subtle);
-  background: color-mix(in srgb, var(--bg-base) 78%, transparent);
+  background: color-mix(in srgb, var(--bg-base) 68%, transparent);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22), 0 2px 8px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .mobile-tab-bar__tab {
