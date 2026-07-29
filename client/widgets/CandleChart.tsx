@@ -96,7 +96,7 @@ const GAP_FILL_MAX_INTERVALS = 24;
 
 /** 미래 시간축 확장 봉 수 — lightweight-charts 는 데이터가 없는 우측 여백에 시간 라벨을
     그리지 않아, 마지막 캔들 뒤에 whitespace 포인트를 붙여 미래 시각이 표시되게 한다. */
-const FUTURE_AXIS_BARS = 60;
+const FUTURE_AXIS_BARS = 120;
 
 /**
  * 거래가 없어 비는 분봉 구간을 직전 종가의 플랫 캔들(거래량 0)로 채운다 — 표시 전용.
@@ -429,17 +429,16 @@ function hasViewportSpacingDrift(
 function applyViewportSpacing(
   chart: IChartApi,
   viewport: ChartViewport,
-  options?: { forceRealtimeMargin?: boolean; futureBars?: number }
+  options?: { forceRealtimeMargin?: boolean }
 ) {
   const barSpacing = resolveBarSpacing(viewport, chart);
   if (!barSpacing) return false;
 
-  const futureBars = options?.futureBars ?? 0;
   const marginBars = getMarginBars(chart, barSpacing);
-  let rightOffset = viewport.rightOffset ?? marginBars - futureBars;
+  let rightOffset = viewport.rightOffset ?? marginBars;
 
   if (options?.forceRealtimeMargin || isNearRealtimeViewport(viewport, chart, barSpacing)) {
-    rightOffset = marginBars - futureBars;
+    rightOffset = marginBars;
   }
 
   chart.timeScale().applyOptions({
@@ -451,7 +450,7 @@ function applyViewportSpacing(
   return true;
 }
 
-function enforceRealtimeRightMargin(chart: IChartApi, lastBarIndex: number, futureBars = 0) {
+function enforceRealtimeRightMargin(chart: IChartApi, lastBarIndex: number) {
   const lr = chart.timeScale().getVisibleLogicalRange();
   if (!lr) return;
   const barSpacing = chart.timeScale().options().barSpacing;
@@ -464,19 +463,19 @@ function enforceRealtimeRightMargin(chart: IChartApi, lastBarIndex: number, futu
   chart.timeScale().setVisibleLogicalRange({ from: desiredFrom, to: actualTo });
   chart.timeScale().applyOptions({
     minBarSpacing: CHART_MIN_BAR_SPACING,
-    // rightOffset 옵션은 미래 whitespace 확장분까지 포함한 '시리즈 마지막 포인트' 기준이라
-    // 확장 봉 수만큼 빼야 마지막 실캔들이 의도한 여백 위치에 온다(음수 허용).
-    rightOffset: actualTo - lastBarIndex - futureBars,
+    // rightOffset 은 미래 whitespace 확장과 무관하게 '마지막 실캔들' 기준이다
+    // (lightweight-charts 의 baseIndex 는 trailing whitespace 를 제외한다 — 검증됨).
+    rightOffset: actualTo - lastBarIndex,
   });
 }
 
-function applyInitialViewport(chart: IChartApi, lastBarIndex: number, futureBars = 0) {
+function applyInitialViewport(chart: IChartApi, lastBarIndex: number) {
   chart.timeScale().applyOptions({
     minBarSpacing: CHART_MIN_BAR_SPACING,
   });
   chart.timeScale().fitContent();
   requestAnimationFrame(() => {
-    enforceRealtimeRightMargin(chart, lastBarIndex, futureBars);
+    enforceRealtimeRightMargin(chart, lastBarIndex);
   });
 }
 
@@ -596,7 +595,6 @@ export function CandleChart({
   const loadingOlderRef = useRef(loadingOlder);
   const fitKeyRef = useRef(fitKey);
   const viewportInitializedRef = useRef(false);
-  const futureBarsRef = useRef(0);
   const pendingRestoreRef = useRef<ChartViewport | null>(null);
   // 차트가 숨겨진(display:none, 폭 0) 상태에서 데이터가 도착하면 초기화(fit/복원)를 미루고,
   // 보이는 순간(ResizeObserver 폭 > 0) 수행한다 — 폭 0에서 fitContent 하면 스케일이 깨진다.
@@ -637,13 +635,13 @@ export function CandleChart({
     // 저장된 뷰포트가 스케일 붕괴 스냅샷(과거 버그로 저장된 오염 데이터 포함)이면 버리고
     // 전체 fit 으로 자가 치유한다.
     if (pending && isUsableViewport(pending, lastBarIndex)) {
-      applyViewportSpacing(chart, pending, { futureBars: futureBarsRef.current });
+      applyViewportSpacing(chart, pending);
       requestAnimationFrame(() => {
-        enforceRealtimeRightMargin(chart, lastBarIndex, futureBarsRef.current);
+        enforceRealtimeRightMargin(chart, lastBarIndex);
       });
       return;
     }
-    applyInitialViewport(chart, lastBarIndex, futureBarsRef.current);
+    applyInitialViewport(chart, lastBarIndex);
   };
   const initializeViewportNowRef = useRef(initializeViewportNow);
   initializeViewportNowRef.current = initializeViewportNow;
@@ -984,7 +982,7 @@ export function CandleChart({
       if (lastBarIndexRef.current != null) {
         requestAnimationFrame(() => {
           if (chartRef.current) {
-            enforceRealtimeRightMargin(chartRef.current, lastBarIndexRef.current, futureBarsRef.current);
+            enforceRealtimeRightMargin(chartRef.current, lastBarIndexRef.current);
           }
         });
       }
@@ -1242,8 +1240,6 @@ export function CandleChart({
             ),
           }))
         : [];
-    futureBarsRef.current = futureAxis.length;
-
     seriesRef.current.setData([...data, ...futureAxis]);
     volumeSeriesRef.current.setData(volumeData);
 
