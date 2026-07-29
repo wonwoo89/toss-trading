@@ -41,6 +41,8 @@ export function useChartCandles(
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const cancelledRef = useRef(false);
   const runningRef = useRef(false);
+  // 진행 중 요청의 시작 시각 — 요청이 비정상적으로 오래 잠겨 있으면 강제 해제(이중 안전).
+  const runStartedAtRef = useRef(0);
   const pendingForceRefreshRef = useRef(false);
   const runRef = useRef<() => void>(() => {});
 
@@ -109,6 +111,7 @@ export function useChartCandles(
       }
 
       runningRef.current = true;
+      runStartedAtRef.current = Date.now();
 
       if (!hasDataRef.current) {
         setLoading(true);
@@ -145,12 +148,36 @@ export function useChartCandles(
 
     schedule(initialDelayMs);
 
+    // 포그라운드 복귀 워치독 — 앱 백그라운드/네트워크 전환 중 요청이 hang 돼 폴링 체인이
+    // 끊긴 경우(runningRef 잠김·타이머 미예약), 복귀 시 즉시 체인을 재시작한다.
+    // (요청 자체는 API 타임아웃이 정리해 주지만, 복귀 즉시 최신 캔들로 갱신하는 효과도 있다)
+    const onResume = () => {
+      if (cancelledRef.current || document.visibilityState !== 'visible') return;
+      if (runningRef.current) {
+        // 타임아웃(15초)보다 훨씬 오래 잠겨 있으면 비정상 — 강제 해제 후 재시작
+        if (Date.now() - runStartedAtRef.current > 60_000) {
+          runningRef.current = false;
+        } else {
+          pendingForceRefreshRef.current = true;
+          return;
+        }
+      }
+      clearTimeout(timerRef.current);
+      void run();
+    };
+    document.addEventListener('visibilitychange', onResume);
+    window.addEventListener('focus', onResume);
+    window.addEventListener('pageshow', onResume);
+
     return () => {
       cancelledRef.current = true;
       runningRef.current = false;
       pendingForceRefreshRef.current = false;
       clearTimeout(timerRef.current);
       runRef.current = () => {};
+      document.removeEventListener('visibilitychange', onResume);
+      window.removeEventListener('focus', onResume);
+      window.removeEventListener('pageshow', onResume);
     };
   }, [enabled, initialDelayMs, pollIntervalMs, refreshLatest]);
 
