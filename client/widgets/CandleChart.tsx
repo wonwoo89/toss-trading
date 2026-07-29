@@ -33,9 +33,18 @@ import { usdMaxFractionDigits } from '../shared/lib/formatHoldings';
 import { Typography } from '../shared/ui/Typography';
 import type { ChartCandle } from '../shared/types';
 
+/** 차트에 점선으로 표시할 미체결 지정가 주문(현재 종목만 — 매수=상승색, 매도=하락색). */
+export interface OpenOrderLine {
+  side: 'BUY' | 'SELL';
+  price: number;
+  quantity?: number;
+}
+
 interface CandleChartProps {
   candles: ChartCandle[];
   averagePrice?: number;
+  /** 미체결 지정가 주문 — 평단선처럼 점선 가격선으로 표시. */
+  openOrderLines?: OpenOrderLine[];
   loading?: boolean;
   error?: string | null;
   fitKey?: string;
@@ -539,6 +548,7 @@ function applyChartTheme(
 export function CandleChart({
   candles,
   averagePrice,
+  openOrderLines,
   loading,
   error,
   fitKey,
@@ -571,6 +581,7 @@ export function CandleChart({
   // 슈퍼트렌드: 상승/하락 구간을 색으로 구분하기 위해 두 라인 시리즈로 분리(상승=빨강/하락=파랑).
   const stSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const avgPriceLineRef = useRef<IPriceLine | null>(null);
+  const orderPriceLinesRef = useRef<IPriceLine[]>([]);
   const prevFirstTimeRef = useRef<number | null>(null);
   const prevDataLengthRef = useRef<number | null>(null);
   const onLoadOlderRef = useRef(onLoadOlder);
@@ -993,6 +1004,7 @@ export function CandleChart({
       stSeriesRef.current = null;
       volumeSeriesRef.current = null;
       avgPriceLineRef.current = null;
+      orderPriceLinesRef.current = [];
     };
   }, []);
 
@@ -1114,6 +1126,33 @@ export function CandleChart({
 
     avgPriceLineRef.current = seriesRef.current.createPriceLine(lineOptions);
   }, [averagePrice, theme]);
+
+  // 미체결 지정가 주문 가격선 — 걸어둔 매수/매도 주문을 평단선처럼 점선으로 표시.
+  useEffect(() => {
+    const series = seriesRef.current;
+    if (!series) return;
+    for (const line of orderPriceLinesRef.current) series.removePriceLine(line);
+    orderPriceLinesRef.current = [];
+    if (!openOrderLines?.length) return;
+    const colors = getChartThemeColors();
+    for (const order of openOrderLines) {
+      if (!(order.price > 0)) continue;
+      const color = order.side === 'BUY' ? colors.candleUp : colors.candleDown;
+      const label = order.side === 'BUY' ? '매수' : '매도';
+      orderPriceLinesRef.current.push(
+        series.createPriceLine({
+          price: order.price,
+          color,
+          lineWidth: 1 as const,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: order.quantity !== undefined && order.quantity > 0 ? `${label} ${order.quantity}주` : label,
+          axisLabelColor: color,
+          axisLabelTextColor: '#ffffff',
+        })
+      );
+    }
+  }, [openOrderLines, theme]);
 
   // 통화 변경(US↔KR) 시 가격축/가격선 정밀도를 갱신한다.
   useEffect(() => {
