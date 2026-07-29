@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 // lightweight-charts(차트 청크)를 지연 로드 → 주문폼/시세가 먼저 그려진다.
 const CandleChart = lazy(() =>
   import('./CandleChart').then((m) => ({ default: m.CandleChart }))
@@ -123,6 +123,20 @@ export function MarketPanel({
   orderBookToggle,
 }: MarketPanelProps) {
   const [backtestOpen, setBacktestOpen] = useState(false);
+
+  // 현재 종목의 미체결 지정가 주문 — 차트에 평단선처럼 점선 가격선으로 표시.
+  const chartOpenOrderLines = useMemo(
+    () =>
+      openOrders
+        .filter(
+          (o) =>
+            o.symbol.toUpperCase() === symbol.toUpperCase() &&
+            o.orderType === 'LIMIT' &&
+            (o.price ?? 0) > 0
+        )
+        .map((o) => ({ side: o.side, price: o.price as number, quantity: o.quantity })),
+    [openOrders, symbol]
+  );
   const [bollingerVisible, setBollingerVisible] = useState(getStoredBollingerVisible);
 
   const handleBollingerVisibleChange = (visible: boolean) => {
@@ -238,6 +252,7 @@ export function MarketPanel({
             <CandleChart
               candles={candles}
               averagePrice={averagePrice}
+              openOrderLines={chartOpenOrderLines}
               loading={candlesLoading}
               loadingOlder={candlesLoadingOlder}
               error={candlesError}
