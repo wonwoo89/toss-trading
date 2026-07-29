@@ -876,6 +876,43 @@ export function useSymbolTrading(
     ]
   );
 
+  // 현재 종목의 미체결 주문 전체 취소 — 모바일 주문폼의 원탭 취소용.
+  const cancelAllSymbolOrders = useCallback(async () => {
+    if (!accountSeq) return 0;
+    const targets = openOrders.filter((o) => !canceledOrderIds.has(o.orderId));
+    if (targets.length === 0) return 0;
+    const results = await Promise.allSettled(
+      targets.map((o) => api.cancelOrder(o.orderId, accountSeq))
+    );
+    const okIds = targets
+      .filter((_, i) => results[i].status === 'fulfilled')
+      .map((o) => o.orderId);
+    if (okIds.length > 0) {
+      setCanceledOrderIds((prev) => {
+        const next = new Set(prev);
+        okIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
+    await refreshPortfolioOpenOrders(accountSeq);
+    await Promise.all([refreshBuyingPower(accountSeq), refreshPortfolioHoldings()]);
+    if (symbol) await refreshTrade();
+    const failed = results.length - okIds.length;
+    if (failed > 0) {
+      throw new Error(`${failed}건 취소 실패 (${okIds.length}건 성공)`);
+    }
+    return okIds.length;
+  }, [
+    accountSeq,
+    symbol,
+    openOrders,
+    canceledOrderIds,
+    refreshPortfolioOpenOrders,
+    refreshBuyingPower,
+    refreshPortfolioHoldings,
+    refreshTrade,
+  ]);
+
   // 전체 주문 제출 (create + trade refresh + optional take profit)
   // 3개 이상 side effect 콜백은 object payload로 (컨벤션)
   const submitOrder = useCallback(
@@ -1078,6 +1115,8 @@ export function useSymbolTrading(
       asks: marketPolling.data?.asks,
       trades: marketPolling.data?.trades,
       holding: effectiveHolding && effectiveHolding.quantity > 0 ? effectiveHolding : undefined,
+      openOrderCount: openOrders.filter((o) => !canceledOrderIds.has(o.orderId)).length,
+      onCancelAllOrders: cancelAllSymbolOrders,
       openOrders: visibleOpenOrders,
     }),
     [
@@ -1098,6 +1137,9 @@ export function useSymbolTrading(
       marketPolling.data?.trades,
       visibleOpenOrders,
       portfolioHoldings,
+      openOrders,
+      canceledOrderIds,
+      cancelAllSymbolOrders,
     ]
   );
 

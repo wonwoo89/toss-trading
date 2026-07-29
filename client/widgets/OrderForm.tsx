@@ -70,6 +70,10 @@ interface OrderFormProps {
   holding?: HoldingItem;
   /** 자동매매(차트 탭)가 세미오토/오토로 실행 중 — 수동 주문 입력·실행을 차단한다. */
   autoTradeActive?: boolean;
+  /** 이 종목의 미체결 주문 수 — 전체 취소 버튼 노출 조건. */
+  openOrderCount?: number;
+  /** 이 종목의 미체결 주문 전체 취소(매수·매도 불문). 성공 건수를 반환. */
+  onCancelAllOrders?: () => Promise<number>;
   onSubmit: (
     payload: CreateOrderPayload,
     options?: OrderSubmitOptions
@@ -181,6 +185,8 @@ export function OrderForm({
   commissionRatePercent = 0.015,
   holding,
   autoTradeActive = false,
+  openOrderCount = 0,
+  onCancelAllOrders,
   onSubmit,
 }: OrderFormProps) {
   const [side, setSide] = useState<'BUY' | 'SELL'>('BUY');
@@ -205,6 +211,7 @@ export function OrderForm({
   const [profitRate, setProfitRate] = useState(() => String(getStoredProfitTargetRate()));
   const [useTakeProfitSell, setUseTakeProfitSell] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [cancelingAll, setCancelingAll] = useState(false);
   const { showToast } = useToast();
   const formRef = useRef<HTMLFormElement>(null);
   const limitPriceManualRef = useRef(false);
@@ -297,6 +304,21 @@ export function OrderForm({
     setSide('SELL');
     pendingSideRef.current = 'SELL';
     formRef.current?.requestSubmit();
+  };
+
+  // 이 종목 미체결 전체 취소 — 자산 탭을 오가지 않고 주문폼에서 바로 정리.
+  const handleCancelAllOrders = async () => {
+    if (!onCancelAllOrders || cancelingAll || openOrderCount === 0) return;
+    if (!window.confirm(`이 종목의 미체결 주문 ${openOrderCount}건을 모두 취소할까요?`)) return;
+    setCancelingAll(true);
+    try {
+      const count = await onCancelAllOrders();
+      showToast(count > 0 ? `미체결 ${count}건을 취소했습니다.` : '취소할 주문이 없습니다.', 'success');
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '주문 취소에 실패했습니다.', 'error');
+    } finally {
+      setCancelingAll(false);
+    }
   };
 
   // 키보드 단축키(A/S)에서 최신 executeManual 을 호출하기 위한 ref (keydown effect 는 빈 deps).
@@ -1104,6 +1126,18 @@ export function OrderForm({
               ? `${effectiveSellableQuantity}주`
               : (sellCapacityReady ? '0주' : (effectiveSellableQuantity !== undefined ? '—' : '불러오는 중...'))}
           </Typography>
+
+          {openOrderCount > 0 && onCancelAllOrders && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="order-cancel-all"
+              disabled={cancelingAll}
+              onClick={handleCancelAllOrders}
+            >
+              {cancelingAll ? '취소 중…' : `미체결 ${openOrderCount}건 전체 취소`}
+            </Button>
+          )}
 
           {orderEntryMode === 'price' && (
             <>

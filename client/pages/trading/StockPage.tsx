@@ -43,7 +43,10 @@ export function StockPage() {
   const navigate = useNavigate();
 
   // 모바일 레이아웃은 하단 탭(구 v2)으로 고정 — 이전 레이아웃 제거.
-  const [mobileTab, setMobileTab] = useState<MobileTab>('chart');
+  // 기본 진입 탭 = 주문 (새로고침·첫 로드 시)
+  const [mobileTab, setMobileTab] = useState<MobileTab>('order');
+  // AI 매매 탭의 티커 클릭은 차트 탭으로 이동해야 해서, 종목 변경 시 주문 탭 강제 전환을 1회 건너뛴다.
+  const skipOrderTabOnSymbolChangeRef = useRef(false);
   // 주문 탭 '호가 보기' — 차트 대신 호가를 스티키 영역에 표시(주문폼과 함께 사용).
   const [orderBookView, setOrderBookView] = useState(false);
   // 자동매매 '로그 보기'(모바일 v2): AI 탭으로 전환하면서 임베디드 로그를 1회 연다.
@@ -195,13 +198,16 @@ export function StockPage() {
     return () => document.body.classList.remove('mobile-v2-active');
   }, [v2Active]);
 
-  // 검색 오버레이에서 종목을 선택하면(라우트 변경) 오버레이를 닫고 주문 탭으로 전환.
+  // 종목이 바뀌면(검색·칩바 등 어떤 경로든) 주문 탭으로 진입 — 검색 오버레이도 닫는다.
+  // 예외: AI 매매 탭의 티커 클릭(차트 탭으로 이동)은 skip 플래그로 1회 건너뛴다.
   const prevSymbolRef = useRef(symbol);
   useEffect(() => {
     if (prevSymbolRef.current !== symbol) {
       prevSymbolRef.current = symbol;
-      if (searchOpenRef.current) {
-        setSearchOpen(false);
+      if (searchOpenRef.current) setSearchOpen(false);
+      if (skipOrderTabOnSymbolChangeRef.current) {
+        skipOrderTabOnSymbolChangeRef.current = false;
+      } else {
         setMobileTab('order');
       }
     }
@@ -281,6 +287,10 @@ export function StockPage() {
                   onBgLogConsumed={() => setAiLogRequest(null)}
                   onNavigateToSymbol={(sym) => {
                     // 같은 라우트 안의 임베드라 navigate 만으로는 화면이 안 바뀜 → 차트 탭 전환까지
+                    // (종목 변경 시 주문 탭 강제 전환은 이 경로에서만 1회 건너뛴다)
+                    if (sym.toUpperCase() !== (symbol ?? '').toUpperCase()) {
+                      skipOrderTabOnSymbolChangeRef.current = true;
+                    }
                     navigate(`/stock/${sym}`);
                     setMobileTab('chart');
                   }}
