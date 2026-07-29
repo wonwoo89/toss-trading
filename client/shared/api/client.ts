@@ -279,19 +279,39 @@ function parseRetryAfterMs(response: Response): number | undefined {
   return Number.isFinite(seconds) && seconds >= 0 ? seconds * 1000 : undefined;
 }
 
+/** 요청 타임아웃 — 네트워크 전환/앱 백그라운드로 응답도 실패도 없이 영구 pending 되면
+    폴링 체인(완료 → 다음 예약)이 끊긴 채 되살아나지 않아, 상한을 두고 강제로 실패시킨다.
+    (BFF 가 토스 429 를 내부 재시도하는 시간까지 감안해 여유 있게 15초) */
+const REQUEST_TIMEOUT_MS = 15_000;
+
 async function request<T>(
   path: string,
   options?: RequestInit & { accountSeq?: string }
 ): Promise<T> {
   const { accountSeq, ...init } = options ?? {};
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...accountHeaders(accountSeq),
-      ...init.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeoutTimer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...init,
+      signal: init.signal ?? controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...accountHeaders(accountSeq),
+        ...init.headers,
+      },
+    });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error('요청 시간이 초과되었습니다 — 네트워크 상태를 확인해 주세요.', {
+        cause: error,
+      });
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutTimer);
+  }
 
   if (!response.ok) {
     // 에러 본문이 JSON 이 아닐 수 있다(프록시 오류·빈 본문 등) → 안전하게 파싱.
