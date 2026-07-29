@@ -1273,11 +1273,16 @@ export function CandleChart({
     // 전환은 봉 사이 1칸의 짧은 수직 이동으로만 나타나게 한다.
     const supertrend = calculateSupertrendSeries(sortedCandles);
     stSeriesRef.current?.setData(
-      supertrend.map((p) => ({
-        time: toChartTime(p.time),
-        value: p.value,
-        color: p.dir === 'up' ? colors.candleUp : colors.candleDown,
-      }))
+      supertrend.map((p, i) => {
+        // 점별 color 는 그 점의 '오른쪽 세그먼트'에 적용된다 — 다음 점의 추세 색을 입혀
+        // 전환 세그먼트(밴드 점프)가 이전 추세가 아닌 새 추세 색으로 그려지게 한다.
+        const segDir = supertrend[i + 1]?.dir ?? p.dir;
+        return {
+          time: toChartTime(p.time),
+          value: p.value,
+          color: segDir === 'up' ? colors.candleUp : colors.candleDown,
+        };
+      })
     );
 
     if (visibleRange && prependedCount > 0) {
