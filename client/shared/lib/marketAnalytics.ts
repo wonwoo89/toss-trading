@@ -59,7 +59,8 @@ export function buildDayChangeMetric(
   return {
     id: 'day-change',
     label: '전일대비',
-    value: `${formatSignedPercent(rate)} (${formatSignedMoney(diff, currency)})`,
+    // 토스 관례와 동일하게 금액 먼저, 등락률은 괄호 안에.
+    value: `${formatSignedMoney(diff, currency)} (${formatSignedPercent(rate)})`,
     bias,
   };
 }
