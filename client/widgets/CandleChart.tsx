@@ -94,6 +94,10 @@ function parseMinuteIntervalSec(interval?: string): number | null {
 /** 공백 채움 상한(인터벌 배수) — 이보다 긴 공백(세션 경계·휴장)은 채우지 않고 그대로 둔다. */
 const GAP_FILL_MAX_INTERVALS = 24;
 
+/** 미래 시간축 확장 봉 수 — lightweight-charts 는 데이터가 없는 우측 여백에 시간 라벨을
+    그리지 않아, 마지막 캔들 뒤에 whitespace 포인트를 붙여 미래 시각이 표시되게 한다. */
+const FUTURE_AXIS_BARS = 60;
+
 /**
  * 거래가 없어 비는 분봉 구간을 직전 종가의 플랫 캔들(거래량 0)로 채운다 — 표시 전용.
  * lightweight-charts 는 데이터에 없는 시각을 축에서 생략해, 한산한 시간대(프리/애프터 등)가
@@ -383,7 +387,7 @@ function isUsableViewport(viewport: ChartViewport, lastBarIndex: number) {
   if (
     viewport.rightOffset !== undefined &&
     (!Number.isFinite(viewport.rightOffset) ||
-      viewport.rightOffset < -bars ||
+      viewport.rightOffset < -(bars + FUTURE_AXIS_BARS) ||
       viewport.rightOffset > span * 2)
   ) {
     return false;
@@ -425,16 +429,17 @@ function hasViewportSpacingDrift(
 function applyViewportSpacing(
   chart: IChartApi,
   viewport: ChartViewport,
-  options?: { forceRealtimeMargin?: boolean }
+  options?: { forceRealtimeMargin?: boolean; futureBars?: number }
 ) {
   const barSpacing = resolveBarSpacing(viewport, chart);
   if (!barSpacing) return false;
 
+  const futureBars = options?.futureBars ?? 0;
   const marginBars = getMarginBars(chart, barSpacing);
-  let rightOffset = viewport.rightOffset ?? marginBars;
+  let rightOffset = viewport.rightOffset ?? marginBars - futureBars;
 
   if (options?.forceRealtimeMargin || isNearRealtimeViewport(viewport, chart, barSpacing)) {
-    rightOffset = marginBars;
+    rightOffset = marginBars - futureBars;
   }
 
   chart.timeScale().applyOptions({
@@ -446,7 +451,7 @@ function applyViewportSpacing(
   return true;
 }
 
-function enforceRealtimeRightMargin(chart: IChartApi, lastBarIndex: number) {
+function enforceRealtimeRightMargin(chart: IChartApi, lastBarIndex: number, futureBars = 0) {
   const lr = chart.timeScale().getVisibleLogicalRange();
   if (!lr) return;
   const barSpacing = chart.timeScale().options().barSpacing;
@@ -459,17 +464,19 @@ function enforceRealtimeRightMargin(chart: IChartApi, lastBarIndex: number) {
   chart.timeScale().setVisibleLogicalRange({ from: desiredFrom, to: actualTo });
   chart.timeScale().applyOptions({
     minBarSpacing: CHART_MIN_BAR_SPACING,
-    rightOffset: actualTo - lastBarIndex,
+    // rightOffset 옵션은 미래 whitespace 확장분까지 포함한 '시리즈 마지막 포인트' 기준이라
+    // 확장 봉 수만큼 빼야 마지막 실캔들이 의도한 여백 위치에 온다(음수 허용).
+    rightOffset: actualTo - lastBarIndex - futureBars,
   });
 }
 
-function applyInitialViewport(chart: IChartApi, lastBarIndex: number) {
+function applyInitialViewport(chart: IChartApi, lastBarIndex: number, futureBars = 0) {
   chart.timeScale().applyOptions({
     minBarSpacing: CHART_MIN_BAR_SPACING,
   });
   chart.timeScale().fitContent();
   requestAnimationFrame(() => {
-    enforceRealtimeRightMargin(chart, lastBarIndex);
+    enforceRealtimeRightMargin(chart, lastBarIndex, futureBars);
   });
 }
 
@@ -589,6 +596,7 @@ export function CandleChart({
   const loadingOlderRef = useRef(loadingOlder);
   const fitKeyRef = useRef(fitKey);
   const viewportInitializedRef = useRef(false);
+  const futureBarsRef = useRef(0);
   const pendingRestoreRef = useRef<ChartViewport | null>(null);
   // 차트가 숨겨진(display:none, 폭 0) 상태에서 데이터가 도착하면 초기화(fit/복원)를 미루고,
   // 보이는 순간(ResizeObserver 폭 > 0) 수행한다 — 폭 0에서 fitContent 하면 스케일이 깨진다.
@@ -629,13 +637,13 @@ export function CandleChart({
     // 저장된 뷰포트가 스케일 붕괴 스냅샷(과거 버그로 저장된 오염 데이터 포함)이면 버리고
     // 전체 fit 으로 자가 치유한다.
     if (pending && isUsableViewport(pending, lastBarIndex)) {
-      applyViewportSpacing(chart, pending);
+      applyViewportSpacing(chart, pending, { futureBars: futureBarsRef.current });
       requestAnimationFrame(() => {
-        enforceRealtimeRightMargin(chart, lastBarIndex);
+        enforceRealtimeRightMargin(chart, lastBarIndex, futureBarsRef.current);
       });
       return;
     }
-    applyInitialViewport(chart, lastBarIndex);
+    applyInitialViewport(chart, lastBarIndex, futureBarsRef.current);
   };
   const initializeViewportNowRef = useRef(initializeViewportNow);
   initializeViewportNowRef.current = initializeViewportNow;
@@ -976,7 +984,7 @@ export function CandleChart({
       if (lastBarIndexRef.current != null) {
         requestAnimationFrame(() => {
           if (chartRef.current) {
-            enforceRealtimeRightMargin(chartRef.current, lastBarIndexRef.current);
+            enforceRealtimeRightMargin(chartRef.current, lastBarIndexRef.current, futureBarsRef.current);
           }
         });
       }
@@ -1219,7 +1227,24 @@ export function CandleChart({
         ? chart.timeScale().options().rightOffset
         : undefined;
 
-    seriesRef.current.setData(data);
+    // 미래 시간축 확장 — 마지막 캔들 이후에도 시간 라벨이 이어지게 whitespace 포인트를 붙인다.
+    // (가격 오토스케일·지표 계산에는 영향 없음. lastBarIndex 등 논리 인덱스는 실캔들 기준 유지)
+    const axisIntervalSec =
+      parseMinuteIntervalSec(candleInterval) ??
+      (sortedCandles.length >= 2
+        ? sortedCandles[sortedCandles.length - 1].time - sortedCandles[sortedCandles.length - 2].time
+        : null);
+    const futureAxis =
+      axisIntervalSec && axisIntervalSec > 0
+        ? Array.from({ length: FUTURE_AXIS_BARS }, (_, k) => ({
+            time: toChartTime(
+              sortedCandles[sortedCandles.length - 1].time + (k + 1) * axisIntervalSec
+            ),
+          }))
+        : [];
+    futureBarsRef.current = futureAxis.length;
+
+    seriesRef.current.setData([...data, ...futureAxis]);
     volumeSeriesRef.current.setData(volumeData);
 
     // 밴드 시간도 차트 표시 시간(KST 시프트)으로 통일 — fill primitive 의

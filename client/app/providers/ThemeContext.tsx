@@ -43,9 +43,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setPreference(theme === 'dark' ? 'light' : 'dark');
   }, [setPreference, theme]);
 
-  useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
+  // data-theme 속성은 렌더 중에 적용한다(멱등이라 안전).
+  // useEffect 로 적용하면 자식 이펙트(차트 색상 재적용 등)가 부모 이펙트보다 먼저 실행돼
+  // 이전 테마의 CSS 변수를 읽는다 — 다크→라이트 전환 시 차트 격자가 흰색으로 남아
+  // 보이지 않던 문제의 원인.
+  useMemo(() => applyTheme(theme), [theme]);
 
   // OS 테마 변경 추적 — preference 가 system 일 때 theme 이 따라 바뀐다.
   useEffect(() => {
