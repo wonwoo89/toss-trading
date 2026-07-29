@@ -3590,7 +3590,7 @@ input[type='checkbox']:focus-visible {
   border: none;
   background: transparent;
   color: var(--text-muted);
-  font-size: 1.1rem;
+  font-size: 1.35rem;
   line-height: 1;
   padding: 0.1rem 0.2rem;
   cursor: pointer;
@@ -3909,16 +3909,17 @@ input[type='checkbox']:focus-visible {
   width: 2rem;
   height: 2rem;
   border-radius: 8px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-subtle);
+  border: none;
+  background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.9rem;
+  /* 히트 영역은 그대로, X 라벨만 크게 */
+  font-size: 1.3rem;
+  line-height: 1;
 }
 
 .backtest-modal__close:hover {
   color: var(--text-primary);
-  border-color: var(--border-default);
 }
 
 .backtest-modal__body {
@@ -4043,7 +4044,7 @@ input[type='checkbox']:focus-visible {
   justify-content: center;
   border: none;
   border-radius: 6px;
-  font-size: 1rem;
+  font-size: 1.3rem;
   line-height: 1;
   color: var(--text-secondary);
   background: transparent;
@@ -5318,11 +5319,13 @@ input[type='checkbox']:focus-visible {
   width: 2.2rem;
   height: 2.2rem;
   border-radius: 10px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-subtle, rgba(128, 128, 128, 0.08));
+  border: none;
+  background: transparent;
   color: var(--text-secondary);
   cursor: pointer;
-  font-size: 0.95rem;
+  /* 히트 영역은 그대로, X 라벨만 크게 */
+  font-size: 1.35rem;
+  line-height: 1;
 }
 
 /* 오버레이 안에서는 최근 검색이 항상 보이게(탭 스코프 미디어 규칙과 무관) */
@@ -5502,7 +5505,7 @@ input[type='checkbox']:focus-visible {
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 0.7rem;
+  font-size: 0.9rem;
   cursor: pointer;
   padding: 0.1rem 0.25rem;
 }
