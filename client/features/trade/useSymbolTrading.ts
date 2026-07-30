@@ -1110,8 +1110,6 @@ export function useSymbolTrading(
       holdingMarketValue: holdingSummary?.marketValue,
       holdingProfitLoss: holdingSummary?.profitLoss,
       holdingProfitLossRate: holdingSummary?.profitLossRate,
-      takeProfitRatePercent,
-      onTakeProfitRateChange: handleTakeProfitRateChange,
       commissionRatePercent,
       candles: candlesData.candles,
       candleInterval,
