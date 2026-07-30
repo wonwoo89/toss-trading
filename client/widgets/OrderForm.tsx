@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StockHoldingSummary } from './StockHoldingSummary';
 import { Button } from '../shared/ui/Button';
-import { Checkbox } from '../shared/ui/Checkbox';
 import { SegmentedControl } from '../shared/ui/SegmentedControl';
 import { TextField } from '../shared/ui/TextField';
 import { Typography } from '../shared/ui/Typography';
@@ -14,7 +13,6 @@ import {
   usdMaxFractionDigits,
 } from '../shared/lib/formatHoldings';
 import { buildDayChangeMetric } from '../shared/lib/marketAnalytics';
-import { TAKE_PROFIT_RATE_OPTIONS } from '../shared/lib/takeProfitRatePreference';
 import { getStoredPriceMode, setStoredPriceMode } from '../shared/lib/priceModePreference';
 import {
   getStoredOrderEntryMode,
@@ -63,8 +61,6 @@ interface OrderFormProps {
   holdingMarketValue?: number;
   holdingProfitLoss?: number;
   holdingProfitLossRate?: number;
-  takeProfitRatePercent?: number;
-  onTakeProfitRateChange?: (rate: number) => void;
   commissionRatePercent?: number;
   /** 보유 스냅샷 — 매도 예상 실수익 계산의 비용(수수료·세금) 컨텍스트로 사용. */
   holding?: HoldingItem;
@@ -180,8 +176,6 @@ export function OrderForm({
   holdingMarketValue,
   holdingProfitLoss,
   holdingProfitLossRate,
-  takeProfitRatePercent = 3,
-  onTakeProfitRateChange,
   commissionRatePercent = 0.015,
   holding,
   autoTradeActive = false,
@@ -209,7 +203,6 @@ export function OrderForm({
   const useProfitOrder = orderEntryMode === 'profit';
   // 목표 수익률(평단 대비 %) — 수익률 매도 지정가 자동 계산에 사용.
   const [profitRate, setProfitRate] = useState(() => String(getStoredProfitTargetRate()));
-  const [useTakeProfitSell, setUseTakeProfitSell] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [cancelingAll, setCancelingAll] = useState(false);
   const { showToast } = useToast();
@@ -233,11 +226,6 @@ export function OrderForm({
       // Keep current side or reset to 'BUY' if preferred; current keeps user choice
     }
   }, [symbol]);
-
-  const updateTakeProfitRate = (rate: number) => {
-    if (!Number.isFinite(rate) || rate <= 0) return;
-    onTakeProfitRateChange?.(rate);
-  };
 
   // 전일대비 당일 변동(주문폼 최상단 시세 블록). 색상은 KR 관례(상승 빨강/하락 파랑).
   const dayChange = useMemo(
@@ -743,32 +731,12 @@ export function OrderForm({
       }
     }
 
-    const submitOptions: OrderSubmitOptions | undefined =
-      effectiveSide === 'BUY' && useTakeProfitSell && !useAmountOrder
-        ? { takeProfitSell: { profitRatePercent: takeProfitRatePercent } }
-        : undefined;
-
-    if (submitOptions?.takeProfitSell) {
-      const rate = submitOptions.takeProfitSell.profitRatePercent;
-      if (!Number.isFinite(rate) || rate <= 0) {
-        showToast('목표 실수익률을 올바르게 입력해 주세요.', 'error');
-        return;
-      }
-    }
-
     setSubmitting(true);
 
     try {
-      const result = await onSubmit(payload, submitOptions);
+      await onSubmit(payload);
 
       showToast(formatOrderSuccessMessage(payload), 'success');
-
-      if (result?.takeProfitSell?.message) {
-        showToast(
-          result.takeProfitSell.message,
-          result.takeProfitSell.placed ? 'success' : 'error'
-        );
-      }
     } catch (error) {
       showToast(error instanceof Error ? error.message : '주문에 실패했습니다.', 'error');
     } finally {
@@ -1063,27 +1031,6 @@ export function OrderForm({
             </div>
 
             {quantitySection}
-
-            <div className="order-form__section">
-              <Checkbox
-                label="매수 후 평단가 기준 목표 실수익률 매도"
-                checked={useTakeProfitSell}
-                onChange={setUseTakeProfitSell}
-              />
-
-              {useTakeProfitSell && (
-                <SegmentedControl
-                  className="order-take-profit-rates"
-                  aria-label="목표 실수익률"
-                  value={String(takeProfitRatePercent)}
-                  onChange={(value) => updateTakeProfitRate(Number(value))}
-                  options={TAKE_PROFIT_RATE_OPTIONS.map((rate) => ({
-                    value: String(rate),
-                    label: `${rate}%`,
-                  }))}
-                />
-              )}
-            </div>
           </>
           ))}
       </div>
