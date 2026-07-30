@@ -121,11 +121,12 @@ export function PullToRefresh() {
         opacity: refreshing ? 1 : Math.min(1, pull / 48),
       }}
     >
-      <span
-        className={`pull-refresh__icon${ready ? ' is-ready' : ''}${refreshing ? ' is-spinning' : ''}`}
-      >
-        ⟳
-      </span>
+      {refreshing ? (
+        // 글리프(⟳) 회전은 문자 중심과 회전축이 어긋나 흔들려 보인다 — 링 스피너로 대체
+        <span className="pull-refresh__spinner" />
+      ) : (
+        <span className={`pull-refresh__icon${ready ? ' is-ready' : ''}`}>⟳</span>
+      )}
       <span className="pull-refresh__text">
         {refreshing ? '새로고침 중…' : ready ? '놓으면 새로고침' : '당겨서 새로고침'}
       </span>

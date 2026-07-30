@@ -3993,8 +3993,15 @@ input[type='checkbox']:focus-visible {
   color: var(--accent);
   transform: rotate(180deg);
 }
-.pull-refresh__icon.is-spinning {
-  animation: pull-refresh-spin 0.8s linear infinite;
+/* 새로고침 중 — 정중앙 회전이 보장되는 링 스피너(글리프 회전은 축이 어긋나 흔들림) */
+.pull-refresh__spinner {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid rgba(128, 128, 128, 0.3);
+  border-top-color: var(--accent, #3182f6);
+  animation: pull-refresh-spin 0.7s linear infinite;
 }
 @keyframes pull-refresh-spin {
   to {
