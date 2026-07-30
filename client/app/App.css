@@ -5651,3 +5651,29 @@ input[type='checkbox']:focus-visible {
   margin-left: 0.4rem;
   color: var(--text-secondary);
 }
+
+/* 주문내역 — 기간 칩(좌) / 보기 방식 칩(우) 한 줄 */
+.order-history-modal__filters-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.order-history-modal__view {
+  display: flex;
+  gap: 0.3rem;
+}
+/* 종목별 요약 행 — 매수/매도 집계 두 줄 */
+.order-history-symbol__lines {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.15rem;
+}
+.order-history-symbol__line.is-buy {
+  color: var(--color-up);
+}
+.order-history-symbol__line.is-sell {
+  color: var(--color-down);
+}

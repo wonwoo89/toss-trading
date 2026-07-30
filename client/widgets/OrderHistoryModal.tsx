@@ -54,6 +54,62 @@ function quantityLabel(order: Order): string {
  * 누적 주문내역 모달 — 토스 /api/v1/orders 의 status=CLOSED(종료된 주문)를
  * 기간 프리셋 + 커서 페이지네이션으로 조회한다. (미체결은 기존 패널이 담당)
  */
+/** 종목별 집계 — 체결 수량 기준(취소·미체결분 제외), 현재 불러온 내역 범위. */
+interface SymbolSummary {
+  symbol: string;
+  buyCount: number;
+  buyQty: number;
+  buyAmount: number;
+  sellCount: number;
+  sellQty: number;
+  sellAmount: number;
+}
+
+function summarizeBySymbol(orders: Order[]): SymbolSummary[] {
+  const execPrice = (o: Order): number | undefined => {
+    if (o.executedPrice !== undefined && o.executedPrice > 0) return o.executedPrice;
+    const qty = o.filledQuantity ?? o.quantity;
+    if (o.executedAmount !== undefined && o.executedAmount > 0 && qty && qty > 0) {
+      return o.executedAmount / qty;
+    }
+    return o.price !== undefined && o.price > 0 ? o.price : undefined;
+  };
+  const map = new Map<string, SymbolSummary>();
+  for (const o of orders) {
+    const qty = o.filledQuantity !== undefined && o.filledQuantity > 0 ? o.filledQuantity : o.status === 'FILLED' ? (o.quantity ?? 0) : 0;
+    if (qty <= 0) continue; // 체결분 없는 주문(취소 등) 제외
+    const px = execPrice(o);
+    if (px === undefined) continue;
+    const sym = o.symbol.toUpperCase();
+    const row = map.get(sym) ?? {
+      symbol: sym,
+      buyCount: 0,
+      buyQty: 0,
+      buyAmount: 0,
+      sellCount: 0,
+      sellQty: 0,
+      sellAmount: 0,
+    };
+    if (o.side === 'BUY') {
+      row.buyCount += 1;
+      row.buyQty += qty;
+      row.buyAmount += qty * px;
+    } else {
+      row.sellCount += 1;
+      row.sellQty += qty;
+      row.sellAmount += qty * px;
+    }
+    map.set(sym, row);
+  }
+  return [...map.values()].sort(
+    (a, b) => b.buyAmount + b.sellAmount - (a.buyAmount + a.sellAmount)
+  );
+}
+
+function fmtQty(n: number): string {
+  return String(Math.round(n * 10000) / 10000);
+}
+
 interface DailyPnlRow {
   symbol: string;
   realized: number;
@@ -192,6 +248,8 @@ export function OrderHistoryModal({
 }) {
   const { selectedAccountSeq } = useAppContext();
   const [rangeDays, setRangeDays] = useState<number>(7);
+  // 보기 방식 — 건별(기본) / 종목별 요약
+  const [viewMode, setViewMode] = useState<'orders' | 'symbols'>('orders');
   const [orders, setOrders] = useState<Order[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasNext, setHasNext] = useState(false);
@@ -305,16 +363,26 @@ export function OrderHistoryModal({
           </button>
         </div>
         <div className="backtest-modal__body">
-        <div className="order-history-modal__filters" role="tablist" aria-label="조회 기간">
-          {RANGE_OPTIONS.map((opt) => (
-            <Chip
-              key={opt.label}
-              selected={rangeDays === opt.days}
-              onClick={() => setRangeDays(opt.days)}
-            >
-              {opt.label}
+        <div className="order-history-modal__filters-row">
+          <div className="order-history-modal__filters" role="tablist" aria-label="조회 기간">
+            {RANGE_OPTIONS.map((opt) => (
+              <Chip
+                key={opt.label}
+                selected={rangeDays === opt.days}
+                onClick={() => setRangeDays(opt.days)}
+              >
+                {opt.label}
+              </Chip>
+            ))}
+          </div>
+          <div className="order-history-modal__view" role="tablist" aria-label="보기 방식">
+            <Chip selected={viewMode === 'orders'} onClick={() => setViewMode('orders')}>
+              건별
             </Chip>
-          ))}
+            <Chip selected={viewMode === 'symbols'} onClick={() => setViewMode('symbols')}>
+              종목별
+            </Chip>
+          </div>
         </div>
 
         {dailyPnl && (dailyPnl.rows.length > 0 || dailyPnl.excluded.length > 0) && (
@@ -350,6 +418,37 @@ export function OrderHistoryModal({
           <Typography size={14} as="p" className="hint">
             해당 기간에 종료된 주문이 없습니다.
           </Typography>
+        ) : viewMode === 'symbols' ? (
+          <>
+            <ul className="order-history-list order-history-modal__list">
+              {summarizeBySymbol(orders).map((row) => (
+                <li key={row.symbol} className="order-history-item">
+                  <div className="order-history-item__content">
+                    <Typography size={14} className="order-history-item__date-symbol">
+                      {row.symbol}
+                    </Typography>
+                    <div className="order-history-symbol__lines">
+                      {row.buyQty > 0 && (
+                        <Typography size={14} className="order-history-symbol__line is-buy">
+                          매수 {row.buyCount}건 · {fmtQty(row.buyQty)}주 · $
+                          {row.buyAmount.toFixed(2)} (평균 ${(row.buyAmount / row.buyQty).toFixed(2)})
+                        </Typography>
+                      )}
+                      {row.sellQty > 0 && (
+                        <Typography size={14} className="order-history-symbol__line is-sell">
+                          매도 {row.sellCount}건 · {fmtQty(row.sellQty)}주 · $
+                          {row.sellAmount.toFixed(2)} (평균 ${(row.sellAmount / row.sellQty).toFixed(2)})
+                        </Typography>
+                      )}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <Typography size={12} as="p" className="hint order-history-modal__pnl-note">
+              체결 수량 기준(취소 제외) · 현재 불러온 내역 집계{hasNext ? " — '더 보기'로 범위를 넓힐 수 있어요" : ''}
+            </Typography>
+          </>
         ) : (
           <ul className="order-history-list order-history-modal__list">
             {orders.map((order) => (
