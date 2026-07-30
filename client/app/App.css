@@ -5621,9 +5621,33 @@ input[type='checkbox']:focus-visible {
   text-overflow: ellipsis;
 }
 
-/* 주문폼 — 이 종목 미체결 전체 취소(매수·매도 불문) */
+/* 주문폼 — 이 종목 미체결 전체 취소(매수·매도 불문).
+   '매도 가능' 힌트와 같은 줄 우측, 붉은 테두리 칩으로 눈에 띄게. */
+.order-form__sell-hints-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
 .order-cancel-all {
-  align-self: flex-start;
-  margin-top: 0.15rem;
+  flex: 0 0 auto;
+  padding: 0.28rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--color-down) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-down) 10%, transparent);
   color: var(--color-down);
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.order-cancel-all:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* 매수 후 예상 평단 — 예상 매수 라인 꼬리 */
+.order-projected-avg {
+  margin-left: 0.4rem;
+  color: var(--text-secondary);
 }

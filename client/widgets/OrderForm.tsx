@@ -366,6 +366,17 @@ export function OrderForm({
   const buyDisplayQuantity = buyQuantityForPercent ?? effectiveQuantity;
   const sellDisplayQuantity = sellQuantityForPercent ?? effectiveQuantity;
 
+  // 매수 후 예상 평단 — (보유수량×평단 + 매수수량×매수가) / 합산 수량.
+  // 체결가는 알 수 없으므로 지정가(또는 현재가) 기준 예상치. 기존 보유가 있을 때만 의미가 있어 노출.
+  const projectedBuyAverage = useMemo(() => {
+    if (holdingQuantity === undefined || holdingQuantity <= 0) return undefined;
+    if (holdingAveragePrice === undefined || holdingAveragePrice <= 0) return undefined;
+    const qty = buyQuantityForPercent ?? effectiveQuantity;
+    const px = effectiveBuyPrice;
+    if (qty === undefined || qty <= 0 || px === undefined || px <= 0) return undefined;
+    return (holdingQuantity * holdingAveragePrice + qty * px) / (holdingQuantity + qty);
+  }, [holdingQuantity, holdingAveragePrice, buyQuantityForPercent, effectiveQuantity, effectiveBuyPrice]);
+
   // 수익률 매도 지정가 — 평단·목표 실수익률에 비용(수수료·제세금)을 반영해 역산.
   // (매수 후 익절 매도와 동일 계산 — 체결 시 실수익이 목표 % 이상이 되는 최소가)
   const targetSellPrice = useMemo(() => {
@@ -1068,23 +1079,23 @@ export function OrderForm({
             )}
           </div>
 
-          <Typography as="p" size={12} className="hint order-form__footer-hint">
-            매도 가능: {sellCapacityReady && effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0
-              ? `${effectiveSellableQuantity}주`
-              : (sellCapacityReady ? '0주' : (effectiveSellableQuantity !== undefined ? '—' : '불러오는 중...'))}
-          </Typography>
-
-          {openOrderCount > 0 && onCancelAllOrders && (
-            <Button
-              size="sm"
-              variant="ghost"
-              className="order-cancel-all"
-              disabled={cancelingAll}
-              onClick={handleCancelAllOrders}
-            >
-              {cancelingAll ? '취소 중…' : `미체결 ${openOrderCount}건 전체 취소`}
-            </Button>
-          )}
+          <div className="order-form__sell-hints-row">
+            <Typography as="p" size={12} className="hint order-form__footer-hint">
+              매도 가능: {sellCapacityReady && effectiveSellableQuantity !== undefined && effectiveSellableQuantity > 0
+                ? `${effectiveSellableQuantity}주`
+                : (sellCapacityReady ? '0주' : (effectiveSellableQuantity !== undefined ? '—' : '불러오는 중...'))}
+            </Typography>
+            {openOrderCount > 0 && onCancelAllOrders && (
+              <button
+                type="button"
+                className="order-cancel-all"
+                disabled={cancelingAll}
+                onClick={handleCancelAllOrders}
+              >
+                {cancelingAll ? '취소 중…' : `미체결 ${openOrderCount}건 취소`}
+              </button>
+            )}
+          </div>
 
           {orderEntryMode === 'price' && (
             <>
@@ -1095,6 +1106,15 @@ export function OrderForm({
                     ? `${formatOrderQuantity(buyDisplayQuantity)}주${buyEstimatedAmount !== undefined ? ` · ${formatUsd(buyEstimatedAmount)}` : ''}`
                     : '—'}
                 </Typography>
+                {projectedBuyAverage !== undefined && (
+                  <Typography
+                    size={14}
+                    className="order-projected-avg"
+                    title="매수 체결 시 예상 평단 — 지정가(또는 현재가) 기준 추정치"
+                  >
+                    → 평단 {formatPrice(projectedBuyAverage, currency)}
+                  </Typography>
+                )}
               </Typography>
               <Typography as="p" size={14} className="order-estimated-amount sell">
                 예상 매도{' '}
