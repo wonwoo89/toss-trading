@@ -308,6 +308,12 @@ textarea {
   padding: 0 0.65rem;
   border-radius: 8px;
   font-size: 16px;
+  width: 100%;
+}
+
+/* 데스크톱 헤더 검색바 — 폭 확대(최근 검색 패널도 이 폭을 따른다) */
+.symbol-search--header .symbol-search-field {
+  width: min(400px, 42vw);
 }
 
 .portfolio-stats {
@@ -5566,23 +5572,53 @@ input[type='checkbox']:focus-visible {
   line-height: 1.4;
 }
 
-/* 데스크톱 검색바 포커스 시 최근 검색 패널 — 자동완성과 동일한 드롭다운 스타일 */
+/* 데스크톱 검색바 포커스 시 최근 검색 패널 — 자동완성과 동일한 드롭다운 스타일.
+   (recent-searches 세부 스타일은 모바일 미디어 블록에만 있어 여기서 별도 정의) */
 .symbol-search-recent {
   position: absolute;
   top: calc(100% + 0.35rem);
   left: 0;
   right: 0;
   z-index: 20;
-  padding: 0.6rem 0.7rem;
+  padding: 0.65rem 0.75rem;
   background: var(--bg-panel);
   border: 1px solid var(--border-subtle);
   border-radius: 12px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
 }
+.symbol-search-recent .recent-searches__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.45rem;
+}
+.symbol-search-recent .recent-searches__title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
 .symbol-search-recent .recent-searches__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 0.4rem;
+}
+.symbol-search-recent .recent-searches__chips .ui-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.35rem 0.6rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.symbol-search-recent .recent-searches__name {
+  font-weight: 400;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  max-width: 9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* 주문폼 — 이 종목 미체결 전체 취소(매수·매도 불문) */
