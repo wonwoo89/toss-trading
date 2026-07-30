@@ -20,6 +20,10 @@ import {
 import { calculateBollingerBandSeries } from '../shared/lib/bollingerBands';
 import { calculateSupertrendSeries } from '../shared/lib/supertrend';
 import { BollingerBandFillPrimitive } from '../shared/lib/bollingerBandFillPrimitive';
+import { ChartDrawingPrimitive, type DrawingStroke } from '../shared/lib/chartDrawingPrimitive';
+import { getChartDrawings, saveChartDrawings } from '../shared/lib/chartDrawingsPreference';
+import { emitLimitPriceSelect } from '../shared/lib/limitPriceBus';
+import { floorToTick } from '../shared/lib/usTick';
 import { VolumeProfilePrimitive } from '../shared/lib/volumeProfilePrimitive';
 import { buildVolumeProfile } from '../shared/lib/volumeProfile';
 import { useTheme } from '../app/providers/ThemeContext';
@@ -38,6 +42,8 @@ export interface OpenOrderLine {
   side: 'BUY' | 'SELL';
   price: number;
   quantity?: number;
+  /** 펜슬 드래그 정정(취소 후 재주문)에 사용. */
+  orderId?: string;
 }
 
 interface CandleChartProps {
@@ -45,6 +51,8 @@ interface CandleChartProps {
   averagePrice?: number;
   /** 미체결 지정가 주문 — 평단선처럼 점선 가격선으로 표시. */
   openOrderLines?: OpenOrderLine[];
+  /** 펜슬로 주문 라인을 드래그해 지정가 정정(기존 취소 후 재주문). */
+  onReviseOrder?: (order: OpenOrderLine, newPrice: number) => void;
   loading?: boolean;
   error?: string | null;
   fitKey?: string;
@@ -555,6 +563,7 @@ export function CandleChart({
   candles,
   averagePrice,
   openOrderLines,
+  onReviseOrder,
   loading,
   error,
   fitKey,
@@ -588,6 +597,23 @@ export function CandleChart({
   const stSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const avgPriceLineRef = useRef<IPriceLine | null>(null);
   const orderPriceLinesRef = useRef<IPriceLine[]>([]);
+  // ── 애플펜슬 드로잉 상태 ──
+  const drawingPrimitiveRef = useRef<ChartDrawingPrimitive | null>(null);
+  const strokesRef = useRef<DrawingStroke[]>([]);
+  const [drawingCount, setDrawingCount] = useState(0);
+  const openOrderLinesRef = useRef<OpenOrderLine[]>([]);
+  const onReviseOrderRef = useRef(onReviseOrder);
+
+  // 획 커밋 — 상태·프리미티브·종목별 저장 동기화 (펜 핸들러는 ref 로 최신 함수 참조)
+  const commitStrokes = (next: DrawingStroke[]) => {
+    strokesRef.current = next;
+    setDrawingCount(next.length);
+    drawingPrimitiveRef.current?.setStrokes(next);
+    const sym = fitKeyRef.current?.split(':')[0];
+    if (sym) saveChartDrawings(sym, next);
+  };
+  const commitStrokesRef = useRef(commitStrokes);
+  commitStrokesRef.current = commitStrokes;
   const prevFirstTimeRef = useRef<number | null>(null);
   const prevDataLengthRef = useRef<number | null>(null);
   const onLoadOlderRef = useRef(onLoadOlder);
@@ -619,10 +645,18 @@ export function CandleChart({
   hasMoreHistoryRef.current = hasMoreHistory;
   loadingOlderRef.current = loadingOlder;
   fitKeyRef.current = fitKey;
+  openOrderLinesRef.current = openOrderLines ?? [];
+  onReviseOrderRef.current = onReviseOrder;
 
   useEffect(() => {
     pendingRestoreRef.current = fitKey ? getStoredChartViewport(fitKey) : null;
     viewportInitializedRef.current = false;
+    // 종목별 펜슬 드로잉 로드
+    const drawSym = fitKey?.split(':')[0];
+    const strokes = drawSym ? getChartDrawings(drawSym) : [];
+    strokesRef.current = strokes;
+    setDrawingCount(strokes.length);
+    drawingPrimitiveRef.current?.setStrokes(strokes);
     needsInitOnVisibleRef.current = false;
     prevDataLengthRef.current = null;
   }, [fitKey]);
@@ -762,6 +796,13 @@ export function CandleChart({
     series.attachPrimitive(volumeProfilePrimitive);
     volumeProfilePrimitiveRef.current = volumeProfilePrimitive;
 
+    // 펜슬 드로잉 오버레이 — 저장된 획 + 그리는 중 획을 캔들 위에 렌더
+    const drawingPrimitive = new ChartDrawingPrimitive();
+    drawingPrimitive.setColor(colors.candleDown);
+    drawingPrimitive.setStrokes(strokesRef.current);
+    series.attachPrimitive(drawingPrimitive);
+    drawingPrimitiveRef.current = drawingPrimitive;
+
     const bbUpperSeries = chart.addSeries(
       LineSeries,
       getBollingerLineOptions(colors.bollingerUpper, 'BB 상단', LineStyle.Dashed),
@@ -886,6 +927,175 @@ export function CandleChart({
 
     chart.timeScale().subscribeVisibleLogicalRangeChange(handleVisibleRangeChange);
 
+    // ── 애플펜슬 입력 — 펜은 그리기/지정가 탭/주문 라인 드래그, 손가락·마우스는 기존 팬·줌.
+    //    캡처 단계에서 가로채 lightweight-charts 의 팬 제스처로 전달되지 않게 한다. ──
+    const container = containerRef.current!;
+    interface PenSession {
+      mode: 'draw' | 'order';
+      startX: number;
+      startY: number;
+      startedAt: number;
+      minX: number;
+      maxX: number;
+      minY: number;
+      maxY: number;
+      stroke: DrawingStroke;
+      orderIndex: number;
+      startPrice: number;
+      lastPrice: number;
+    }
+    let pen: PenSession | null = null;
+
+    const localPoint = (e: PointerEvent) => {
+      const rect = container.getBoundingClientRect();
+      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
+
+    // iOS 는 펜슬이 호환 터치 이벤트도 발생시킴 — stylus 터치는 차트 팬으로 넘기지 않는다.
+    const blockStylusTouch = (e: TouchEvent) => {
+      const t = (e.touches[0] ?? e.changedTouches[0]) as (Touch & { touchType?: string }) | undefined;
+      if (t?.touchType === 'stylus') {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    const onPenDown = (e: PointerEvent) => {
+      if (e.pointerType !== 'pen') return;
+      e.preventDefault();
+      e.stopPropagation();
+      const { x, y } = localPoint(e);
+      const price = series.coordinateToPrice(y);
+      if (price === null) return;
+      // 미체결 주문 라인 근처(±12px)면 드래그 정정 모드
+      const lines = openOrderLinesRef.current;
+      let hit = -1;
+      for (let i = 0; i < lines.length; i += 1) {
+        const ly = series.priceToCoordinate(lines[i].price);
+        if (ly !== null && Math.abs(ly - y) <= 12) {
+          hit = i;
+          break;
+        }
+      }
+      const base = {
+        startX: x,
+        startY: y,
+        startedAt: Date.now(),
+        minX: x,
+        maxX: x,
+        minY: y,
+        maxY: y,
+        startPrice: price as number,
+        lastPrice: price as number,
+      };
+      if (hit >= 0 && lines[hit].orderId && onReviseOrderRef.current) {
+        pen = { ...base, mode: 'order', stroke: { kind: 'free', price: 0, points: [] }, orderIndex: hit };
+        return;
+      }
+      const time = chart.timeScale().coordinateToTime(x);
+      pen = {
+        ...base,
+        mode: 'draw',
+        orderIndex: -1,
+        stroke: {
+          kind: 'free',
+          price: price as number,
+          points: time !== null ? [{ time: time as number, price: price as number }] : [],
+        },
+      };
+    };
+
+    const onPenMove = (e: PointerEvent) => {
+      if (!pen || e.pointerType !== 'pen') return;
+      e.preventDefault();
+      e.stopPropagation();
+      const { x, y } = localPoint(e);
+      pen.minX = Math.min(pen.minX, x);
+      pen.maxX = Math.max(pen.maxX, x);
+      pen.minY = Math.min(pen.minY, y);
+      pen.maxY = Math.max(pen.maxY, y);
+      const price = series.coordinateToPrice(y);
+      if (price === null) return;
+      pen.lastPrice = price as number;
+      if (pen.mode === 'order') {
+        // 드래그 중 해당 주문 점선을 실시간 이동
+        orderPriceLinesRef.current[pen.orderIndex]?.applyOptions({ price: price as number });
+        return;
+      }
+      const time = chart.timeScale().coordinateToTime(x);
+      if (time !== null) {
+        pen.stroke.points.push({ time: time as number, price: price as number });
+        drawingPrimitive.setActiveStroke(pen.stroke);
+      }
+    };
+
+    const finishPen = (canceled: boolean) => {
+      if (!pen) return;
+      const session = pen;
+      pen = null;
+      drawingPrimitive.setActiveStroke(null);
+      const moved = Math.max(session.maxX - session.minX, session.maxY - session.minY);
+      const duration = Date.now() - session.startedAt;
+
+      if (session.mode === 'order') {
+        const line = openOrderLinesRef.current[session.orderIndex];
+        const priceLine = orderPriceLinesRef.current[session.orderIndex];
+        const revised = floorToTick(session.lastPrice);
+        const meaningfulMove =
+          !canceled && line && revised !== undefined && moved >= 8 &&
+          Math.abs(revised - line.price) / line.price > 0.0005;
+        if (!meaningfulMove) {
+          priceLine?.applyOptions({ price: line?.price ?? session.startPrice });
+          return;
+        }
+        const ok = window.confirm(
+          `${line.side === 'BUY' ? '매수' : '매도'} 지정가를 $${revised}로 정정할까요? (기존 주문 취소 후 재주문)`
+        );
+        if (ok) {
+          onReviseOrderRef.current?.(line, revised as number);
+        } else {
+          priceLine?.applyOptions({ price: line.price });
+        }
+        return;
+      }
+
+      if (canceled) return;
+      // 짧은 탭 → 지정가 입력
+      if (duration < 350 && moved < 7) {
+        emitLimitPriceSelect(session.startPrice);
+        return;
+      }
+      // 거의 수평(세로 10px 미만·가로 40px 이상) → 수평선으로 스냅
+      if (session.maxY - session.minY < 10 && session.maxX - session.minX > 40) {
+        commitStrokesRef.current([
+          ...strokesRef.current,
+          { kind: 'hline', price: (session.startPrice + session.lastPrice) / 2, points: [] },
+        ]);
+        return;
+      }
+      if (session.stroke.points.length >= 2) {
+        commitStrokesRef.current([...strokesRef.current, session.stroke]);
+      }
+    };
+
+    const onPenUp = (e: PointerEvent) => {
+      if (!pen || e.pointerType !== 'pen') return;
+      e.preventDefault();
+      e.stopPropagation();
+      finishPen(false);
+    };
+    const onPenCancel = (e: PointerEvent) => {
+      if (!pen || e.pointerType !== 'pen') return;
+      finishPen(true);
+    };
+
+    container.addEventListener('pointerdown', onPenDown, { capture: true });
+    container.addEventListener('pointermove', onPenMove, { capture: true });
+    container.addEventListener('pointerup', onPenUp, { capture: true });
+    container.addEventListener('pointercancel', onPenCancel, { capture: true });
+    container.addEventListener('touchstart', blockStylusTouch, { capture: true, passive: false });
+    container.addEventListener('touchmove', blockStylusTouch, { capture: true, passive: false });
+
     const handleCrosshairMove = (param: {
       point?: { x: number; y: number };
       time?: unknown;
@@ -1003,6 +1213,13 @@ export function CandleChart({
       markersApiRef.current = null;
       seriesRef.current = null;
       volumeProfilePrimitiveRef.current = null;
+      drawingPrimitiveRef.current = null;
+      container.removeEventListener('pointerdown', onPenDown, { capture: true });
+      container.removeEventListener('pointermove', onPenMove, { capture: true });
+      container.removeEventListener('pointerup', onPenUp, { capture: true });
+      container.removeEventListener('pointercancel', onPenCancel, { capture: true });
+      container.removeEventListener('touchstart', blockStylusTouch, { capture: true });
+      container.removeEventListener('touchmove', blockStylusTouch, { capture: true });
       bbUpperSeriesRef.current = null;
       bbMiddleSeriesRef.current = null;
       bbLowerSeriesRef.current = null;
@@ -1361,6 +1578,20 @@ export function CandleChart({
 
   return (
     <div className="chart-block">
+      {drawingCount > 0 && (
+        <div className="chart-draw-tools" aria-label="펜슬 드로잉 도구">
+          <button
+            type="button"
+            onClick={() => commitStrokes(strokesRef.current.slice(0, -1))}
+            title="마지막 획 되돌리기"
+          >
+            ↩
+          </button>
+          <button type="button" onClick={() => commitStrokes([])} title="드로잉 전체 지우기">
+            지우기
+          </button>
+        </div>
+      )}
       {chartStatus && (
         <Typography as="p" size={14} className={`chart-status${error ? ' error-text' : ' hint'}`}>
           {chartStatus}

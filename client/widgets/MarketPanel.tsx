@@ -63,6 +63,8 @@ interface MarketPanelProps {
   usMarketCalendarError?: string | null;
   usMarketCalendarLoading?: boolean;
   openOrders?: Order[];
+  /** 펜슬로 주문 라인 드래그 → 지정가 정정(취소 후 재주문). */
+  onReviseOrder?: (order: { orderId?: string; side: 'BUY' | 'SELL'; quantity?: number; price: number }, newPrice: number) => void;
   buyingPower?: number;
   sellableQuantity?: number;
   commissions?: CommissionRaw[];
@@ -121,6 +123,7 @@ export function MarketPanel({
   autoSubmitting = false,
   onAutoExecModeChange,
   orderBookToggle,
+  onReviseOrder,
 }: MarketPanelProps) {
   const [backtestOpen, setBacktestOpen] = useState(false);
 
@@ -134,7 +137,7 @@ export function MarketPanel({
             o.orderType === 'LIMIT' &&
             (o.price ?? 0) > 0
         )
-        .map((o) => ({ side: o.side, price: o.price as number, quantity: o.quantity })),
+        .map((o) => ({ side: o.side, price: o.price as number, quantity: o.quantity, orderId: o.orderId })),
     [openOrders, symbol]
   );
   const [bollingerVisible, setBollingerVisible] = useState(getStoredBollingerVisible);
@@ -253,6 +256,7 @@ export function MarketPanel({
               candles={candles}
               averagePrice={averagePrice}
               openOrderLines={chartOpenOrderLines}
+              onReviseOrder={onReviseOrder}
               loading={candlesLoading}
               loadingOlder={candlesLoadingOlder}
               error={candlesError}
