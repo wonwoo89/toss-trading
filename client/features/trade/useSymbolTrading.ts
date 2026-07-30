@@ -589,7 +589,7 @@ export function useSymbolTrading(
       return;
     }
     let cancelled = false;
-    (async () => {
+    const load = async () => {
       try {
         const res = await api.getCandles(symbol, '1d', 3);
         if (cancelled) return;
@@ -598,9 +598,14 @@ export function useSymbolTrading(
       } catch {
         if (!cancelled) setPreviousClose(undefined);
       }
-    })();
+    };
+    void load();
+    // 등락률 기준은 애프터마켓 종료(20:00 ET = 데이장 시작) 시점에 롤오버되므로,
+    // 앱을 켜 둔 채 경계를 지나도 따라가도록 10분 주기로 재계산한다.
+    const timer = setInterval(() => void load(), 10 * 60 * 1000);
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
   }, [contextIsReady, symbol]);
 

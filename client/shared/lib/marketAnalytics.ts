@@ -11,19 +11,38 @@ export interface MarketMetric {
 
 // 일봉 캔들에서 "전일(직전 거래일) 종가"를 고른다. 미국 거래일(ET) 기준으로 판단해야
 // 자정을 넘긴 정규장(KST 새벽)에서도 오늘 캔들을 prevClose 로 잘못 쓰지 않는다.
+/** 해당 세션(ET 날짜)의 애프터마켓 종료 시각(20:00 ET)의 epoch(ms). */
+function sessionCutoffMs(epochSec: number): number {
+  const [y, m, d] = new Date(epochSec * 1000)
+    .toLocaleDateString('en-CA', { timeZone: 'America/New_York' })
+    .split('-')
+    .map(Number);
+  // 그 날짜의 ET 오프셋(EDT -4 / EST -5)을 역검증으로 판별해 20:00 ET 의 UTC epoch 을 만든다.
+  for (const offset of [4, 5]) {
+    const guess = Date.UTC(y, m - 1, d, 20 + offset, 0, 0);
+    const backHour = new Date(guess).toLocaleTimeString('en-GB', {
+      timeZone: 'America/New_York',
+      hour: '2-digit',
+      hour12: false,
+    });
+    if (backHour === '20') return guess;
+  }
+  return Date.UTC(y, m - 1, d + 1, 0, 0, 0); // 이례적 폴백
+}
+
+/**
+ * 등락률 기준 종가 — 토스와 동일하게 '애프터마켓 종료(20:00 ET = 데이장 시작 09/10시 KST)'
+ * 시점에 방금 끝난 세션의 종가로 롤오버한다. (ET 달력 자정 기준이 아니라 세션 사이클 기준 —
+ * 매일 09:00~13:00 KST 구간에 토스와 어긋나던 문제 수정)
+ */
 export function resolvePreviousClose(dailyCandles: ChartCandle[], now = new Date()): number | undefined {
   if (dailyCandles.length === 0) return undefined;
   const sorted = [...dailyCandles].sort((a, b) => a.time - b.time);
-
-  const etDate = (epochSec: number) =>
-    new Date(epochSec * 1000).toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-  const todayEt = now.toLocaleDateString('en-CA', { timeZone: 'America/New_York' });
-
-  const last = sorted[sorted.length - 1];
-  const lastIsToday = etDate(last.time) === todayEt;
-  // 오늘 캔들이 있으면 그 직전(전일) 종가, 없으면 가장 최근 완료 세션의 종가.
-  const prev = lastIsToday ? sorted[sorted.length - 2] : last;
-  return prev?.close;
+  const nowMs = now.getTime();
+  for (let i = sorted.length - 1; i >= 0; i -= 1) {
+    if (sessionCutoffMs(sorted[i].time) <= nowMs) return sorted[i].close;
+  }
+  return undefined;
 }
 
 function formatSignedMoney(value: number, currency?: string) {
