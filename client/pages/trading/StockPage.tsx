@@ -131,6 +131,33 @@ export function StockPage() {
     }
   };
 
+  // 펜슬로 차트의 미체결 주문 라인을 드래그 → 지정가 정정(취소 후 재주문).
+  const reviseOrder = async (
+    order: { orderId?: string; side: 'BUY' | 'SELL'; quantity?: number; price: number },
+    newPrice: number
+  ) => {
+    if (!symbol || !order.orderId || !order.quantity || order.quantity <= 0) return;
+    const price = floorToTick(newPrice);
+    if (price === undefined || !Number.isFinite(price) || price <= 0) return;
+    try {
+      await cancelOrder(order.orderId);
+      await createOrder({
+        symbol,
+        side: order.side,
+        orderType: 'LIMIT',
+        quantity: order.quantity,
+        price,
+        clientOrderId: crypto.randomUUID(),
+      });
+      showToast(`지정가를 $${price}(으)로 정정했습니다.`, 'success');
+    } catch (error) {
+      showToast(
+        error instanceof Error ? error.message : '주문 정정에 실패했습니다.',
+        'error'
+      );
+    }
+  };
+
   const v2Active = hasSymbol;
 
   // 데스크톱 주문 컬럼: 주문폼(위)/호가(아래) 사이 드래그 핸들로 높이 비율 조절(localStorage 영속).
@@ -247,6 +274,7 @@ export function StockPage() {
                 {...marketPanelProps}
                 symbol={symbol}
                 onAutoExecute={executeAutoOrder}
+                onReviseOrder={reviseOrder}
                 autoSubmitting={autoSubmitting}
                 onViewAiLogs={
                   v2Active

@@ -5677,3 +5677,25 @@ input[type='checkbox']:focus-visible {
 .order-history-symbol__line.is-sell {
   color: var(--color-down);
 }
+
+/* 펜슬 드로잉 도구(되돌리기/지우기) — 차트 좌하단 플로팅, 드로잉이 있을 때만 */
+.chart-block {
+  position: relative;
+}
+.chart-draw-tools {
+  position: absolute;
+  left: 8px;
+  bottom: 34px; /* TradingView 로고 위 */
+  z-index: 15;
+  display: flex;
+  gap: 4px;
+}
+.chart-draw-tools button {
+  padding: 0.25rem 0.55rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-base) 75%, transparent);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
