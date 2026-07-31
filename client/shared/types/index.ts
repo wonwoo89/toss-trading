@@ -128,12 +128,6 @@ export interface SellableQuantityRaw {
   sellableQuantity: string;
 }
 
-export interface ExchangeRateRaw {
-  rate: string;
-  baseCurrency: string;
-  quoteCurrency: string;
-}
-
 export interface CommissionRaw {
   marketCountry: string;
   commissionRate: string;

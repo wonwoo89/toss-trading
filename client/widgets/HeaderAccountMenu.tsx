@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { formatKrw, formatUsd } from '../shared/lib/formatHoldings';
+import { formatUsd } from '../shared/lib/formatHoldings';
 import { useAccountSummary } from '../shared/hooks/useAccountSummary';
 import { Typography } from '../shared/ui/Typography';
 
@@ -9,7 +9,7 @@ import { Typography } from '../shared/ui/Typography';
  * (데스크톱은 CSS 로 숨기고 header-right 의 HeaderAccountBalance 인라인 표시를 쓴다.)
  */
 export function HeaderAccountMenu() {
-  const { isReady, exchangeRate, totalAccountValue, totalAccountValueKrw } = useAccountSummary();
+  const { isReady, totalAccountValue } = useAccountSummary();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -62,24 +62,13 @@ export function HeaderAccountMenu() {
       </button>
 
       {open && (
-        <div className="header-account-menu__panel" role="menu" aria-label="총 계좌 및 환율">
-          <div className="header-account-menu__row">
-            <Typography size={12} className="header-account-menu__label">환율</Typography>
-            <Typography size={12} className="header-account-menu__rate">
-              {exchangeRate !== undefined ? `$1 = ${formatKrw(exchangeRate)}` : '—'}
-            </Typography>
-          </div>
+        <div className="header-account-menu__panel" role="menu" aria-label="총 계좌">
           <div className="header-account-menu__row">
             <Typography size={12} className="header-account-menu__label">총 계좌</Typography>
             <span className="header-account-menu__amount">
               <Typography as="strong" size={16} className="header-account-menu__usd">
                 {formatUsd(totalAccountValue)}
               </Typography>
-              {totalAccountValueKrw !== undefined && (
-                <Typography size={10} className="header-account-menu__krw">
-                  {formatKrw(totalAccountValueKrw)}
-                </Typography>
-              )}
             </span>
           </div>
         </div>

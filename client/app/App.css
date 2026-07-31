@@ -128,12 +128,6 @@ textarea {
   white-space: nowrap;
 }
 
-.header-finance__divider {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-  line-height: 1;
-}
-
 .header-account-balance {
   display: flex;
   flex-direction: row;
@@ -148,19 +142,6 @@ textarea {
   gap: 0.5rem;
 }
 
-.header-exchange-rate {
-  display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-}
-
-
-.header-exchange-rate__value {
-  font-size: 0.68rem;
-  color: var(--text-secondary);
-  line-height: 1.2;
-}
-
 .header-account-balance__label {
   font-size: 0.72rem;
   color: #fff;
@@ -171,12 +152,6 @@ textarea {
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.2;
-}
-
-.header-account-balance__krw {
-  font-size: 0.68rem;
-  color: var(--text-secondary);
   line-height: 1.2;
 }
 
@@ -244,12 +219,6 @@ textarea {
   color: var(--text-secondary);
 }
 
-.header-account-menu__rate {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  white-space: nowrap;
-}
-
 .header-account-menu__amount {
   display: flex;
   flex-direction: column;
@@ -261,12 +230,6 @@ textarea {
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.2;
-}
-
-.header-account-menu__krw {
-  font-size: 0.68rem;
-  color: var(--text-secondary);
   line-height: 1.2;
 }
 
@@ -4542,11 +4505,6 @@ input[type='checkbox']:focus-visible {
   }
   .account-summary-card__amount strong {
     font-size: 1.05rem;
-    font-variant-numeric: tabular-nums;
-  }
-  .account-summary-card__krw,
-  .account-summary-card__rate {
-    color: var(--text-secondary);
     font-variant-numeric: tabular-nums;
   }
 }
