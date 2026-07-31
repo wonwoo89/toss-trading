@@ -131,14 +131,15 @@ textarea {
 .header-account-balance {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  /* 라벨(작은 글자)과 금액(큰 글자)은 중앙 정렬 시 라벨이 떠 보인다 — 베이스라인 정렬 */
+  align-items: baseline;
   gap: 0.45rem;
 }
 
 .header-account-balance__amounts {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: baseline;
   gap: 0.5rem;
 }
 
