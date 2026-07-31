@@ -242,12 +242,14 @@ export interface OrderSubmitResult {
   };
 }
 
-export type CandleInterval = '1m' | '5m' | '10m' | '1d' | '1w' | '1M';
+export type CandleInterval = '1m' | '5m' | '10m' | '15m' | '30m' | '1d' | '1w' | '1M';
 
 export const CANDLE_INTERVALS: { value: CandleInterval; label: string }[] = [
   { value: '1m', label: '1분' },
   { value: '5m', label: '5분' },
   { value: '10m', label: '10분' },
+  { value: '15m', label: '15분' },
+  { value: '30m', label: '30분' },
   { value: '1d', label: '일' },
   { value: '1w', label: '주' },
   { value: '1M', label: '월' },
