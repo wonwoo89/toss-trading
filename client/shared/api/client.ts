@@ -8,7 +8,6 @@ import type {
   CandlePageRaw,
   CreateOrderPayload,
   OrderCreateResponse,
-  ExchangeRateRaw,
   UsMarketCalendarRaw,
   HoldingsItemRaw,
   HoldingsRaw,
@@ -429,7 +428,6 @@ export const api = {
         trades: TradeRaw[];
       }>
     >(`/market/snapshot/${symbol}`),
-  getExchangeRate: () => request<ApiEnvelope<ExchangeRateRaw>>('/market/exchange-rate'),
   getUsMarketCalendar: (date?: string) => {
     const params = date ? `?date=${encodeURIComponent(date)}` : '';
     return request<ApiEnvelope<UsMarketCalendarRaw>>(`/market/market-calendar/us${params}`);

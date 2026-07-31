@@ -19,7 +19,6 @@ interface AppContextValue {
   setBuyingPower: (value?: number) => void;
   totalMarketValue?: number;
   setTotalMarketValue: (value?: number) => void;
-  exchangeRate?: number;
   isReady: boolean;
   bootstrapError: string | null;
 }
@@ -33,7 +32,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [selectedAccountSeq, setSelectedAccountSeq] = useState<string>();
   const [buyingPower, setBuyingPower] = useState<number>();
   const [totalMarketValue, setTotalMarketValue] = useState<number>();
-  const [exchangeRate, setExchangeRate] = useState<number>();
   const [isReady, setIsReady] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
 
@@ -49,9 +47,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         setAccounts(accountList);
         setSelectedAccountSeq(String(accountList[0]?.accountSeq ?? ''));
-
-        const exchangeRes = await api.getExchangeRate();
-        setExchangeRate(toNumber(unwrapResult(exchangeRes).rate));
       })();
     }
 
@@ -84,7 +79,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setBuyingPower,
       totalMarketValue,
       setTotalMarketValue,
-      exchangeRate,
       isReady,
       bootstrapError,
     }),
@@ -92,7 +86,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       accounts,
       bootstrapError,
       buyingPower,
-      exchangeRate,
       isReady,
       selectedAccountSeq,
       totalMarketValue,
