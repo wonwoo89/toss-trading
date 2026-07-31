@@ -86,7 +86,7 @@ function aggregateBucket(
 
 const SOURCE_MINUTE_MS = 60 * 1000;
 
-export function aggregateMinuteCandles(candles: RawCandle[], minutes: 5 | 10) {
+export function aggregateMinuteCandles(candles: RawCandle[], minutes: 5 | 10 | 15 | 30) {
   const bucketMs = minutes * 60 * 1000;
 
   return aggregateBucket(
@@ -126,7 +126,7 @@ export function aggregateMonthlyCandles(candles: RawCandle[]) {
   return aggregateBucket(candles, getMonthKey);
 }
 
-export type SupportedCandleInterval = '1m' | '5m' | '10m' | '1d' | '1w' | '1M';
+export type SupportedCandleInterval = '1m' | '5m' | '10m' | '15m' | '30m' | '1d' | '1w' | '1M';
 
 export function isNativeInterval(interval: string): interval is '1m' | '1d' {
   return interval === '1m' || interval === '1d';
@@ -142,6 +142,8 @@ export function getSourceInterval(interval: SupportedCandleInterval): '1m' | '1d
 export function getMinuteAggregationFactor(interval: SupportedCandleInterval) {
   if (interval === '5m') return 5;
   if (interval === '10m') return 10;
+  if (interval === '15m') return 15;
+  if (interval === '30m') return 30;
   return null;
 }
 
@@ -171,6 +173,10 @@ export function aggregateCandles(
       return aggregateMinuteCandles(candles, 5);
     case '10m':
       return aggregateMinuteCandles(candles, 10);
+    case '15m':
+      return aggregateMinuteCandles(candles, 15);
+    case '30m':
+      return aggregateMinuteCandles(candles, 30);
     case '1w':
       return aggregateWeeklyCandles(candles);
     case '1M':

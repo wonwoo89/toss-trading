@@ -4,10 +4,15 @@ import type { CandleInterval, CandleRaw, ChartCandle } from '../types';
 export function getCandleCount(interval: CandleInterval) {
   if (interval === '1M') return 24;
   if (interval === '1w') return 52;
+  // 15/30분봉은 서버가 토스 1분봉을 모아 만든다(봉당 15·30콜) — 소스 호출량을 줄이기 위해 봉 수 축소.
+  if (interval === '30m') return 60;
+  if (interval === '15m') return 90;
   return 120;
 }
 
-export function getHistoryCandleCount() {
+export function getHistoryCandleCount(interval: CandleInterval) {
+  if (interval === '30m') return 60;
+  if (interval === '15m') return 90;
   return 200;
 }
 

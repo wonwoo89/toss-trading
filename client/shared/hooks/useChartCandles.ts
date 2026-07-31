@@ -196,7 +196,7 @@ export function useChartCandles(
 
     try {
       const page = unwrapResult(
-        await api.getCandles(symbol, interval, getHistoryCandleCount(), before)
+        await api.getCandles(symbol, interval, getHistoryCandleCount(interval), before)
       );
       // 종목/인터벌이 바뀐 뒤 도착한 과거 캔들 응답은 폐기.
       if (requestKey !== activeKeyRef.current) return;
