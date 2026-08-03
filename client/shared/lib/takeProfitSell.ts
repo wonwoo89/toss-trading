@@ -19,6 +19,8 @@ export interface TakeProfitCostContext {
   profitLossCostDrag?: number;
   costCommission?: number;
   costTax?: number | null;
+  /** 비용 스냅샷의 기준가(보유 lastPrice) — costDrag 를 매도가 비율로 보정할 때 사용. */
+  referencePrice?: number;
 }
 
 function roundUsdPrice(price: number) {
@@ -106,6 +108,7 @@ export function getTakeProfitCostContext(holding?: HoldingItem): TakeProfitCostC
     profitLossCostDrag: holding.profitLossCostDrag,
     costCommission: holding.costCommission,
     costTax: holding.costTax,
+    referencePrice: holding.currentPrice,
   };
 }
 
@@ -136,6 +139,24 @@ export function calculateTakeProfitSellPrice(
     (scaledCost?.costCommission !== undefined
       ? scaledCost.costCommission + (scaledCost.costTax ?? 0)
       : undefined);
+
+  // 1순위: 예상 실수익(estimateNetSellProfit)과 동일 모델의 정확한 역산.
+  // 스냅샷 비용(수수료·제세금)은 매도 금액에 대체로 비례 — 기준가 대비 매도가 비율로 보정.
+  // net = (P-avg)·q - costDrag·(P/ref) = target·avg·q → P = avg·q(1+target)/(q - costDrag/ref)
+  const referencePrice = scaledCost?.referencePrice;
+  if (
+    costDragRef !== undefined &&
+    costDragRef >= 0 &&
+    referencePrice !== undefined &&
+    referencePrice > 0
+  ) {
+    const denominator = sellQuantity - costDragRef / referencePrice;
+    // 비용이 평가금액의 절반을 넘는 비정상 스냅샷은 신뢰하지 않고 다음 경로로.
+    if (denominator > sellQuantity * 0.5) {
+      const price = (purchaseAmount * (1 + targetRate)) / denominator;
+      return Math.max(ceilUsdPrice(price), commissionFloor);
+    }
+  }
 
   if (
     grossRef !== undefined &&
@@ -195,6 +216,8 @@ export function estimateNetSellProfit(
   const purchaseAmount = sellQuantity * averagePrice;
   const grossProfit = (sellPrice - averagePrice) * sellQuantity;
   const scaledCost = scaleCostContext(costContext, sellQuantity);
+  // 기준가 미지정 시 비용 스냅샷의 기준가(보유 lastPrice)로 폴백 — 목표가 역산과 동일 모델 유지.
+  const refPrice = referencePrice ?? scaledCost?.referencePrice;
 
   const grossRef = scaledCost?.grossProfitLoss;
   const costDragRef =
@@ -204,14 +227,9 @@ export function estimateNetSellProfit(
       : undefined);
 
   let netProfit: number;
-  if (
-    costDragRef !== undefined &&
-    costDragRef >= 0 &&
-    referencePrice !== undefined &&
-    referencePrice > 0
-  ) {
+  if (costDragRef !== undefined && costDragRef >= 0 && refPrice !== undefined && refPrice > 0) {
     // 스냅샷 비용(수수료·제세금)은 매도 금액에 대체로 비례 — 기준가 대비 매도가 비율로 보정 차감.
-    netProfit = grossProfit - costDragRef * (sellPrice / referencePrice);
+    netProfit = grossProfit - costDragRef * (sellPrice / refPrice);
   } else if (
     grossRef !== undefined &&
     grossRef > MIN_GROSS_PROFIT &&
