@@ -87,7 +87,9 @@ function getPriceFormatOptions(currency?: string) {
   };
 }
 
-const HISTORY_LOAD_THRESHOLD = 15;
+// 왼쪽 끝에 닿기 전에 미리 과거 캔들을 받아두는 프리페치 임계(봉 수) — 값이 클수록
+// 사용자가 팬을 계속하는 동안 로드가 끝나 끊김(대기·빈 구간)이 줄어든다.
+const HISTORY_LOAD_THRESHOLD = 60;
 // 봉 마감 카운트다운을 표시할 최대 봉 간격(초) — 15분 이하 분봉만.
 const COUNTDOWN_MAX_INTERVAL_SEC = 15 * 60;
 
@@ -865,6 +867,12 @@ export function CandleChart({
     markersApiRef.current = createSeriesMarkers(series, []);
 
     chartRef.current = chart;
+    // 개발 모드 전용 — 뷰포트 회귀 디버깅용 핸들(프로덕션 번들에는 미포함)
+    if (import.meta.env.DEV) {
+      const w = window as unknown as { __chart?: IChartApi; __series?: ISeriesApi<'Candlestick'> };
+      w.__chart = chart;
+      w.__series = series;
+    }
     seriesRef.current = series;
     bbUpperSeriesRef.current = bbUpperSeries;
     bbMiddleSeriesRef.current = bbMiddleSeries;
@@ -1503,18 +1511,13 @@ export function CandleChart({
     );
 
     if (visibleRange && prependedCount > 0) {
-      const from = Math.max(0, visibleRange.from + prependedCount);
+      // 과거 캔들 프리펜드 — 논리 인덱스가 통째로 밀리므로 같은 양만큼 시프트해 보던 위치 유지.
+      // 주의: 여기서 rightOffset 을 applyOptions 로 재적용하면 차트가 '마지막 캔들+오프셋'
+      // 위치로 강제 스크롤돼 실시간 시점으로 점프한다(과거 조회 중 점프 회귀의 원인). 시프트만 한다.
+      // barSpacing 은 setVisibleLogicalRange 의 span 이 그대로라 변하지 않는다.
+      const from = visibleRange.from + prependedCount;
       const to = Math.max(from, visibleRange.to + prependedCount);
       chart.timeScale().setVisibleLogicalRange({ from, to });
-
-      if (barSpacingBeforeUpdate !== undefined) {
-        chart.timeScale().applyOptions({
-          barSpacing: barSpacingBeforeUpdate,
-          ...(rightOffsetBeforeUpdate !== undefined
-            ? { rightOffset: rightOffsetBeforeUpdate }
-            : {}),
-        });
-      }
     } else if (pendingRestoreRef.current || !viewportInitializedRef.current) {
       if (getTimeScaleWidth(chart) > 0) {
         needsInitOnVisibleRef.current = false;
