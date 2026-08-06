@@ -25,6 +25,7 @@ import { getChartDrawings, saveChartDrawings } from '../shared/lib/chartDrawings
 import { emitLimitPriceSelect } from '../shared/lib/limitPriceBus';
 import { floorToTick } from '../shared/lib/usTick';
 import { VolumeProfilePrimitive } from '../shared/lib/volumeProfilePrimitive';
+import type { VolumeProfileMode } from '../shared/lib/volumeProfileVisiblePreference';
 import { buildVolumeProfile } from '../shared/lib/volumeProfile';
 import { useTheme } from '../app/providers/ThemeContext';
 import {
@@ -64,6 +65,8 @@ interface CandleChartProps {
   showBollinger?: boolean;
   /** 매물대(볼륨 프로파일) 표시 여부. */
   showVolumeProfile?: boolean;
+  /** 매물대 표시 방식 — total: 총량 단색, updown: 양봉/음봉 분리 색. */
+  volumeProfileMode?: VolumeProfileMode;
   /** 매물대 구간 수(기본 30). */
   volumeProfileBins?: number;
   showSupertrend?: boolean;
@@ -575,6 +578,7 @@ export function CandleChart({
   onLoadOlder,
   showBollinger = true,
   showVolumeProfile = true,
+  volumeProfileMode = 'total',
   volumeProfileBins = 30,
   showSupertrend = false,
   currency = 'USD',
@@ -593,6 +597,8 @@ export function CandleChart({
   const volumeProfilePrimitiveRef = useRef<VolumeProfilePrimitive | null>(null);
   const showVolumeProfileRef = useRef(showVolumeProfile);
   showVolumeProfileRef.current = showVolumeProfile;
+  const volumeProfileModeRef = useRef(volumeProfileMode);
+  volumeProfileModeRef.current = volumeProfileMode;
   const volumeProfileBinsRef = useRef(volumeProfileBins);
   volumeProfileBinsRef.current = volumeProfileBins;
   // 슈퍼트렌드: 상승/하락 구간을 색으로 구분하기 위해 두 라인 시리즈로 분리(상승=빨강/하락=파랑).
@@ -793,7 +799,12 @@ export function CandleChart({
 
     // 매물대(볼륨 프로파일) — 캔들 pane 좌측 가로 바. 캔들 시리즈 좌표계를 사용.
     const volumeProfilePrimitive = new VolumeProfilePrimitive();
-    volumeProfilePrimitive.setColor(colors.candleDown);
+    volumeProfilePrimitive.setColors({
+      total: colors.candleDown,
+      up: colors.candleUp,
+      down: colors.candleDown,
+    });
+    volumeProfilePrimitive.setMode(volumeProfileModeRef.current);
     volumeProfilePrimitive.setVisible(showVolumeProfileRef.current);
     series.attachPrimitive(volumeProfilePrimitive);
     volumeProfilePrimitiveRef.current = volumeProfilePrimitive;
@@ -1299,7 +1310,14 @@ export function CandleChart({
       },
       getChartThemeColors()
     );
-    volumeProfilePrimitiveRef.current?.setColor(getChartThemeColors().candleDown);
+    {
+      const themeColors = getChartThemeColors();
+      volumeProfilePrimitiveRef.current?.setColors({
+        total: themeColors.candleDown,
+        up: themeColors.candleUp,
+        down: themeColors.candleDown,
+      });
+    }
     scheduleHighLowMarkersUpdateRef.current(); // 테마 색 반영
   }, [theme]);
 
@@ -1320,6 +1338,11 @@ export function CandleChart({
   useEffect(() => {
     scheduleHighLowMarkersUpdateRef.current();
   }, [volumeProfileBins]);
+
+  // 매물대 표시 방식(총량/업다운) 변경 — 렌더 모드만 교체(데이터는 유지).
+  useEffect(() => {
+    volumeProfilePrimitiveRef.current?.setMode(volumeProfileMode);
+  }, [volumeProfileMode]);
 
   // 슈퍼트렌드 on/off — 상승/하락 라인 표시 토글(데이터는 유지).
   useEffect(() => {

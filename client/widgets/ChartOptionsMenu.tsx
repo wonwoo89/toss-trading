@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Checkbox } from '../shared/ui/Checkbox';
+import { SegmentedControl } from '../shared/ui/SegmentedControl';
 import { NumberField } from './NumberField';
 import {
   VOLUME_PROFILE_BINS_MAX,
   VOLUME_PROFILE_BINS_MIN,
+  type VolumeProfileMode,
 } from '../shared/lib/volumeProfileVisiblePreference';
 
 interface ChartOptionsMenuProps {
@@ -18,6 +20,8 @@ interface ChartOptionsMenuProps {
   onVolumeProfileVisibleChange: (visible: boolean) => void;
   volumeProfileBins: number;
   onVolumeProfileBinsChange: (bins: number) => void;
+  volumeProfileMode: VolumeProfileMode;
+  onVolumeProfileModeChange: (mode: VolumeProfileMode) => void;
 }
 
 const PANEL_WIDTH = 220;
@@ -39,6 +43,8 @@ export function ChartOptionsMenu({
   onVolumeProfileVisibleChange,
   volumeProfileBins,
   onVolumeProfileBinsChange,
+  volumeProfileMode,
+  onVolumeProfileModeChange,
 }: ChartOptionsMenuProps) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -154,6 +160,16 @@ export function ChartOptionsMenu({
           />
           {volumeProfileVisible && (
             <div className="chart-options__sub">
+              <SegmentedControl
+                className="chart-options__vp-mode"
+                aria-label="매물대 표시 방식"
+                options={[
+                  { value: 'total', label: '총량' },
+                  { value: 'updown', label: '업/다운' },
+                ]}
+                value={volumeProfileMode}
+                onChange={onVolumeProfileModeChange}
+              />
               <NumberField
                 className="chart-options__bins"
                 label="매물대 구간"

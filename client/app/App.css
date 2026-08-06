@@ -4458,10 +4458,18 @@ input[type='checkbox']:focus-visible {
 
 /* 매물대 구간 수 입력 — 체크박스 하위 옵션 행 */
 .chart-options__sub {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
   padding: 0.15rem 0.5rem 0.45rem 1.75rem; /* 체크박스 라벨 들여쓰기에 맞춤 */
 }
 .chart-options__bins .ui-textfield__input {
   height: 32px;
+}
+/* 매물대 표시 방식(총량/업다운) — 컴팩트 세그먼티드 */
+.chart-options__vp-mode .ui-segmented__item {
+  padding: 0.28rem 0.5rem;
+  font-size: 0.72rem;
 }
 
 @media (max-width: 1100px) {
