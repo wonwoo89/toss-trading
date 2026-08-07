@@ -412,20 +412,22 @@ export function OrderForm({
 
   const effectiveOrderPrice = useProfitOrder ? targetSellPrice : manualOrderPrice;
 
-  // 예상 금액(현재가 기준) = 예상 수량 × 현재가. (% 미선택 시 직접 입력 수량으로 폴백)
+  // 예상 금액 = 예상 수량 × 주문가 — 지정가 입력 시 지정가, 시장가/현재가 모드는 현재가 기준.
+  // (예상 손익과 같은 가격 기준을 써서 두 표시가 어긋나지 않게 한다)
   const buyEstimatedAmount = useMemo(() => {
-    if (useAmountOrder || currentPrice === undefined || currentPrice <= 0) return undefined;
+    const px = effectiveBuyPrice;
+    if (useAmountOrder || px === undefined || px <= 0) return undefined;
     const qty = buyQuantityForPercent ?? effectiveQuantity;
-    return qty !== undefined ? qty * currentPrice : undefined;
-  }, [useAmountOrder, currentPrice, buyQuantityForPercent, effectiveQuantity]);
+    return qty !== undefined ? qty * px : undefined;
+  }, [useAmountOrder, effectiveBuyPrice, buyQuantityForPercent, effectiveQuantity]);
 
   const sellEstimatedAmount = useMemo(() => {
-    // 수익률 모드는 목표 지정가 기준(체결 시 수령액), 그 외는 현재가 기준.
-    const px = useProfitOrder ? targetSellPrice : currentPrice;
+    // 수익률 모드=목표 지정가, 가격 모드=지정가 입력값(없으면 현재가) — 체결 시 수령액 기준.
+    const px = effectiveOrderPrice;
     if (useAmountOrder || px === undefined || px <= 0) return undefined;
     const qty = sellQuantityForPercent ?? effectiveQuantity;
     return qty !== undefined ? qty * px : undefined;
-  }, [useAmountOrder, useProfitOrder, targetSellPrice, currentPrice, sellQuantityForPercent, effectiveQuantity]);
+  }, [useAmountOrder, effectiveOrderPrice, sellQuantityForPercent, effectiveQuantity]);
 
   // 매도 예상 실수익(비용 반영) — 매도가(지정가 입력값/현재가) × 예상 수량 기준, 평단 대비.
   const sellProfitEstimate = useMemo(() => {
