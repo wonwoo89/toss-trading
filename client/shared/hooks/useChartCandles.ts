@@ -9,7 +9,7 @@ import {
   setCachedCandles,
 } from '../lib/candles';
 import { unwrapResult } from '../lib/parse';
-import type { CandleInterval, ChartCandle } from '../types';
+import type { CandleInterval, CandleRaw, ChartCandle } from '../types';
 
 const CANDLE_POLL_MS = 1000;
 const CANDLE_INITIAL_DELAY_MS = 500;
@@ -36,6 +36,9 @@ export function useChartCandles(
   const [hasMoreHistory, setHasMoreHistory] = useState(false);
 
   const historyCursorRef = useRef<string | null>(null);
+  // 히스토리 소진(토스 데이터 끝) 표시 — 커서 null 이 '미초기화'와 '끝'을 겸하면
+  // 폴링(refreshLatest)이 끝난 커서를 다시 심어 소진된 꼬리 페이지를 무한 재조회한다.
+  const historyExhaustedRef = useRef(false);
   const loadingOlderRef = useRef(false);
   const hasDataRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -56,6 +59,7 @@ export function useChartCandles(
     // 없으면 비운다. 어느 경우든 백그라운드로 최신 캔들을 다시 받아 갱신한다.
     const cached = getCachedCandles(`${symbol}:${interval}`);
     historyCursorRef.current = null;
+    historyExhaustedRef.current = false;
     loadingOlderRef.current = false;
     hasDataRef.current = !!(cached && cached.length);
     setCandles(cached ?? []);
@@ -81,7 +85,7 @@ export function useChartCandles(
     setError(null);
     hasDataRef.current = mapped.length > 0;
 
-    if (historyCursorRef.current === null) {
+    if (historyCursorRef.current === null && !historyExhaustedRef.current) {
       historyCursorRef.current = page.nextBefore;
       setHasMoreHistory(page.nextBefore !== null);
     }
@@ -186,31 +190,47 @@ export function useChartCandles(
     runRef.current();
   }, [enabled]);
 
+  // 빈 페이지(거래정지·병합 구간, 0가격 필터 등)는 캔들이 없어 프리펜드가 일어나지 않고,
+  // 그러면 보이는 범위 변화 이벤트도 없어 다음 로드가 트리거되지 않는다 — 커서만 전진한 채
+  // "조회는 끝났는데 아무것도 안 그려지는" 정체가 생긴다. 새 캔들이 나올 때까지 몇 페이지를
+  // 연쇄 조회하고, 커서가 전진하지 않으면(무한 루프 위험) 히스토리 끝으로 처리한다.
+  const EMPTY_HISTORY_PAGE_CHAIN_MAX = 5;
+
   const loadOlder = useCallback(async () => {
     const requestKey = `${symbol}:${interval}`;
-    const before = historyCursorRef.current;
-    if (!before || loadingOlderRef.current) return;
+    if (!historyCursorRef.current || loadingOlderRef.current) return;
 
     loadingOlderRef.current = true;
     setLoadingOlder(true);
 
     try {
-      const page = unwrapResult(
-        await api.getCandles(symbol, interval, getHistoryCandleCount(interval), before)
-      );
-      // 종목/인터벌이 바뀐 뒤 도착한 과거 캔들 응답은 폐기.
-      if (requestKey !== activeKeyRef.current) return;
-      const mapped = mapApiCandles(page.candles);
+      for (let attempt = 0; attempt < EMPTY_HISTORY_PAGE_CHAIN_MAX; attempt += 1) {
+        const before: string | null = historyCursorRef.current;
+        if (!before) break;
 
-      setCandles((prev) => {
-        const merged = mergeChartCandles(mapped, prev);
-        setCachedCandles(requestKey, merged);
-        return merged;
-      });
-      setError(null);
+        const page: { candles: CandleRaw[]; nextBefore: string | null } = unwrapResult(
+          await api.getCandles(symbol, interval, getHistoryCandleCount(interval), before)
+        );
+        // 종목/인터벌이 바뀐 뒤 도착한 과거 캔들 응답은 폐기.
+        if (requestKey !== activeKeyRef.current) return;
+        const mapped = mapApiCandles(page.candles);
 
-      historyCursorRef.current = page.nextBefore;
-      setHasMoreHistory(page.nextBefore !== null);
+        if (mapped.length > 0) {
+          setCandles((prev) => {
+            const merged = mergeChartCandles(mapped, prev);
+            setCachedCandles(requestKey, merged);
+            return merged;
+          });
+        }
+        setError(null);
+
+        // 커서 미전진 = 같은 페이지 반복 위험 → 히스토리 끝으로 간주.
+        historyCursorRef.current = page.nextBefore === before ? null : page.nextBefore;
+        if (historyCursorRef.current === null) historyExhaustedRef.current = true;
+        setHasMoreHistory(historyCursorRef.current !== null);
+
+        if (mapped.length > 0 || historyCursorRef.current === null) break;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '과거 캔들을 불러오지 못했습니다.');
     } finally {
