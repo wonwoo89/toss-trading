@@ -48,3 +48,24 @@ export function setStoredVolumeProfileBins(bins: number) {
     // ignore storage write errors
   }
 }
+
+const MODE_STORAGE_KEY = 'toss-trading:chart-volume-profile-mode';
+
+/** 매물대 표시 방식 — total: 총 거래량 단색, updown: 양봉/음봉 거래량 분리 색. */
+export type VolumeProfileMode = 'total' | 'updown';
+
+export function getStoredVolumeProfileMode(): VolumeProfileMode {
+  try {
+    return localStorage.getItem(MODE_STORAGE_KEY) === 'updown' ? 'updown' : 'total';
+  } catch {
+    return 'total';
+  }
+}
+
+export function setStoredVolumeProfileMode(mode: VolumeProfileMode) {
+  try {
+    localStorage.setItem(MODE_STORAGE_KEY, mode);
+  } catch {
+    // ignore storage write errors
+  }
+}

@@ -7,6 +7,7 @@ import type {
   SeriesType,
 } from 'lightweight-charts';
 import type { VolumeProfile } from './volumeProfile';
+import type { VolumeProfileMode } from './volumeProfileVisiblePreference';
 
 type DrawTarget = Parameters<IPrimitivePaneRenderer['draw']>[0];
 
@@ -16,15 +17,31 @@ const MAX_WIDTH_RATIO = 0.5;
 const MIN_ALPHA = 0.25;
 const MAX_ALPHA = 0.8;
 
+interface VolumeProfileColors {
+  /** 총량(단색) 모드 바 색. */
+  total: string;
+  /** 업/다운 모드 — 양봉(상승 캔들) 거래량 색. */
+  up: string;
+  /** 업/다운 모드 — 음봉(하락 캔들) 거래량 색. */
+  down: string;
+}
+
 class VolumeProfileRenderer implements IPrimitivePaneRenderer {
   private profile: VolumeProfile;
   private series: ISeriesApi<SeriesType>;
-  private color: string;
+  private colors: VolumeProfileColors;
+  private mode: VolumeProfileMode;
 
-  constructor(profile: VolumeProfile, series: ISeriesApi<SeriesType>, color: string) {
+  constructor(
+    profile: VolumeProfile,
+    series: ISeriesApi<SeriesType>,
+    colors: VolumeProfileColors,
+    mode: VolumeProfileMode
+  ) {
     this.profile = profile;
     this.series = series;
-    this.color = color;
+    this.colors = colors;
+    this.mode = mode;
   }
 
   draw(target: DrawTarget) {
@@ -33,7 +50,6 @@ class VolumeProfileRenderer implements IPrimitivePaneRenderer {
       const gap = Math.max(1, Math.round(verticalPixelRatio)); // 바 사이 1px 간격
 
       context.save();
-      context.fillStyle = this.color;
 
       for (const bin of this.profile.bins) {
         const total = bin.upVolume + bin.downVolume;
@@ -46,10 +62,27 @@ class VolumeProfileRenderer implements IPrimitivePaneRenderer {
         const yBot = Math.max(yTopRaw, yBotRaw) * verticalPixelRatio;
         const height = Math.max(1, yBot - yTop - gap);
 
-        // 폭·투명도 모두 거래량 비중에 비례 — 단일 색(토스 스타일)
+        // 폭·투명도 모두 거래량 비중에 비례
         const ratio = total / this.profile.maxTotal;
         context.globalAlpha = MIN_ALPHA + (MAX_ALPHA - MIN_ALPHA) * ratio;
-        context.fillRect(0, yTop, ratio * maxBarWidth, height);
+
+        if (this.mode === 'updown') {
+          // 양봉/음봉 거래량을 좌→우로 이어 붙인 분할 바 — 각 구간에서
+          // 오르며 거래된 물량(up)과 내리며 거래된 물량(down)의 비중을 보여준다.
+          const upWidth = (bin.upVolume / this.profile.maxTotal) * maxBarWidth;
+          const downWidth = (bin.downVolume / this.profile.maxTotal) * maxBarWidth;
+          if (upWidth > 0) {
+            context.fillStyle = this.colors.up;
+            context.fillRect(0, yTop, upWidth, height);
+          }
+          if (downWidth > 0) {
+            context.fillStyle = this.colors.down;
+            context.fillRect(upWidth, yTop, downWidth, height);
+          }
+        } else {
+          context.fillStyle = this.colors.total;
+          context.fillRect(0, yTop, ratio * maxBarWidth, height);
+        }
       }
 
       context.restore();
@@ -76,10 +109,12 @@ class VolumeProfilePaneView implements IPrimitivePaneView {
 /**
  * 매물대(볼륨 프로파일) 프리미티브 — 캔들 pane 좌측에 가격대별 누적 거래량 가로 바.
  * 가격 좌표는 렌더 시점에 변환되므로 팬/줌/스케일 변경을 자동 추적한다.
+ * 표시 방식: total(총량 단색) / updown(양봉·음봉 거래량 분리 색).
  */
 export class VolumeProfilePrimitive implements ISeriesPrimitive {
   private profile: VolumeProfile | null = null;
-  private color = '#3182f6';
+  private colors: VolumeProfileColors = { total: '#3182f6', up: '#f04452', down: '#3182f6' };
+  private mode: VolumeProfileMode = 'total';
   private visible = true;
   private series: ISeriesApi<SeriesType> | null = null;
   private requestUpdate: (() => void) | null = null;
@@ -104,8 +139,13 @@ export class VolumeProfilePrimitive implements ISeriesPrimitive {
     this.requestUpdate?.();
   }
 
-  setColor(color: string) {
-    this.color = color;
+  setColors(colors: VolumeProfileColors) {
+    this.colors = colors;
+    this.requestUpdate?.();
+  }
+
+  setMode(mode: VolumeProfileMode) {
+    this.mode = mode;
     this.requestUpdate?.();
   }
 
@@ -118,6 +158,6 @@ export class VolumeProfilePrimitive implements ISeriesPrimitive {
     if (!this.visible || !this.series || !this.profile || this.profile.bins.length === 0) {
       return null;
     }
-    return new VolumeProfileRenderer(this.profile, this.series, this.color);
+    return new VolumeProfileRenderer(this.profile, this.series, this.colors, this.mode);
   }
 }
