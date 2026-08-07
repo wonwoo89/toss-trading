@@ -154,7 +154,7 @@ const CHART_MIN_BAR_SPACING = 0.0001;
 const RIGHT_MARGIN_FRACTION = 1 / 3;
 // 왼쪽으로 과도하게 밀 때 허용하는 최대 오른쪽 여백(빈 공간) — 화면 폭(보이는 바 수) 대비 비율.
 // 이 이상 밀리면 마지막 캔들이 화면 밖으로 완전히 사라지므로 클램프한다(과거/왼쪽 스크롤은 무제한).
-const MAX_RIGHT_WHITESPACE_RATIO = 0.5;
+const MAX_RIGHT_WHITESPACE_RATIO = 0.4;
 
 interface HoveredCandleOhlc {
   open: number;
